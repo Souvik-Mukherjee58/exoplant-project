@@ -7,33 +7,6 @@ import pandas as pd
 class DataCleaning:
     """Cleans and standardizes exoplanet data."""
 
-    # Exoplanet archive column mappings
-    PLANET_COLUMNS = [
-        "PlanetName",
-        "PlanetMass",
-        "PlanetMassErr1",
-        "PlanetRadius",
-        "PlanetRadiusErr1",
-        "PlanetRadiusMin",
-        "PlanetRadiusMax",
-        "PlanetOrbitalPeriod",
-        "PlanetOrbitalPeriodErr1",
-        "PlanetOrbitalPeriodErr2",
-        "PlanetSemiMajorAxis",
-        "PlanetSemiMajorAxisErr1",
-        "PlanetSemiMajorAxisErr2",
-        "PlanetEquiTemp",
-        "PlanetEquiTempErr1",
-        "PlanetEquiTempErr2",
-        "PlanetEccentricity",
-        "PlanetEccentricityErr1",
-        "PlanetDiscoveryYear",
-        "PlanetDiscoveryMethod",
-        "SmaUnit",
-        "PPerYear",
-        "SemiMajorAxis",
-    ]
-
     def __init__(self):
         self.standard_column_names = {
             "PlanetMass": "planet_mass",
@@ -55,6 +28,14 @@ class DataCleaning:
             "PPerYear": "period_in_years",
             "PPerYearErr1": "period_in_years_err1",
             "PPerYearErr2": "period_in_years_err2",
+            # Stellar properties
+            "StellarName": "stellar_name",
+            "StellarEffectiveTemperature": "stellar_effective_temperature",
+            "StellarRadius": "stellar_radius",
+            "StellarMass": "stellar_mass",
+            "StellarMetallicity": "stellar_metallicity",
+            "StellarLuminosity": "stellar_luminosity",
+            "Dist": "distance",
         }
 
     def clean_columns(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -62,8 +43,17 @@ class DataCleaning:
         if df.empty:
             return df
 
-        # Convert all column names to lower case
+        # Convert all column names to lower case and replace spaces with underscores
         df.columns = df.columns.str.lower().str.replace(" ", "_")
+
+        # Apply standard column name mapping if any matches exist
+        rename_dict = {}
+        for original, standard in self.standard_column_names.items():
+            if original.lower().replace(" ", "_") in df.columns:
+                rename_dict[original.lower().replace(" ", "_")] = standard
+
+        if rename_dict:
+            df = df.rename(columns=rename_dict)
 
         # Drop columns that are not useful for prioritization
         drop_cols = [
@@ -124,6 +114,13 @@ class DataCleaning:
             "period_in_years",
             "period_in_years_err1",
             "period_in_years_err2",
+            # Stellar properties
+            "stellar_effective_temperature",
+            "stellar_radius",
+            "stellar_mass",
+            "stellar_metallicity",
+            "stellar_luminosity",
+            "distance",
         ]
         df = self.sanitize_numeric(df, numeric_columns)
 

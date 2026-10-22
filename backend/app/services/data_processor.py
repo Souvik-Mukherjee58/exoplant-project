@@ -134,12 +134,20 @@ class DataProcessor:
         return self.process_full_pipeline(use_api=use_api)
 
     def get_planet_by_name(self, planet_name: str) -> Optional[pd.Series]:
-        """Get a specific planet by name (case-insensitive partial match)."""
+        """Get a specific planet by name (case-insensitive exact match)."""
         df = self.get_processed_data()
-        matches = df[df["planet_name"].str.contains(planet_name, case=False, na=False)]
+        normalized = planet_name.strip().casefold()
+        matches = df[df["planet_name"].astype(str).str.strip().str.casefold() == normalized]
         if matches.empty:
             return None
         return matches.iloc[0]
+
+    def search_planets(self, query: str, limit: int = 50) -> pd.DataFrame:
+        """Search planets by substring match on name without regex interpretation."""
+        df = self.get_processed_data()
+        normalized = query.strip().casefold()
+        matches = df[df["planet_name"].astype(str).str.casefold().str.contains(normalized, na=False, regex=False)]
+        return matches.head(limit)
 
     def get_top_targets(self, limit: int = 10, min_priority: float = 0.0) -> pd.DataFrame:
         """Get top priority targets."""
@@ -149,8 +157,16 @@ class DataProcessor:
         return result
 
     def get_stats(self) -> Dict[str, Any]:
-        """Get system-wide statistics."""
+        """Get system-wide statistics including real priority histogram."""
         df = self.get_processed_data()
+
+        # Compute empirical priority score histogram across standard 20-point bins
+        scores = df["target_priority_score"].dropna()
+        counts, bin_edges = np.histogram(scores, bins=[0, 20, 40, 60, 80, 100])
+        priority_histogram = [
+            {"range": f"{int(bin_edges[i])}-{int(bin_edges[i+1])}", "count": int(counts[i])}
+            for i in range(len(counts))
+        ]
 
         return {
             "total_planets": len(df),
@@ -161,6 +177,7 @@ class DataProcessor:
                 "median": float(df["target_priority_score"].median()),
                 "std": float(df["target_priority_score"].std())
             },
+            "priority_histogram": priority_histogram,
             "anomaly_distribution": {
                 "min": float(df["anomaly_score"].min()),
                 "max": float(df["anomaly_score"].max()),

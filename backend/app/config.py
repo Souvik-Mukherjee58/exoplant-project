@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     RANDOM_STATE: int = 42
     ANOMALY_CONTAMINATION: float = 0.1
 
+    # API Settings
+    API_TIMEOUT: int = 30  # Timeout for external API requests in seconds
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

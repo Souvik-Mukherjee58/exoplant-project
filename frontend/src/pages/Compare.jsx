@@ -4,7 +4,7 @@ import { usePlanets } from '../hooks/usePlanets'
 import { formatRadius, formatMass, formatPeriod, formatTemperature, formatPriority, formatAnomaly, getHZColor } from '../utils/formatters'
 
 const Compare = () => {
-  const planetsParams = useMemo(() => ({ limit: 100 }), [])
+  const planetsParams = useMemo(() => ({ limit: 500 }), [])
   const { planets: availablePlanets, loading, error } = usePlanets(planetsParams)
   const [selectedPlanets, setSelectedPlanets] = useState([])
 

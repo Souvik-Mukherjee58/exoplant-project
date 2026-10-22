@@ -21,6 +21,7 @@ class TargetPriorityScorer:
         Planetary relevance based on size, mass, and temperature.
 
         Higher scores for planets that are Earth-like or at least potentially habitable.
+        Missing data is handled by weighting only available measurements.
         """
         df = df.copy()
 
@@ -65,16 +66,20 @@ class TargetPriorityScorer:
         }, index=df.index)
 
         weights = {"radius": 0.3, "mass": 0.3, "temp": 0.2, "period": 0.2}
-        
+
         # Weighted mean over available (non-NaN) components
         def calc_weighted_relevance(row):
             valid_w = [weights[k] for k in weights if pd.notna(row[k])]
             valid_v = [row[k] * weights[k] for k in weights if pd.notna(row[k])]
             if not valid_w or sum(valid_w) == 0:
-                return 0.5
+                return 0.5  # Neutral score when no data available
             return sum(valid_v) / sum(valid_w)
 
         df["planetary_relevance"] = rel_df.apply(calc_weighted_relevance, axis=1)
+
+        # Add missing-data indicator
+        df["planetary_relevance_missing_count"] = rel_df.isna().sum(axis=1)
+
         return df
 
     def calculate_stellar_characteristics(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -82,6 +87,7 @@ class TargetPriorityScorer:
         Stellar characteristics score based on effective temperature, radius, etc.
 
         Stars with temperatures similar to the Sun are generally most favorable.
+        Missing data is handled by weighting only available measurements.
         """
         df = df.copy()
 
@@ -125,10 +131,14 @@ class TargetPriorityScorer:
             valid_w = [s_weights[k] for k in s_weights if pd.notna(row[k])]
             valid_v = [row[k] * s_weights[k] for k in s_weights if pd.notna(row[k])]
             if not valid_w or sum(valid_w) == 0:
-                return 0.5
+                return 0.5  # Neutral score when no data available
             return sum(valid_v) / sum(valid_w)
 
         df["stellar_characteristics"] = stellar_df.apply(calc_weighted_stellar, axis=1)
+
+        # Add missing-data indicator
+        df["stellar_characteristics_missing_count"] = stellar_df.isna().sum(axis=1)
+
         return df
 
     def calculate_target_priority(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -136,26 +146,31 @@ class TargetPriorityScorer:
         Calculate the final target priority score (0-100).
 
         This is the core scoring method described in the project requirements.
+        Missing component scores are handled by using neutral fallback values (0.5)
+        to avoid penalizing planets with incomplete data, but the data_quality component
+        explicitly rewards planets with more complete measurements.
+
+        The final score is a weighted sum of component scores, clipped to 0-100.
         """
         df = df.copy()
 
-        # Planetary relevance (0-1 -> 0-100)
+        # Planetary relevance (0-1 -> 0-100), use 0.5 as neutral fallback
         p_rel = pd.to_numeric(df.get("planetary_relevance", pd.Series(0.5, index=df.index)), errors="coerce").fillna(0.5)
         df["planetary_relevance_score"] = np.clip(p_rel * 100.0, 0.0, 100.0)
 
-        # Stellar characteristics (0-1 -> 0-100)
+        # Stellar characteristics (0-1 -> 0-100), use 0.5 as neutral fallback
         s_char = pd.to_numeric(df.get("stellar_characteristics", pd.Series(0.5, index=df.index)), errors="coerce").fillna(0.5)
         df["stellar_characteristics_score"] = np.clip(s_char * 100.0, 0.0, 100.0)
 
-        # Observational accessibility (0-1 -> 0-100)
+        # Observational accessibility (0-1 -> 0-100), use 0.5 as neutral fallback
         obs = pd.to_numeric(df.get("observational_accessibility", pd.Series(0.5, index=df.index)), errors="coerce").fillna(0.5)
         df["observational_accessibility_score"] = np.clip(obs * 100.0, 0.0, 100.0)
 
-        # Data quality (0-1 -> 0-100)
+        # Data quality (0-1 -> 0-100), use 0.5 as neutral fallback
         dq = pd.to_numeric(df.get("data_quality", pd.Series(0.5, index=df.index)), errors="coerce").fillna(0.5)
         df["data_quality_score"] = np.clip(dq * 100.0, 0.0, 100.0)
 
-        # Anomaly score (0-1 -> 0-100)
+        # Anomaly score (0-1 -> 0-100), use 0.0 as fallback (anomaly is optional)
         anom = pd.to_numeric(df.get("anomaly_score", pd.Series(0.0, index=df.index)), errors="coerce").fillna(0.0)
         df["anomaly_score_normalized"] = np.clip(anom * 100.0, 0.0, 100.0)
 

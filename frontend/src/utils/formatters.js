@@ -37,13 +37,13 @@ export function formatTemperature(value) {
 }
 
 /**
- * Format distance in parsecs
+ * Format distance (raw data is in light-years)
  */
 export function formatDistance(value) {
   if (value === null || value === undefined || isNaN(value)) {
     return '—'
   }
-  return value.toFixed(1) + ' pc'
+  return value.toFixed(1) + ' ly'
 }
 
 /**

@@ -25,8 +25,8 @@ const Methodology = () => {
         <h2 className="text-xl font-semibold text-exosignal-text mb-4">Data Pipeline</h2>
         <ol className="list-decimal list-inside space-y-3 text-exosignal-text/80">
           <li>
-            <strong>Data Ingestion:</strong> Collect exoplanet and stellar data from
-            publicly available astronomical datasets (NASA Exoplanet Archive, Gaia, etc.)
+            <strong>Data Ingestion:</strong> Collect exoplanet and stellar parameters from
+            the NASA Exoplanet Archive composite table.
           </li>
           <li>
             <strong>Data Cleaning:</strong> Standardize column names, remove invalid records,

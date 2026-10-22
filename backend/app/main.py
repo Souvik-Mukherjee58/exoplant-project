@@ -7,15 +7,16 @@ from .config import settings
 
 app = FastAPI(
     title="ExoSignal API",
-    description="AI-Assisted Exoplanet Technosignature Target Prioritization System",
+    description="Exoplanet Follow-Up Target Prioritization Platform",
     version="0.1.0",
 )
 
-# CORS
+# CORS: allow origins from config; when wildcard is used, credentials must be False
+is_wildcard = "*" in settings.CORS_ORIGINS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
+    allow_credentials=not is_wildcard,
     allow_methods=["*"],
     allow_headers=["*"],
 )

@@ -37,13 +37,6 @@ const PlanetDetail = () => {
     return <div>Planet not found</div>
   }
 
-  const HZ_COLORS = {
-    'Inside HZ': 'bg-emerald-500',
-    'Near HZ': 'bg-yellow-500',
-    'Outside HZ': 'bg-gray-500',
-    'Insufficient data': 'bg-gray-400'
-  }
-
   const PRIORITY_COMPONENT_LABELS = {
     planetary_relevance: 'Planetary Relevance',
     stellar_characteristics: 'Stellar Characteristics',
@@ -53,16 +46,61 @@ const PlanetDetail = () => {
     final_score: 'Priority Score',
   }
 
-  const getPriorityComponents = () => {
-    if (planet.priority_components) {
-      return Object.entries(planet.priority_components)
-        .filter(([key]) => key !== 'final_score')
-        .map(([key, value]) => ({
-          label: PRIORITY_COMPONENT_LABELS[key] || key,
-          value: typeof value === 'number' ? value.toFixed(1) : value
-        }))
+  // Generate dynamic explanation based on actual score breakdown
+  const getDynamicExplanation = () => {
+    if (planet.explanation) return planet.explanation
+    if (!planet.priority_components) return 'Detailed breakdown unavailable for this target.'
+
+    const components = Object.entries(planet.priority_components)
+      .filter(([k]) => k !== 'final_score')
+      .sort((a, b) => b[1] - a[1])
+
+    const top = components[0] ? `${PRIORITY_COMPONENT_LABELS[top[0]] || top[0]} (${top[1]?.toFixed(1)}/100)` : ''
+    const second = components[1] ? `${PRIORITY_COMPONENT_LABELS[second[1]] || second[0]} (${second[1]?.toFixed(1)}/100)` : ''
+
+    const hzDesc = planet.hz_status === 'Inside HZ' 
+      ? 'It is situated squarely within the habitable zone of its host star.' 
+      : planet.hz_status === 'Near HZ' 
+      ? 'It orbits near the empirical habitable zone boundary.'
+      : 'It orbits outside the circumstellar habitable zone.'
+
+    return `This target achieves an overall priority score of ${formatPriority(planet.target_priority_score)}/100, driven primarily by strong ${top}${second ? ` followed by ${second}` : ''}. ${hzDesc} Its estimated distance is ${formatDistance(planet.distance)}.`
+  }
+
+  // Generate tailored observational follow-up strategies
+  const getSuggestedObservations = () => {
+    const list = []
+    const isTransiting = (planet.discovery_method || '').toLowerCase().includes('transit')
+    const sma = planet.semi_major_axis
+    const teq = planet.equilibrium_temperature
+
+    if (isTransiting) {
+      list.push({
+        title: 'Transmission Spectroscopy (JWST NIRSpec / HST WFC3)',
+        desc: `Because ${planet.planet_name} transits its host star, transit transmission spectroscopy can detect atmospheric chemical signatures during primary transit.`
+      })
     }
-    return []
+
+    if (teq && teq > 600) {
+      list.push({
+        title: 'Secondary Eclipse / Thermal Emission',
+        desc: `With an equilibrium temperature of ~${Math.round(teq)} K, secondary eclipse measurements can probe dayside thermal emission and atmospheric albedo.`
+      })
+    }
+
+    list.push({
+      title: 'High-Precision Radial Velocity (ESPRESSO / HARPS-N)',
+      desc: 'High-resolution Doppler spectroscopy to refine dynamical planetary mass, constrain orbital eccentricity, and verify multi-planet architecture.'
+    })
+
+    if (sma && sma > 1.5) {
+      list.push({
+        title: 'High-Contrast Direct Imaging (Roman CGI / ELT)',
+        desc: `With a semi-major axis of ${sma.toFixed(2)} AU, this planet has sufficient angular separation for coronagraphic direct imaging follow-up.`
+      })
+    }
+
+    return list
   }
 
   return (
@@ -238,48 +276,28 @@ const PlanetDetail = () => {
       {/* Explanation Section */}
       <section className="bg-space-darker rounded-lg border border-exosignal-blue/20 p-8">
         <h2 className="text-2xl font-bold text-exosignal-text mb-6">Why This Target?</h2>
-        <p className="text-exosignal-text/80 mb-4">
-          {planet.explanation ||
-            "This object received a high priority score primarily because of its favorable observational accessibility, planetary characteristics, and relatively unusual position within the analyzed dataset. The target's combination of properties makes it a compelling candidate for follow-up observation."}
+        <p className="text-exosignal-text/90 mb-4 leading-relaxed">
+          {getDynamicExplanation()}
         </p>
         <p className="text-exosignal-text/60 text-sm">
-          <strong>Note:</strong> This analysis is based on measurable astronomical and observational
-          properties only. The system does not claim to detect extraterrestrial intelligence or
-          calculate the probability of life.
+          <strong>Note:</strong> Target prioritization is evaluated from measurable astrophysical parameters,
+          spectroscopic accessibility, and stellar properties to optimize telescope resource allocation.
         </p>
       </section>
 
       {/* Recommendations for Follow-up */}
       <section className="bg-space-darker rounded-lg border border-exosignal-blue/20 p-8 mt-8">
-        <h2 className="text-2xl font-bold text-exosignal-text mb-6">Suggested Observations</h2>
-        <ul className="space-y-3 text-exosignal-text/80">
-          <li className="flex items-start">
-            <div className="w-3 h-3 bg-exosignal-accent rounded-s flex-shrink-0 mt-0.5" />
-            <div className="ml-3 flex-1">
-              <p className="font-medium">Transit Spectroscopy</p>
-              <p className="text-xs text-exosignal-text/70">
-                Characterize the planet's atmosphere during transit if within the habitable zone.
-              </p>
-            </div>
-          </li>
-          <li className="flex items-start">
-            <div className="w-3 h-3 bg-exosignal-accent rounded-s flex-shrink-0 mt-0.5" />
-            <div className="ml-3 flex-1">
-              <p className="font-medium">Radial Velocity</p>
-              <p className="text-xs text-exosignal-text/70">
-                Refine planetary mass measurements and test system dynamics.
-              </p>
-            </div>
-          </li>
-          <li className="flex items-start">
-            <div className="w-3 h-3 bg-exosignal-accent rounded-s flex-shrink-0 mt-0.5" />
-            <div className="ml-3 flex-1">
-              <p className="font-medium">Direct Imaging</p>
-              <p className="text-xs text-exosignal-text/70">
-                Search for atmospheric signatures if the planet is sufficiently distant from its star.
-              </p>
-            </div>
-          </li>
+        <h2 className="text-2xl font-bold text-exosignal-text mb-6">Suggested Follow-Up Observations</h2>
+        <ul className="space-y-4 text-exosignal-text/80">
+          {getSuggestedObservations().map((obs, idx) => (
+            <li key={idx} className="flex items-start">
+              <div className="w-3 h-3 bg-exosignal-accent rounded-sm flex-shrink-0 mt-1" />
+              <div className="ml-3 flex-1">
+                <p className="font-semibold text-exosignal-text">{obs.title}</p>
+                <p className="text-sm text-exosignal-text/70 mt-0.5">{obs.desc}</p>
+              </div>
+            </li>
+          ))}
         </ul>
       </section>
     </div>

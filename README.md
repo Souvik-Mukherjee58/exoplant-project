@@ -1,96 +1,88 @@
-# ExoSignal — AI-Assisted Exoplanet Technosignature Target Prioritization System
+# ExoSignal — Data-Driven Exoplanet Follow-Up Target Prioritization Platform
 
-ExoSignal uses publicly available astronomical data and machine learning to identify
-and rank exoplanet systems that may be especially valuable targets for future
-technosignature observations.
+ExoSignal analyzes astronomical archive parameters and computes multi-criteria follow-up rankings to assist researchers in prioritizing exoplanets for atmospheric characterization and spectroscopic study.
 
-## Important Scientific Disclaimer
+## Scientific Disclaimer
 
-> The priority score does not represent the probability of extraterrestrial life or
-> intelligence. It is a computational ranking intended to identify targets that may
-> warrant further scientific investigation.
+> Target priority scores represent comparative observational utility for spectroscopic follow-up, based on physical characteristics, host star parameters, insolation flux, and observational accessibility. Scores do not represent a probability of extraterrestrial life or intelligence.
 
 ## Project Structure
 
 ```
-exosignal/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py              # FastAPI entry point
-│   │   ├── config.py             # Configuration settings
+│   │   ├── main.py              # FastAPI application entrypoint
+│   │   ├── config.py            # Application configuration
 │   │   ├── api/
-│   │   │   └── v1.py             # API routes
+│   │   │   └── v1.py            # API routes (REST endpoints)
 │   │   ├── services/
-│   │   │   ├── data_ingestion.py # Data loading service
-│   │   │   ├── data_cleaning.py  # Data cleaning service
-│   │   │   └── feature_engineering.py # Feature engineering
+│   │   │   ├── data_ingestion.py# Data loading service
+│   │   │   ├── data_cleaning.py # Normalization and validation
+│   │   │   ├── data_processor.py# Pipeline orchestration & cache
+│   │   │   └── feature_engineering.py # Derived physical features
 │   │   ├── ml/
-│   │   │   └── anomaly_detection.py   # ML anomaly detection
-│   │   ├── scoring/
-│   │   │   └── priority_scorer.py     # Priority scoring
-│   │   └── utils/
+│   │   │   └── anomaly_detection.py   # Unsupervised outlier scoring
+│   │   └── scoring/
+│   │       └── priority_scorer.py     # Multi-criteria target scoring
 │   ├── data/
-│   │   ├── raw/                 # Raw downloaded data
-│   │   └── processed/           # Processed data
-│   ├── tests/                   # Test files
-│   └── requirements.txt         # Python dependencies
+│   │   ├── raw/                 # Ingested archive datasets
+│   │   └── processed/           # Processed catalog and metadata
+│   ├── tests/                   # Automated backend test suite
+│   ├── pytest.ini
+│   └── requirements.txt
 ├── frontend/
 │   ├── public/
 │   ├── src/
-│   │   ├── App.jsx             # Main App component
-│   │   ├── App.css             # Styling
-│   │   ├── main.jsx            # Entry point
-│   │   ├── components/          # Reusable components
-│   │   ├── pages/               # Page components
-│   │   ├── services/            # API services
-│   │   ├── hooks/              # Custom hooks
-│   │   └── utils/              # Utilities
+│   │   ├── App.jsx              # Application shell and routing
+│   │   ├── App.css              # Theme tokens
+│   │   ├── index.css            # Scientific design system & utilities
+│   │   ├── main.jsx             # React entrypoint
+│   │   ├── pages/               # View components (Analytics, Explorer, PlanetDetail, etc.)
+│   │   ├── services/            # API client layer
+│   │   ├── hooks/               # Custom data-fetching hooks
+│   │   └── utils/               # Numerical and scientific formatters
 │   ├── index.html
-│   └── package.json
+│   ├── package.json
+│   └── vite.config.js
 └── README.md
 ```
 
 ## Quick Start
 
-### Backend
+### Backend Service
 
 ```bash
-cd exosignal/backend
+cd backend
 pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### Frontend
+The interactive API documentation is accessible at `http://localhost:8000/docs`.
+
+### Frontend Application
 
 ```bash
-cd exosignal/frontend
+cd frontend
 npm install
 npm run dev
 ```
 
-Open http://localhost:3000 in your browser.
+Open `http://localhost:3000` in your browser.
 
-## Features
+## Running Tests
 
-- Data ingestion from NASA Exoplanet Archive (CSV/API)
-- Data cleaning and standardization
-- Feature engineering (Earth similarity, HZ status, observational accessibility)
-- ML-based anomaly detection (Isolation Forest + LOF)
-- Scientifically interpretable priority scoring
-- Interactive web dashboard
-- Planet comparison and ranking
+```bash
+cd backend
+python -m pytest
+```
 
-## Methodology
+## System Overview & Engineering Highlights
 
-See the Methodology page in the dashboard for full details.
-
-## Scientific Limitations
-
-- Priority scores are computational rankings, not probability estimates
-- Missing data is handled explicitly, not fabricated
-- HZ estimates are approximate
-- Anomaly scores detect unusual patterns, not extraterrestrial activity
+- **Stateless REST API:** Built with FastAPI, providing deterministic responses, Pydantic validation schemas, and structured logging.
+- **Fast Event Loop:** CPU-bound analytical data processing runs via FastAPI threadpools without blocking asynchronous I/O.
+- **Interactive Scientific Visualizations:** Recharts integration for PCA feature-space projection, empirical score histograms, and habitable zone categorization.
+- **Parametric Filtering & Exact Matching:** Server-side normalized exact-match lookups (`/api/v1/planets/{planet_name}`) and parameterized range queries.
 
 ## License
 
-This project is for research and educational purposes only.
+This project is for research and educational purposes.

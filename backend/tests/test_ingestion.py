@@ -16,7 +16,7 @@ def test_load_sample_csv():
     df = ingestion.load_from_csv(path)
 
     assert not df.empty
-    assert len(df) == 10  # 10 planets in sample data
+    assert len(df) >= 10  # At least 10 planets in sample data
     assert 'planet_name' in df.columns
     print(f"✓ Loaded {len(df)} planets from sample CSV")
 

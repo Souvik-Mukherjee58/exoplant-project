@@ -20,13 +20,12 @@ const Home = () => {
             ExoSignal
           </h1>
           <p className="text-xl text-exosignal-blue mb-8">
-            AI-Assisted Exoplanet Technosignature Target Prioritization System
+            Data-Driven Exoplanet Follow-Up Target Prioritization Platform
           </p>
-          <p className="text-exosignal-text/80 mb-8 max-w-3xl mx-auto">
-            Telescope observation time is limited. ExoSignal uses publicly available
-            astronomical data and machine learning to identify and rank exoplanet
-            systems that may be especially valuable targets for future technosignature
-            observations.
+          <p className="text-exosignal-text/80 mb-8 max-w-3xl mx-auto leading-relaxed">
+            Telescope observation time is scarce. ExoSignal leverages archive astronomical
+            parameters and multi-criteria scoring to identify and rank candidate exoplanet
+            systems for spectroscopic characterization and observational follow-up.
           </p>
           <div className="flex justify-center space-x-4">
             <Link

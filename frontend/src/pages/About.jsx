@@ -9,15 +9,13 @@ const About = () => {
       <section className="bg-space-darker rounded-lg border border-exosignal-blue/20 p-8 mb-8">
         <h2 className="text-xl font-semibold text-exosignal-text mb-4">Project Mission</h2>
         <p className="text-exosignal-text/80 mb-4">
-          ExoSignal is an AI-assisted exoplanet technosignature target prioritization system.
-          Its goal is to help astronomers identify the most promising exoplanet systems for
-          follow-up observations in the search for possible technosignatures.
+          ExoSignal is a data-driven exoplanet follow-up target prioritization system.
+          Its goal is to assist astronomers in optimizing telescope observation time by identifying
+          and ranking candidates for atmospheric characterization and spectroscopic follow-up.
         </p>
         <p className="text-exosignal-text/80 mb-4">
-          The system does not claim to detect extraterrestrial civilizations or calculate the
-          probability that aliens exist on a planet. Instead, it computes a scientifically
-          interpretable target priority score based on measurable astronomical and observational
-          characteristics.
+          The system evaluates measurable physical properties, insolation flux, stellar host parameters,
+          and observational accessibility to produce a transparent, multi-component priority ranking.
         </p>
       </section>
 
@@ -26,17 +24,10 @@ const About = () => {
         <h2 className="text-xl font-semibold text-exosignal-text mb-4">Data Sources</h2>
         <ul className="list-disc list-inside space-y-2 text-exosignal-text/80">
           <li>
-            NASA Exoplanet Archive — primary source for confirmed exoplanet parameters
+            NASA Exoplanet Archive (IPAC / Caltech) — confirmed exoplanet parameters and stellar measurements
           </li>
           <li>
-            NASA Exoplanet Catalog — additional data on exoplanet systems
-          </li>
-          <li>
-            ESA Gaia mission — stellar information including effective temperature, radius, and
-            luminosity
-          </li>
-          <li>
-            Scientific literature and catalog entries for supplementary data where available
+            Peer-reviewed spectroscopic follow-up literature and transit survey catalogs
           </li>
         </ul>
       </section>
@@ -48,21 +39,21 @@ const About = () => {
           <div className="text-exosignal-text/80">
             <h3 className="font-medium text-exosignal-blue mb-3">Backend</h3>
             <ul className="list-disc list-inside space-y-2">
-              <li>FastAPI with Python</li>
-              <li>Pandas and NumPy for data processing</li>
-              <li>scikit-learn for ML anomaly detection</li>
-              <li>SQLite for data persistence</li>
-              <li>Modular services architecture</li>
+              <li>FastAPI (Python) REST Service</li>
+              <li>Pandas and NumPy for vectorized data pipelines</li>
+              <li>scikit-learn for outlier and feature analysis</li>
+              <li>Typed Pydantic schemas and structured validation</li>
+              <li>Modular service and scoring architecture</li>
             </ul>
           </div>
           <div className="text-exosignal-text/80">
             <h3 className="font-medium text-exosignal-blue mb-3">Frontend</h3>
             <ul className="list-disc list-inside space-y-2">
-              <li>React with React Router</li>
+              <li>React 18 with React Router v6</li>
               <li>Vite build tool</li>
-              <li>Tailwind CSS for styling</li>
-              <li>Recharts/Plotly for visualizations</li>
-              <li>Custom scientific typography</li>
+              <li>Scientific dark mode design system (CSS custom properties)</li>
+              <li>Recharts interactive data visualizations</li>
+              <li>Accessible responsive layouts</li>
             </ul>
           </div>
         </div>

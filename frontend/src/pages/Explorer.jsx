@@ -7,7 +7,6 @@ const HZ_OPTIONS = ['All', 'Inside HZ', 'Near HZ', 'Outside HZ', 'Insufficient d
 const ITEMS_PER_PAGE = 25
 
 const Explorer = () => {
-  const { planets, loading, error, refetch } = usePlanets({ limit: 100 })
   const [filters, setFilters] = useState({
     name: '',
     minPriority: 0,
@@ -17,6 +16,25 @@ const Explorer = () => {
     sortOrder: 'desc'
   })
   const [currentPage, setCurrentPage] = useState(1)
+
+  const queryParams = useMemo(() => {
+    const params = { limit: 500 }
+    if (filters.name && filters.name.trim()) {
+      params.q = filters.name.trim()
+    }
+    if (filters.hzStatus && filters.hzStatus !== 'All') {
+      params.hz_status = filters.hzStatus
+    }
+    const minP = Number(filters.minPriority)
+    const maxP = Number(filters.maxPriority)
+    if (!isNaN(minP) && !isNaN(maxP) && minP <= maxP) {
+      params.min_priority = minP
+      params.max_priority = maxP
+    }
+    return params
+  }, [filters.name, filters.hzStatus, filters.minPriority, filters.maxPriority])
+
+  const { planets, loading, error, refetch } = usePlanets(queryParams)
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target
