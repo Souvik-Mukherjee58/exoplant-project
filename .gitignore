@@ -19,6 +19,12 @@ dist/
 .env
 .env.*
 
+# Docker
+*.tar
+docker-compose.override.yml
+
+# Model registry (auto-generated, re-buildable)
+backend/artifacts/registry.json
 
 # Editors and operating systems
 .vscode/

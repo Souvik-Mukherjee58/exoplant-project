@@ -5,96 +5,404 @@
 }
 
 :root {
-  --space-dark: #0a0a0f;
-  --space-darker: #05050a;
+  /* Deep Space Cosmic Canvas */
+  --space-void: #030409;
+  --space-dark: #070a16;
+  --space-darker: #04060d;
+  --space-surface: #0c1228;
+  --space-card: rgba(13, 19, 44, 0.72);
+  --space-card-hover: rgba(19, 29, 66, 0.88);
+  --space-overlay: rgba(5, 8, 20, 0.85);
+
+  /* Neon Astro Palette */
   --exosignal-blue: #00d4ff;
-  --exosignal-accent: #0099cc;
-  --exosignal-text: #ffffff;
-  --exosignal-text-muted: #a0a0a0;
-  --exosignal-text-subtle: #666666;
-  --exosignal-red: #ff3333;
-  --exosignal-green: #33cc33;
-  --exosignal-yellow: #ffcc00;
-  --exosignal-purple: #9933ff;
+  --exosignal-cyan: #38bdf8;
+  --exosignal-accent: #0284c7;
+  --exosignal-purple: #a855f7;
+  --exosignal-indigo: #6366f1;
+  --exosignal-emerald: #10b981;
+  --exosignal-amber: #f59e0b;
+  --exosignal-rose: #f43f5e;
+  --exosignal-red: #ef4444;
+
+  /* Typography Colors */
+  --exosignal-text: #f8fafc;
+  --exosignal-text-secondary: #cbd5e1;
+  --exosignal-text-muted: #94a3b8;
+  --exosignal-text-subtle: #64748b;
+
+  /* Glows & Shadows */
+  --glow-cyan: 0 0 25px rgba(56, 189, 248, 0.28);
+  --glow-purple: 0 0 25px rgba(168, 85, 247, 0.28);
+  --glow-emerald: 0 0 25px rgba(16, 185, 129, 0.28);
+  --glow-subtle: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+  --border-glass: 1px solid rgba(56, 189, 248, 0.16);
+  --border-glass-hover: 1px solid rgba(56, 189, 248, 0.45);
+}
+
+html {
+  font-size: 18px; /* Increases global readability by +12.5% */
+  scroll-behavior: smooth;
+}
+
+@media (min-width: 1024px) {
+  html {
+    font-size: 19px; /* Enhanced legibility on larger displays */
+  }
 }
 
 body {
-  font-family: 'Inter', 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
-  background-color: var(--space-dark);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--space-void);
+  background-image: 
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(56, 189, 248, 0.12), transparent),
+    radial-gradient(ellipse 60% 40% at 85% 60%, rgba(168, 85, 247, 0.08), transparent),
+    radial-gradient(ellipse 50% 30% at 15% 80%, rgba(99, 102, 241, 0.06), transparent);
+  background-attachment: fixed;
   color: var(--exosignal-text);
-  line-height: 1.6;
+  font-size: 1rem;
+  line-height: 1.68;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
 }
 
-a {
-  color: var(--exosignal-blue);
-  text-decoration: none;
-  transition: color 0.2s ease;
+h1, h2, h3, h4, .font-display {
+  font-family: 'Space Grotesk', 'Outfit', 'Inter', sans-serif;
+  letter-spacing: -0.02em;
 }
 
-a:hover {
-  color: var(--exosignal-accent);
+.font-orbitron {
+  font-family: 'Orbitron', 'Space Grotesk', monospace;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
-nav {
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0, 212, 255, 0.1);
-}
-
-button {
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.animate-spin {
-  animation: spin 1s linear infinite;
+.font-space {
+  font-family: 'Space Grotesk', sans-serif;
 }
 
 .font-mono {
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-feature-settings: "zero" 1;
 }
 
-.text-gradient {
-  background: linear-gradient(135deg, var(--exosignal-blue) 0%, var(--exosignal-purple) 100%);
+/* ==========================================================================
+   Planetary Animated Typography & Cosmic Shimmer
+   ========================================================================== */
+
+/* Shimmering planetary atmosphere glow on text */
+.planet-font-animated {
+  font-family: 'Orbitron', 'Space Grotesk', sans-serif;
+  background: linear-gradient(
+    90deg,
+    #ffffff 0%,
+    #38bdf8 25%,
+    #a855f7 50%,
+    #00d4ff 75%,
+    #ffffff 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: planetaryShimmer 8s linear infinite;
+  text-shadow: 0 0 25px rgba(56, 189, 248, 0.4);
+}
+
+@keyframes planetaryShimmer {
+  0% {
+    background-position: 0% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+/* Transit flare effect on titles */
+.planetary-flare-text {
+  position: relative;
+  display: inline-block;
+}
+
+.planetary-flare-text::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 100%
+  );
+  transform: skewX(-25deg);
+  animation: stellarTransitFlare 6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes stellarTransitFlare {
+  0%, 40% {
+    left: -100%;
+  }
+  60%, 100% {
+    left: 200%;
+  }
+}
+
+/* Pulsing atmospheric beacon */
+@keyframes atmosphericOrbit {
+  0% {
+    transform: rotate(0deg) translateX(45px) rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg) translateX(45px) rotate(-360deg);
+  }
+}
+
+
+/* Glassmorphism Classes */
+.glass-panel {
+  background: var(--space-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: var(--border-glass);
+  box-shadow: var(--glow-subtle);
+  border-radius: 16px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-panel-hover:hover {
+  background: var(--space-card-hover);
+  border: var(--border-glass-hover);
+  box-shadow: var(--glow-cyan), var(--glow-subtle);
+  transform: translateY(-2px);
+}
+
+.glass-pill {
+  background: rgba(14, 23, 52, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 9999px;
+  padding: 0.45rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Glow Buttons */
+.btn-primary-glow {
+  background: linear-gradient(135deg, #0284c7 0%, #00d4ff 100%);
+  color: #030712;
+  font-weight: 700;
+  font-size: 1.05rem;
+  padding: 0.85rem 1.85rem;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0, 212, 255, 0.35);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+
+.btn-primary-glow:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 28px rgba(0, 212, 255, 0.55);
+  color: #000;
+}
+
+.btn-secondary-glass {
+  background: rgba(14, 23, 52, 0.6);
+  backdrop-filter: blur(14px);
+  color: var(--exosignal-cyan);
+  font-weight: 600;
+  font-size: 0.925rem;
+  padding: 0.75rem 1.6rem;
+  border-radius: 12px;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+
+.btn-secondary-glass:hover {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: var(--exosignal-cyan);
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+  transform: translateY(-2px);
+  color: #fff;
+}
+
+/* Pulsing Status Dot */
+.pulsing-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  position: relative;
+  display: inline-block;
+}
+
+.pulsing-dot.emerald {
+  background-color: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.pulsing-dot.emerald::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border-radius: 50%;
+  border: 2px solid #10b981;
+  animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.pulsing-dot.cyan {
+  background-color: #38bdf8;
+  box-shadow: 0 0 8px #38bdf8;
+}
+
+.pulsing-dot.cyan::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border-radius: 50%;
+  border: 2px solid #38bdf8;
+  animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+/* Gradients */
+.text-gradient-cyan {
+  background: linear-gradient(135deg, #ffffff 10%, #38bdf8 70%, #00d4ff 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* Custom scrollbar */
+.text-gradient-purple {
+  background: linear-gradient(135deg, #ffffff 10%, #c084fc 60%, #a855f7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-gold {
+  background: linear-gradient(135deg, #fef08a 0%, #fbbf24 60%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--space-dark);
+  background: var(--space-void);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--exosignal-blue);
+  background: rgba(56, 189, 248, 0.35);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--exosignal-accent);
+  background: var(--exosignal-cyan);
 }
+
+/* ==========================================================================
+   Page Division & Modular Architectural Containers
+   ========================================================================== */
+
+/* Distinct Compartment Panel with Luminous Inset */
+.divided-compartment {
+  background: rgba(10, 16, 36, 0.78);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  border-radius: 20px;
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.divided-compartment::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.5), transparent);
+}
+
+/* Compartment Section Header Bar */
+.compartment-header {
+  padding: 1.25rem 1.75rem;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.15);
+  background: rgba(4, 7, 18, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Divided Grid with Column/Row Demarcation */
+.grid-divided {
+  display: grid;
+  gap: 1px;
+  background-color: rgba(56, 189, 248, 0.18);
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+.grid-divided > * {
+  background-color: var(--space-void);
+}
+
+/* Luminous Cosmic Section Dividers */
+.cosmic-divider-glow {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.4), rgba(168, 85, 247, 0.4), transparent);
+  margin: 2.5rem 0;
+  position: relative;
+}
+
+.cosmic-divider-glow::after {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 3px;
+  background: radial-gradient(ellipse at center, rgba(56, 189, 248, 0.8), transparent);
+  filter: blur(1px);
+}
+

@@ -66,9 +66,88 @@ export const analyticsApi = {
   }
 }
 
+export const explainabilityApi = {
+  getPlanetExplanation: async (planetName) => {
+    const response = await api.get(`/planets/${encodeURIComponent(planetName)}/explain`)
+    return response.data
+  },
+
+  getComparisonExplanation: async (planetA, planetB) => {
+    const response = await api.get('/planets/compare-explain', {
+      params: { planet_a: planetA, planet_b: planetB }
+    })
+    return response.data
+  }
+}
+
+export const modelsApi = {
+  getLTRInfo: async () => {
+    const response = await api.get('/models/ltr/info')
+    return response.data
+  },
+
+  getFeatureImportance: async () => {
+    const response = await api.get('/models/ltr/feature-importance')
+    return response.data
+  },
+
+  getBenchmark: async (split = 'test') => {
+    const response = await api.get('/evaluation/benchmark', { params: { split } })
+    return response.data
+  }
+}
+
 export const healthApi = {
   check: async () => {
     const response = await api.get('/health')
+    return response.data
+  }
+}
+
+export const registryApi = {
+  getVersions: async () => {
+    const response = await api.get('/models/registry/versions')
+    return response.data
+  },
+
+  getActive: async () => {
+    const response = await api.get('/models/registry/active')
+    return response.data
+  },
+
+  validate: async (version) => {
+    const response = await api.get(`/models/registry/validate/${version}`)
+    return response.data
+  },
+
+  compare: async (versionA, versionB) => {
+    const response = await api.get('/models/registry/compare', {
+      params: { version_a: versionA, version_b: versionB }
+    })
+    return response.data
+  },
+
+  promote: async (version, reason = '') => {
+    const response = await api.post(`/models/registry/promote/${version}`, { reason })
+    return response.data
+  },
+
+  rollback: async (reason = '') => {
+    const response = await api.post('/models/registry/rollback', { reason })
+    return response.data
+  }
+}
+
+export const systemApi = {
+  getMetrics: async () => {
+    const response = await api.get('/metrics')
+    return response.data
+  },
+
+  getLatencyBenchmark: async (iterations = 20) => {
+    const response = await api.get('/system/latency-benchmark', {
+      params: { iterations }
+    })
     return response.data
   }
 }

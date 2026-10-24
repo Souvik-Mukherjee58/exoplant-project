@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { usePlanetDetail } from '../hooks/usePlanets'
 import {
@@ -6,57 +6,48 @@ import {
   formatDistance, formatPriority, formatAnomaly, getHZColor, getHZText,
   formatDiscoveryMethod, formatStellarName
 } from '../utils/formatters'
+import TreeSHAPWaterfall from '../components/TreeSHAPWaterfall'
+import SectionDivider from '../components/SectionDivider'
+import SegmentedTabs from '../components/SegmentedTabs'
+import Planet3DVisualizer from '../components/Planet3DVisualizer'
+
 
 const PlanetDetail = () => {
   const { planetName } = useParams()
   const { planet, loading, error } = usePlanetDetail(planetName)
+  const [activeTab, setActiveTab] = useState('overview')
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-space-dark flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-exosignal-accent"></div>
-          <p className="mt-4 text-exosignal-text">Loading planet details...</p>
-        </div>
+      <div className="py-24 flex flex-col items-center justify-center space-y-4 font-mono">
+        <div className="w-12 h-12 rounded-full border-4 border-exosignal-cyan/20 border-t-exosignal-cyan animate-spin"></div>
+        <p className="text-xs text-exosignal-text-muted">Loading astrophysical parameters & TreeSHAP attributions...</p>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="bg-space-darker rounded-lg p-6 text-center">
-        <p className="text-exosignal-red">{error}</p>
-        <Link to="/top-targets" className="text-exosignal-blue mt-4 hover:text-exosignal-accent">
-          Back to Targets
+      <div className="glass-panel p-8 text-center text-rose-400 font-mono text-xs space-y-3">
+        <p>Target retrieval error: {error}</p>
+        <Link to="/explorer" className="btn-secondary-glass text-xs inline-block">
+          ← Back to Explorer
         </Link>
       </div>
     )
   }
 
   if (!planet) {
-    return <div>Planet not found</div>
+    return (
+      <div className="glass-panel p-8 text-center text-exosignal-text-muted font-mono text-xs">
+        Planet target not found in active catalog.
+      </div>
+    )
   }
 
-  const PRIORITY_COMPONENT_LABELS = {
-    planetary_relevance: 'Planetary Relevance',
-    stellar_characteristics: 'Stellar Characteristics',
-    observational_accessibility: 'Observational Accessibility',
-    data_quality: 'Data Quality',
-    anomaly_score: 'Anomaly Score',
-    final_score: 'Priority Score',
-  }
-
-  // Generate dynamic explanation based on actual score breakdown
   const getDynamicExplanation = () => {
     if (planet.explanation) return planet.explanation
     if (!planet.priority_components) return 'Detailed breakdown unavailable for this target.'
-
-    const components = Object.entries(planet.priority_components)
-      .filter(([k]) => k !== 'final_score')
-      .sort((a, b) => b[1] - a[1])
-
-    const top = components[0] ? `${PRIORITY_COMPONENT_LABELS[top[0]] || top[0]} (${top[1]?.toFixed(1)}/100)` : ''
-    const second = components[1] ? `${PRIORITY_COMPONENT_LABELS[second[1]] || second[0]} (${second[1]?.toFixed(1)}/100)` : ''
 
     const hzDesc = planet.hz_status === 'Inside HZ' 
       ? 'It is situated squarely within the habitable zone of its host star.' 
@@ -64,10 +55,9 @@ const PlanetDetail = () => {
       ? 'It orbits near the empirical habitable zone boundary.'
       : 'It orbits outside the circumstellar habitable zone.'
 
-    return `This target achieves an overall priority score of ${formatPriority(planet.target_priority_score)}/100, driven primarily by strong ${top}${second ? ` followed by ${second}` : ''}. ${hzDesc} Its estimated distance is ${formatDistance(planet.distance)}.`
+    return `${planet.planet_name} achieves an overall priority score of ${formatPriority(planet.target_priority_score)}/100 under the multi-criteria ranking model. ${hzDesc} Its estimated distance is ${formatDistance(planet.distance)} with an equilibrium temperature of ~${Math.round(planet.equilibrium_temperature || 0)} K.`
   }
 
-  // Generate tailored observational follow-up strategies
   const getSuggestedObservations = () => {
     const list = []
     const isTransiting = (planet.discovery_method || '').toLowerCase().includes('transit')
@@ -103,213 +93,278 @@ const PlanetDetail = () => {
     return list
   }
 
+  const detailTabs = [
+    { id: 'overview', label: 'Planetary Specs', icon: '🪐' },
+    { id: 'explainability', label: 'TreeSHAP Attribution', icon: '🌲', badge: planet.ml_rank ? `#${planet.ml_rank}` : undefined },
+    { id: 'protocols', label: 'Observation Protocols', icon: '🔭', badge: getSuggestedObservations().length },
+    { id: 'all', label: 'Full Target Dossier', icon: '📑' }
+  ]
+
+  const showAll = activeTab === 'all'
+
+  const getPresetForPlanet = () => {
+    const name = (planet.planet_name || '').toLowerCase()
+    if (name.includes('trappist')) return 'trappist1e'
+    if (name.includes('toi-700') || name.includes('toi 700')) return 'toi700d'
+    if (name.includes('k2-18') || name.includes('k2 18')) return 'k218b'
+    if (name.includes('lhs-1140') || name.includes('lhs 1140')) return 'lhs1140b'
+    if (name.includes('wasp') || (planet.planet_radius && planet.planet_radius > 6)) return 'wasp96b'
+    if (planet.hz_status === 'Inside HZ') return 'trappist1e'
+    if (planet.planet_radius && planet.planet_radius > 2.0) return 'k218b'
+    return 'lhs1140b'
+  }
+
   return (
-    <div className="min-h-screen bg-space-dark text-exosignal-text">
-      {/* Back button */}
-      <div className="mx-6 my-6">
-        <Link to="/top-targets" className="text-exosignal-blue hover:text-exosignal-accent text-sm">
-          ← Back to Top Targets
-        </Link>
-      </div>
+    <div className="space-y-8">
+      {/* Target Hero Header with 3D Planetary Animation */}
+      <div className="divided-compartment">
+        <div className="p-8 bg-gradient-to-br from-space-card to-exosignal-cyan/5">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+            {/* Left specs & Title */}
+            <div className="lg:col-span-8">
+              <div className="flex items-center space-x-3 mb-2">
+                <span className={`px-2.5 py-1 rounded-full text-xs font-mono font-bold ${
+                  planet.hz_status === 'Inside HZ'
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                    : planet.hz_status === 'Near HZ'
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                    : 'bg-slate-700/40 text-slate-300 border border-slate-600/40'
+                }`}>
+                  {planet.hz_status || 'Outside HZ'}
+                </span>
+                <span className="text-xs font-mono text-exosignal-text-muted">
+                  Discovery: {planet.discovery_method || 'Transit'}
+                </span>
+              </div>
 
-      {/* Planet Overview */}
-      <section className="bg-space-darker rounded-lg border border-exosignal-blue/20 p-8">
-        <h2 className="text-2xl font-bold text-exosignal-text mb-6">Planet Overview</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div>
-            <h3 className="text-lg font-medium text-exosignal-blue mb-4">Planet Details</h3>
-            <dl className="space-y-3">
-              <div>
-                <dt className="text-exosignal-text/70 text-sm">Planet Name</dt>
-                <dd className="font-mono text-exosignal-accent">{planet.planet_name}</dd>
-              </div>
-              <div>
-                <dt className="text-exosignal-text/70 text-sm">Radius</dt>
-                <dd>{formatRadius(planet.planet_radius)}</dd>
-              </div>
-              <div>
-                <dt className="text-exosignal-text/70 text-sm">Mass</dt>
-                <dd>{formatMass(planet.planet_mass)}</dd>
-              </div>
-              <div>
-                <dt className="text-exosignal-text/70 text-sm">Orbital Period</dt>
-                <dd>{formatPeriod(planet.orbital_period)}</dd>
-              </div>
-              <div>
-                <dt className="text-exosignal-text/70 text-sm">Equilibrium Temperature</dt>
-                <dd>{formatTemperature(planet.equilibrium_temperature)}</dd>
-              </div>
-              <div>
-                <dt className="text-exosignal-text/70 text-sm">Discovery Method</dt>
-                <dd>{formatDiscoveryMethod(planet.discovery_method)}</dd>
-              </div>
-            </dl>
-          </div>
+              {/* Planetary Animated Title */}
+              <h1 className="text-3xl sm:text-5xl font-black font-orbitron planet-font-animated tracking-wider">
+                {planet.planet_name}
+              </h1>
+              <p className="text-xs font-mono text-exosignal-cyan mt-1">
+                Host Star: {planet.hostname || planet.stellar_name || 'Host Star'} • Distance: {formatDistance(planet.distance)}
+              </p>
 
-          <div>
-            <h3 className="text-lg font-medium text-exosignal-blue mb-4">Host Star</h3>
-            <dl className="space-y-3">
-              <div>
-                <dt className="text-exosignal-text/70 text-sm">Star Name</dt>
-                <dd className="font-mono">{formatStellarName(planet.stellar_name)}</dd>
-              </div>
-              <div>
-                <dt className="text-exosignal-text/70 text-sm">Effective Temperature</dt>
-                <dd>{planet.stellar_effective_temperature ? formatTemperature(planet.stellar_effective_temperature) : '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-exosignal-text/70 text-sm">Stellar Radius</dt>
-                <dd>{formatNumber(planet.stellar_radius, 2)} R☉</dd>
-              </div>
-              <div>
-                <dt className="text-exosignal-text/70 text-sm">Stellar Mass</dt>
-                <dd>{formatNumber(planet.stellar_mass, 2)} M☉</dd>
-              </div>
-              <div>
-                <dt className="text-exosignal-text/70 text-sm">Metallicity</dt>
-                <dd>{formatNumber(planet.stellar_metallicity, 3)}</dd>
-              </div>
-              <div>
-                <dt className="text-exosignal-text/70 text-sm">Distance</dt>
-                <dd>{formatDistance(planet.distance)}</dd>
-              </div>
-            </dl>
-          </div>
-        </div>
-      </section>
-
-      {/* Scientific Assessment */}
-      <section className="bg-space-darker rounded-lg border border-exosignal-blue/20 p-8">
-        <h2 className="text-2xl font-bold text-exosignal-text mb-6">Scientific Assessment</h2>
-
-        <div className="grid grid-cols-2 gap-6">
-          {/* HZ Relevance */}
-          <div>
-            <h4 className="text-lg font-medium text-exosignal-blue mb-4">Habitable Zone Status</h4>
-            <p className="text-exosignal-text/70 text-sm">
-              {getHZText(planet.hz_status)}
-            </p>
-            <div className="mt-4">
-              <span className={`inline-block px-2 py-1 rounded-full text-white text-xs
-                ${getHZColor(planet.hz_status)}`}>
-                {getHZText(planet.hz_status)}
-              </span>
-            </div>
-          </div>
-
-          {/* Earth Similarity */}
-          <div>
-            <h4 className="text-lg font-medium text-exosignal-blue mb-4">Earth Similarity</h4>
-            <p className="text-exosignal-text/70 text-sm">
-              {formatNumber(planet.earth_similarity, 3)}
-            </p>
-          </div>
-
-          {/* Observation Accessibility */}
-          <div>
-            <h4 className="text-lg font-medium text-exosignal-blue mb-4">Observation Accessibility</h4>
-            <p className="text-exosignal-text/70 text-sm">
-              {formatNumber(planet.observational_accessibility, 3)}
-            </p>
-          </div>
-
-          {/* Data Quality */}
-          <div>
-            <h4 className="text-lg font-medium text-exosignal-blue mb-4">Data Quality</h4>
-            <p className="text-exosignal-text/70 text-sm">
-              {formatNumber(planet.data_quality, 3)}
-            </p>
-          </div>
-        </div>
-
-        {/* Anomaly Score */}
-        <div className="mt-8 p-6 bg-space-dark rounded-lg border border-exosignal-blue/20">
-          <h4 className="text-lg font-medium text-exosignal-blue mb-4">Anomaly Score</h4>
-          <p className="text-4xl font-bold text-exosignal-accent">
-            {formatAnomaly(planet.anomaly_score)}
-          </p>
-          <p className="text-exosignal-text/70 mt-1">
-            {planet.anomaly_score_description || 'Lower scores are typical; higher scores indicate unusual combinations of properties.'}
-          </p>
-        </div>
-
-        {/* Priority Score */}
-        <div className="mt-8 p-6 bg-space-dark rounded-lg border border-exosignal-blue/20">
-          <h4 className="text-lg font-medium text-exosignal-blue mb-4">Target Priority Score</h4>
-          <p className="text-5xl font-extrabold text-exosignal-accent">
-            {formatPriority(planet.target_priority_score)}/100
-          </p>
-          <p className="text-exosignal-text/70 mt-2">
-            Based on planetary relevance, stellar characteristics, observational
-            accessibility, data quality, and anomaly score.
-          </p>
-
-          {/* Component Breakdown */}
-          {planet.priority_components && (
-            <div className="mt-6">
-              <h5 className="text-sm font-medium text-exosignal-text/70 mb-3">Component Breakdown</h5>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {Object.entries(planet.priority_components)
-                  .filter(([key]) => key !== 'final_score')
-                  .map(([key, value]) => (
-                    <div key={key} className="bg-space-darker rounded-lg p-3 border border-exosignal-blue/10">
-                      <p className="text-xs text-exosignal-text/70 mb-1">
-                        {PRIORITY_COMPONENT_LABELS[key] || key}
-                      </p>
-                      <p className="text-xl font-bold text-exosignal-accent">
-                        {typeof value === 'number' ? value.toFixed(1) : value}
-                      </p>
+              {/* Quick Metrics Badge */}
+              <div className="flex flex-wrap items-center gap-4 bg-space-void/90 p-4 rounded-2xl border border-exosignal-cyan/25 mt-5">
+                <div>
+                  <span className="text-[10px] font-mono text-exosignal-text-muted block uppercase">Priority Score</span>
+                  <div className="text-3xl font-black font-mono text-exosignal-cyan">
+                    {formatPriority(planet.target_priority_score)}
+                  </div>
+                </div>
+                {planet.ml_rank && (
+                  <div className="border-l border-exosignal-cyan/20 pl-4">
+                    <span className="text-[10px] font-mono text-exosignal-text-muted block uppercase">ML Rank</span>
+                    <div className="text-2xl font-bold font-mono text-white">
+                      #{planet.ml_rank}{' '}
+                      {planet.rank_delta !== undefined && (
+                        <span className={`text-xs ${planet.rank_delta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          ({planet.rank_delta >= 0 ? `▲ +${planet.rank_delta}` : `▼ ${planet.rank_delta}`})
+                        </span>
+                      )}
                     </div>
-                  ))}
-                <div className="bg-space-darker rounded-lg p-3 border border-exosignal-blue/10 md:col-span-2">
-                  <p className="text-xs text-exosignal-text/70 mb-1">Final Priority Score</p>
-                  <p className="text-xl font-bold text-exosignal-accent">
-                    {planet.priority_components.final_score?.toFixed(1) || formatPriority(planet.target_priority_score)}
-                  </p>
+                  </div>
+                )}
+                <div className="border-l border-exosignal-cyan/20 pl-4">
+                  <Link
+                    to={`/compare?planet_a=${encodeURIComponent(planet.planet_name)}`}
+                    className="btn-secondary-glass text-xs py-1.5 px-3 block text-center"
+                  >
+                    Compare
+                  </Link>
                 </div>
               </div>
             </div>
-          )}
+
+            {/* Right: Real 3D Rotating Planet Sphere */}
+            <div className="lg:col-span-4 flex justify-center">
+              <Planet3DVisualizer
+                initialPlanet={getPresetForPlanet()}
+                size={220}
+                showControls={false}
+                interactive={true}
+              />
+            </div>
+          </div>
         </div>
-      </section>
+      </div>
 
-      {/* Explanation Section */}
-      <section className="bg-space-darker rounded-lg border border-exosignal-blue/20 p-8">
-        <h2 className="text-2xl font-bold text-exosignal-text mb-6">Why This Target?</h2>
-        <p className="text-exosignal-text/90 mb-4 leading-relaxed">
-          {getDynamicExplanation()}
-        </p>
-        <p className="text-exosignal-text/60 text-sm">
-          <strong>Note:</strong> Target prioritization is evaluated from measurable astrophysical parameters,
-          spectroscopic accessibility, and stellar properties to optimize telescope resource allocation.
-        </p>
-      </section>
 
-      {/* Recommendations for Follow-up */}
-      <section className="bg-space-darker rounded-lg border border-exosignal-blue/20 p-8 mt-8">
-        <h2 className="text-2xl font-bold text-exosignal-text mb-6">Suggested Follow-Up Observations</h2>
-        <ul className="space-y-4 text-exosignal-text/80">
-          {getSuggestedObservations().map((obs, idx) => (
-            <li key={idx} className="flex items-start">
-              <div className="w-3 h-3 bg-exosignal-accent rounded-sm flex-shrink-0 mt-1" />
-              <div className="ml-3 flex-1">
-                <p className="font-semibold text-exosignal-text">{obs.title}</p>
-                <p className="text-sm text-exosignal-text/70 mt-0.5">{obs.desc}</p>
+      {/* Tab Division Rail */}
+      <div>
+        <SegmentedTabs
+          tabs={detailTabs}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+        />
+      </div>
+
+      {/* SECTION 1: Physical Parameters & Narrative */}
+      {(showAll || activeTab === 'overview') && (
+        <div className="space-y-6">
+          <SectionDivider
+            number="01"
+            title="Astrophysical Telemetry & Host Environment"
+            subtitle="Derived planetary bulk density proxies, orbital mechanics, and stellar irradiance"
+            badge="TELEMETRY"
+            accent="cyan"
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Planet Specs Compartment */}
+            <div className="divided-compartment">
+              <div className="compartment-header">
+                <div className="flex items-center space-x-2">
+                  <span className="text-base">🪐</span>
+                  <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider text-exosignal-cyan">
+                    Planetary Physical Parameters
+                  </h3>
+                </div>
+                <span className="text-[10px] font-mono text-exosignal-text-muted">EXOPLANET ARCHIVE</span>
               </div>
-            </li>
-          ))}
-        </ul>
-      </section>
+              <div className="p-6">
+                <div className="grid grid-cols-2 gap-3 text-xs font-mono">
+                  <div className="bg-space-void/80 p-3.5 rounded-xl border border-exosignal-cyan/15">
+                    <span className="text-exosignal-text-muted block text-[10px]">Radius</span>
+                    <span className="text-white font-bold text-sm">{formatRadius(planet.planet_radius)}</span>
+                  </div>
+                  <div className="bg-space-void/80 p-3.5 rounded-xl border border-exosignal-cyan/15">
+                    <span className="text-exosignal-text-muted block text-[10px]">Estimated Mass</span>
+                    <span className="text-white font-bold text-sm">{formatMass(planet.planet_mass)}</span>
+                  </div>
+                  <div className="bg-space-void/80 p-3.5 rounded-xl border border-exosignal-cyan/15">
+                    <span className="text-exosignal-text-muted block text-[10px]">Orbital Period</span>
+                    <span className="text-white font-bold text-sm">{formatPeriod(planet.orbital_period)}</span>
+                  </div>
+                  <div className="bg-space-void/80 p-3.5 rounded-xl border border-exosignal-cyan/15">
+                    <span className="text-exosignal-text-muted block text-[10px]">Equilibrium Temp</span>
+                    <span className="text-white font-bold text-sm">{formatTemperature(planet.equilibrium_temperature)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Stellar Specs Compartment */}
+            <div className="divided-compartment">
+              <div className="compartment-header">
+                <div className="flex items-center space-x-2">
+                  <span className="text-base">⭐</span>
+                  <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider text-exosignal-purple">
+                    Host Star & Observation Geometry
+                  </h3>
+                </div>
+                <span className="text-[10px] font-mono text-exosignal-text-muted">STELLAR PROVENANCE</span>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-2 gap-3 text-xs font-mono">
+                  <div className="bg-space-void/80 p-3.5 rounded-xl border border-purple-500/15">
+                    <span className="text-exosignal-text-muted block text-[10px]">Stellar Radius</span>
+                    <span className="text-white font-bold text-sm">
+                      {planet.stellar_radius ? `${planet.stellar_radius.toFixed(2)} R☉` : '—'}
+                    </span>
+                  </div>
+                  <div className="bg-space-void/80 p-3.5 rounded-xl border border-purple-500/15">
+                    <span className="text-exosignal-text-muted block text-[10px]">Stellar Temp</span>
+                    <span className="text-white font-bold text-sm">
+                      {planet.stellar_teff ? `${Math.round(planet.stellar_teff)} K` : '—'}
+                    </span>
+                  </div>
+                  <div className="bg-space-void/80 p-3.5 rounded-xl border border-purple-500/15">
+                    <span className="text-exosignal-text-muted block text-[10px]">Distance</span>
+                    <span className="text-white font-bold text-sm">{formatDistance(planet.distance)}</span>
+                  </div>
+                  <div className="bg-space-void/80 p-3.5 rounded-xl border border-purple-500/15">
+                    <span className="text-exosignal-text-muted block text-[10px]">Anomaly Score</span>
+                    <span className="text-amber-400 font-bold text-sm">{formatAnomaly(planet.anomaly_score)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Dynamic Scientific Narrative Compartment */}
+          <div className="divided-compartment">
+            <div className="compartment-header">
+              <h3 className="text-base font-bold text-white font-display">
+                Atmospheric Prioritization Summary
+              </h3>
+              <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-exosignal-cyan/15 text-exosignal-cyan border border-exosignal-cyan/30">
+                SCIENTIFIC RATIONALE
+              </span>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-exosignal-text-secondary leading-relaxed font-sans">
+                {getDynamicExplanation()}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SECTION 2: TreeSHAP Interpretability Waterfall */}
+      {(showAll || activeTab === 'explainability') && (
+        <div className="space-y-4">
+          <SectionDivider
+            number="02"
+            title="TreeSHAP Feature Attribution"
+            subtitle="Local Shapley feature importance waterfall explaining exactly why the model prioritized this target"
+            badge="ML EXPLAINABILITY"
+            accent="purple"
+          />
+
+          <div className="divided-compartment">
+            <div className="p-6">
+              <TreeSHAPWaterfall
+                planetName={planet.planet_name}
+                targetPriorityScore={planet.target_priority_score}
+                mlPriorityScore={planet.ml_priority_score}
+                mlRank={planet.ml_rank}
+                rankDelta={planet.rank_delta}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SECTION 3: Suggested Follow-up Strategies */}
+      {(showAll || activeTab === 'protocols') && (
+        <div className="space-y-4">
+          <SectionDivider
+            number="03"
+            title="Recommended Observational Protocols"
+            subtitle="Spectroscopy, transit timing, and high-contrast imaging follow-up strategies tailored to target characteristics"
+            badge="MISSION STRATEGY"
+            accent="emerald"
+          />
+
+          <div className="divided-compartment">
+            <div className="compartment-header">
+              <h3 className="text-base font-bold text-white font-display">
+                Instrument & Campaign Recommendations
+              </h3>
+              <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                {getSuggestedObservations().length} TARGET PROTOCOLS
+              </span>
+            </div>
+            <div className="p-6">
+              <div className="space-y-3">
+                {getSuggestedObservations().map((obs, idx) => (
+                  <div key={idx} className="bg-space-void/80 p-4 rounded-xl border border-exosignal-cyan/15 flex items-start space-x-3 hover:border-exosignal-cyan/40 transition-colors">
+                    <span className="text-exosignal-cyan text-base mt-0.5">🔭</span>
+                    <div>
+                      <h4 className="font-bold text-white text-sm">{obs.title}</h4>
+                      <p className="text-xs text-exosignal-text-muted mt-1 leading-relaxed">{obs.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 export default PlanetDetail
-
-// Helper function for formatting numbers (inline since it's simple)
-function formatNumber(value, decimals = 2) {
-  if (value === null || value === undefined || isNaN(value)) {
-    return '—'
-  }
-  return value.toFixed(decimals)
-}

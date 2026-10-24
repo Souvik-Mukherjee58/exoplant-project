@@ -1,0 +1,8 @@
+{
+  "source": "NASA Exoplanet Archive (pscomppars table via TAP)",
+  "url": "https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+pl_name,pl_rade,pl_bmasse,pl_orbper,pl_orbsmax,pl_eqt,pl_orbeccen,st_teff,st_rad,st_mass,st_met,st_lum,sy_dist,sy_jmag,sy_kmag,discoverymethod,disc_year+from+pscomppars&format=csv",
+  "download_date": "2026-10-23T14:31:22.803172+00:00",
+  "sha256": "680498bdbf5a92866b148a26335b0bcaa0ddd53196d0508ed88d1718ac7aabe4",
+  "row_count": 6451,
+  "file": "nasa_exoplanet_archive.csv"
+}

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.vite/
+.git/
+.github/
+.gitignore
+*.md
+Dockerfile
+.dockerignore
+.env
+.env.*

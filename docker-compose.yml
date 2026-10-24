@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: exosignal-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - EXOSIGNAL_ENV=production
+      - LOG_LEVEL=info
+      - CORS_ORIGINS=["http://localhost", "http://localhost:80"]
+    volumes:
+      # Mount artifacts for hot-swappable model updates without rebuild
+      - ./backend/artifacts:/app/artifacts:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - exosignal-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: exosignal-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - exosignal-net
+
+networks:
+  exosignal-net:
+    driver: bridge

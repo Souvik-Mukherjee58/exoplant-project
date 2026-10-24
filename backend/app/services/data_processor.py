@@ -203,26 +203,84 @@ class DataProcessor:
         if len(available_cols) < 2:
             return {"error": "Insufficient features for PCA"}
 
-        from sklearn.decomposition import PCA
-        from sklearn.preprocessing import StandardScaler
+        # Representative sample for interactive browser rendering
+        if len(df) > 500:
+            top_part = df.head(200)
+            anom_part = df.nlargest(150, "anomaly_score")
+            rand_part = df.sample(n=150, random_state=42)
+            df_sample = pd.concat([top_part, anom_part, rand_part]).drop_duplicates(subset=["planet_name"]).reset_index(drop=True)
+        else:
+            df_sample = df.reset_index(drop=True)
 
-        X = df[available_cols].fillna(df[available_cols].median())
+        X = df_sample[available_cols].copy()
+        for c in available_cols:
+            X[c] = pd.to_numeric(X[c], errors="coerce")
+        X = X.fillna(X.median()).fillna(0.0)
+
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
 
-        pca = PCA(n_components=2)
+        pca = PCA(n_components=2, random_state=42)
         X_pca = pca.fit_transform(X_scaled)
 
         return {
-            "planets": df["planet_name"].tolist(),
-            "pca_x": X_pca[:, 0].tolist(),
-            "pca_y": X_pca[:, 1].tolist(),
-            "anomaly_score": df["anomaly_score"].tolist(),
-            "target_priority_score": df["target_priority_score"].tolist(),
-            "hz_status": df["hz_status"].tolist(),
-            "explained_variance": pca.explained_variance_ratio_.tolist(),
+            "planets": df_sample["planet_name"].tolist(),
+            "pca_x": [round(float(v), 3) for v in X_pca[:, 0]],
+            "pca_y": [round(float(v), 3) for v in X_pca[:, 1]],
+            "anomaly_score": [round(float(v), 3) for v in df_sample["anomaly_score"]],
+            "target_priority_score": [round(float(v), 1) for v in df_sample["target_priority_score"]],
+            "hz_status": df_sample["hz_status"].tolist(),
+            "explained_variance": [round(float(v), 4) for v in pca.explained_variance_ratio_],
             "feature_names": available_cols
         }
+
+    def get_ltr_info(self) -> Dict[str, Any]:
+        """Get LTR model metadata, training configuration, and test performance."""
+        artifacts_dir = Path("artifacts")
+        active_ptr = artifacts_dir / "active_version.txt"
+        version = active_ptr.read_text().strip() if active_ptr.exists() else "default"
+
+        manifest_file = artifacts_dir / version / "manifest.json"
+        if manifest_file.exists():
+            with open(manifest_file, "r") as f:
+                manifest = json.load(f)
+            models_info = manifest.get("models", {})
+            bench_info = manifest.get("benchmark", {})
+            return {
+                "artifact_version": version,
+                "model_name": models_info.get("ltr_model", "ltr_model.joblib"),
+                "algorithm": models_info.get("ltr_algorithm", "LightGBM Supervised Learning-to-Rank GBDT"),
+                "top_features": models_info.get("ltr_top_features", []),
+                "benchmark_leaderboard": bench_info.get("leaderboard", [])
+            }
+
+        return {
+            "artifact_version": version,
+            "model_name": "ltr_model.joblib",
+            "algorithm": "LightGBM Supervised Learning-to-Rank GBDT",
+            "status": "Available via pipeline build"
+        }
+
+    def get_ltr_feature_importances(self) -> Dict[str, Any]:
+        """Get ranked feature importances for the LTR model."""
+        artifacts_dir = Path("artifacts")
+        active_ptr = artifacts_dir / "active_version.txt"
+        version = active_ptr.read_text().strip() if active_ptr.exists() else None
+
+        candidates = []
+        if version:
+            candidates.append(artifacts_dir / version / "ltr_feature_importance.json")
+        candidates.append(artifacts_dir / "ltr_feature_importance.json")
+
+        for cand in candidates:
+            if cand.exists():
+                with open(cand, "r") as f:
+                    return json.load(f)
+
+        return {
+            "error": "LTR feature importance not yet computed. Run python -m app.pipeline build"
+        }
+
 
 
 # Global processor instance

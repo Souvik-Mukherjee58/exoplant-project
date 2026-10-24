@@ -18,7 +18,9 @@ class DataIngestion:
         self.processed_dir = Path(processed_dir or settings.PROCESSED_DATA_DIR)
         self.exoplanet_archive_url = (
             "https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query="
-            "SELECT+*+FROM+Planet+Primary+Parameter+Collection"
+            "select+pl_name,pl_rade,pl_bmasse,pl_orbper,pl_orbsmax,pl_eqt,pl_orbeccen,"
+            "st_teff,st_rad,st_mass,st_met,st_lum,sy_dist,sy_jmag,sy_kmag,"
+            "discoverymethod,disc_year+from+pscomppars&format=csv"
         )
 
     def create_directories(self) -> None:
@@ -36,9 +38,9 @@ class DataIngestion:
         except Exception as e:
             raise ValueError(f"Failed to load CSV from {file_path}: {str(e)}")
 
-    def download_from_api(self, timeout: int = 30) -> Optional[pd.DataFrame]:
+    def download_from_api(self, timeout: int = 60) -> Optional[pd.DataFrame]:
         """
-        Download exoplanet data from NASA Exoplanet Archive API.
+        Download exoplanet data from NASA Exoplanet Archive TAP API.
 
         Args:
             timeout: Request timeout in seconds
@@ -46,36 +48,46 @@ class DataIngestion:
         Returns:
             DataFrame if successful, None if download fails
         """
+        import hashlib
+        import datetime
+        from io import StringIO
+
         try:
             response = requests.get(
                 self.exoplanet_archive_url,
                 timeout=timeout,
-                headers={'Accept': 'text/csv'}
+                headers={"Accept": "text/csv"}
             )
             response.raise_for_status()
 
-            # Parse CSV from response
-            from io import StringIO
             df = pd.read_csv(StringIO(response.text))
-
             if df.empty:
                 return None
 
-            # Save to local cache
-            cache_path = self.raw_dir / "downloaded_exoplanet_data.csv"
-            df.to_csv(cache_path, index=False)
-            print(f"Downloaded and cached {len(df)} exoplanets to {cache_path}")
+            # Save snapshot and manifest
+            self.create_directories()
+            cache_path = self.raw_dir / "nasa_exoplanet_archive.csv"
+            sha256 = hashlib.sha256(response.content).hexdigest()
 
+            with open(cache_path, "wb") as f:
+                f.write(response.content)
+
+            manifest = {
+                "source": "NASA Exoplanet Archive (pscomppars table via TAP)",
+                "url": self.exoplanet_archive_url,
+                "download_date": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "sha256": sha256,
+                "row_count": len(df),
+                "file": cache_path.name
+            }
+            with open(self.raw_dir / "manifest.json", "w") as f:
+                json.dump(manifest, f, indent=2)
+
+            print(f"Downloaded and cached {len(df)} planets to {cache_path} (SHA256: {sha256[:12]}...)")
             return df
 
-        except requests.exceptions.Timeout:
-            print(f"Timeout when downloading from NASA Exoplanet Archive (timeout={timeout}s)")
-            return None
-        except requests.exceptions.RequestException as e:
-            print(f"Failed to download from NASA Exoplanet Archive: {str(e)}")
-            return None
         except Exception as e:
-            print(f"Unexpected error during download: {str(e)}")
+            print(f"Failed to download from NASA Exoplanet Archive TAP: {str(e)}")
             return None
 
     def load_or_download_exoplanet_archive(self, use_api: bool = False, api_timeout: int = None) -> pd.DataFrame:
@@ -83,16 +95,9 @@ class DataIngestion:
         Load exoplanet data with fallback strategy.
 
         Priority:
-        1. If use_api=True, attempt API download first, then fallback to local CSV
-        2. If use_api=False, load from local CSV directly
-        3. If no local CSV found, return empty DataFrame
-
-        Args:
-            use_api: Whether to attempt downloading from API
-            api_timeout: Timeout for API requests in seconds (defaults to config value)
-
-        Returns:
-            DataFrame with exoplanet data, or empty DataFrame if unavailable
+        1. If local nasa_exoplanet_archive.csv exists and not use_api, load it directly
+        2. If use_api=True or local archive missing, download via NASA TAP API
+        3. Fallback to any local CSV candidate
         """
         from app.config import settings
 
@@ -101,21 +106,25 @@ class DataIngestion:
 
         self.create_directories()
 
-        # Try API download if requested
-        if use_api:
-            print("Attempting to download from NASA Exoplanet Archive...")
+        # Primary archive snapshot file
+        primary_file = self.raw_dir / "nasa_exoplanet_archive.csv"
+        if primary_file.exists() and not use_api:
+            print(f"Loading local NASA archive snapshot: {primary_file.name}")
+            return self.load_from_csv(str(primary_file))
+
+        # Try API download if requested or file missing
+        if use_api or not primary_file.exists():
+            print("Attempting to download from NASA Exoplanet Archive TAP...")
             api_df = self.download_from_api(timeout=api_timeout)
             if api_df is not None and not api_df.empty:
                 return api_df
-            print("API download failed, falling back to local CSV...")
+            print("API download failed or unavailable, checking local files...")
 
-        # Look for local CSV files
+        # Fallback to any local CSV file
         csv_candidates = list(self.raw_dir.glob("*.csv"))
         if csv_candidates:
-            # Prefer explicitly named sample data
-            sample_files = [f for f in csv_candidates if "sample" in f.name.lower()]
-            target_file = sample_files[0] if sample_files else csv_candidates[0]
-
+            # Prefer nasa_exoplanet_archive if it was found
+            target_file = primary_file if primary_file.exists() else csv_candidates[0]
             print(f"Loading local CSV: {target_file.name}")
             return self.load_from_csv(str(target_file))
 

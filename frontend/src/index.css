@@ -298,3 +298,44 @@ th, td {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--exosignal-accent);
 }
+
+/* Modern Cosmic & Glassmorphism Utilities */
+.bg-space-void { background-color: var(--space-void); }
+.bg-space-surface { background-color: var(--space-surface); }
+.bg-space-card { background-color: var(--space-card); }
+.bg-space-card-hover { background-color: var(--space-card-hover); }
+
+.text-exosignal-cyan { color: var(--exosignal-cyan); }
+.text-exosignal-emerald { color: var(--exosignal-emerald); }
+.text-exosignal-purple { color: var(--exosignal-purple); }
+.text-exosignal-amber { color: var(--exosignal-amber); }
+.text-exosignal-rose { color: var(--exosignal-rose); }
+
+.border-glass { border: var(--border-glass); }
+.border-glass-hover:hover { border: var(--border-glass-hover); }
+.border-exosignal-cyan\/30 { border-color: rgba(56, 189, 248, 0.3); }
+.border-exosignal-cyan\/50 { border-color: rgba(56, 189, 248, 0.5); }
+.border-exosignal-emerald\/40 { border-color: rgba(16, 185, 129, 0.4); }
+.border-exosignal-purple\/40 { border-color: rgba(168, 85, 247, 0.4); }
+
+.shadow-neon-cyan { box-shadow: 0 0 24px rgba(56, 189, 248, 0.22); }
+.shadow-neon-emerald { box-shadow: 0 0 24px rgba(16, 185, 129, 0.22); }
+.shadow-neon-purple { box-shadow: 0 0 24px rgba(168, 85, 247, 0.22); }
+
+.card-shine {
+  position: relative;
+  overflow: hidden;
+}
+.card-shine::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 50%; height: 100%;
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.05), transparent);
+  transform: skewX(-25deg);
+  transition: 0.75s ease;
+}
+.card-shine:hover::before {
+  left: 150%;
+}
+

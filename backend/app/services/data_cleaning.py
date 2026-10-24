@@ -1,129 +1,176 @@
-"""Data cleaning and standardization service."""
+"""Data cleaning and standardization service for NASA Exoplanet Archive datasets."""
 
 import numpy as np
 import pandas as pd
+from typing import List, Optional
 
 
 class DataCleaning:
-    """Cleans and standardizes exoplanet data."""
+    """Cleans, standardizes, validates, and transforms exoplanet archive data."""
 
     def __init__(self):
-        self.standard_column_names = {
-            "PlanetMass": "planet_mass",
-            "PlanetMassErr1": "planet_mass_err1",
-            "PlanetRadius": "planet_radius",
-            "PlanetRadiusErr1": "planet_radius_err1",
-            "PlanetOrbitalPeriod": "orbital_period",
-            "PlanetOrbitalPeriodErr1": "orbital_period_err1",
-            "PlanetOrbitalPeriodErr2": "orbital_period_err2",
-            "PlanetSemiMajorAxis": "semi_major_axis",
-            "PlanetEquiTemp": "equilibrium_temperature",
-            "PlanetEquiTempErr1": "equilibrium_temperature_err1",
-            "PlanetEccentricity": "eccentricity",
-            "PlanetEccentricityErr1": "eccentricity_err1",
-            "PlanetDiscoveryMethod": "discovery_method",
-            "PlanetDiscoveryYear": "discovery_year",
-            "PlanetName": "planet_name",
-            "SmaUnit": "semi_major_axis_unit",
-            "PPerYear": "period_in_years",
-            "PPerYearErr1": "period_in_years_err1",
-            "PPerYearErr2": "period_in_years_err2",
-            # Stellar properties
-            "StellarName": "stellar_name",
-            "StellarEffectiveTemperature": "stellar_effective_temperature",
-            "StellarRadius": "stellar_radius",
-            "StellarMass": "stellar_mass",
-            "StellarMetallicity": "stellar_metallicity",
-            "StellarLuminosity": "stellar_luminosity",
-            "Dist": "distance",
+        # Mappings from NASA TAP pscomppars columns to standardized application schema
+        self.tap_column_names = {
+            "pl_name": "planet_name",
+            "pl_rade": "planet_radius",
+            "pl_bmasse": "planet_mass",
+            "pl_orbper": "orbital_period",
+            "pl_orbsmax": "semi_major_axis",
+            "pl_eqt": "equilibrium_temperature",
+            "pl_orbeccen": "eccentricity",
+            "st_teff": "stellar_effective_temperature",
+            "st_rad": "stellar_radius",
+            "st_mass": "stellar_mass",
+            "st_met": "stellar_metallicity",
+            "st_lum": "st_lum_log10",
+            "sy_dist": "distance",
+            "sy_jmag": "j_magnitude",
+            "sy_kmag": "k_magnitude",
+            "discoverymethod": "discovery_method",
+            "disc_year": "discovery_year",
         }
 
-    def clean_columns(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Standardize column names and remove irrelevant columns."""
+        # Legacy column names for backward compatibility with sample CSVs
+        self.legacy_column_names = {
+            "planetname": "planet_name",
+            "planetmass": "planet_mass",
+            "planetradius": "planet_radius",
+            "planetorbitalperiod": "orbital_period",
+            "planetsemimajoraxis": "semi_major_axis",
+            "planetequitemp": "equilibrium_temperature",
+            "planeteccentricity": "eccentricity",
+            "planetdiscoverymethod": "discovery_method",
+            "planetdiscoveryyear": "discovery_year",
+            "stellareffectivetemperature": "stellar_effective_temperature",
+            "stellarradius": "stellar_radius",
+            "stellarmass": "stellar_mass",
+            "stellarmetallicity": "stellar_metallicity",
+            "stellarluminosity": "stellar_luminosity",
+            "dist": "distance",
+        }
+
+    def standardize_column_names(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Map raw archive column names to consistent standardized names."""
         if df.empty:
             return df
 
-        # Convert all column names to lower case and replace spaces with underscores
-        df.columns = df.columns.str.lower().str.replace(" ", "_")
+        df = df.copy()
 
-        # Apply standard column name mapping if any matches exist
-        rename_dict = {}
-        for original, standard in self.standard_column_names.items():
-            if original.lower().replace(" ", "_") in df.columns:
-                rename_dict[original.lower().replace(" ", "_")] = standard
+        # Check for TAP names first
+        rename_map = {}
+        for col in df.columns:
+            clean_col = col.strip().lower()
+            if clean_col in self.tap_column_names:
+                rename_map[col] = self.tap_column_names[clean_col]
+            elif clean_col in self.legacy_column_names:
+                rename_map[col] = self.legacy_column_names[clean_col]
 
-        if rename_dict:
-            df = df.rename(columns=rename_dict)
+        if rename_map:
+            df = df.rename(columns=rename_map)
 
-        # Drop columns that are not useful for prioritization
-        drop_cols = [
-            col
-            for col in df.columns
-            if col
-            in {
-                "discoverydate",
-                "updatedby",
-                "updateddate",
-                "reference",
-                "exorbiteccentricity",
-                "exorbitalsemimajoraxis",
-            }
-        ]
-        df = df.drop(columns=drop_cols, errors="ignore")
-
+        # Normalize remaining columns to lowercase with underscores
+        df.columns = [str(c).strip().lower().replace(" ", "_") for c in df.columns]
         return df
 
-    def sanitize_numeric(self, df: pd.DataFrame, columns: list) -> pd.DataFrame:
-        """Convert columns to numeric, coercing errors to NaN."""
+    def sanitize_numeric(self, df: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
+        """Convert specified columns to numeric, coercing unparseable values to NaN."""
+        df = df.copy()
         for col in columns:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors="coerce")
         return df
 
-    def remove_invalid_records(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Remove records with invalid/placeholder values used by exoplanet archive."""
-        invalid_mask = df["planet_name"].isin(
-            ["", "null", "None", "nan", "NAN", "NaN", "NULL"]
-        ) | df["planet_name"].str.lower().isin(["null"])
-        df = df[~invalid_mask].reset_index(drop=True)
+    def handle_astrophysical_units(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Convert explicit archive units to standard physical quantities.
+
+        - st_lum in NASA archive is log10(L / L_sun); convert to linear Solar luminosities (L_sun).
+        - If st_lum is absent, compute Stefan-Boltzmann approximation: (R_star)^2 * (T_eff / 5780)^4.
+        - Distance in parsecs (sy_dist) preserved as 'distance', and 'distance_ly' derived as pc * 3.26156.
+        - Derive stellar_name from planet_name if missing.
+        """
+        df = df.copy()
+
+        # Handle luminosity (log10 L_sun -> linear L_sun)
+        if "st_lum_log10" in df.columns:
+            linear_lum = np.where(df["st_lum_log10"].notna(), 10.0 ** df["st_lum_log10"], np.nan)
+            df["stellar_luminosity"] = linear_lum
+        elif "stellar_luminosity" not in df.columns:
+            df["stellar_luminosity"] = np.nan
+
+        # Stefan-Boltzmann fallback for missing stellar luminosity
+        if "stellar_radius" in df.columns and "stellar_effective_temperature" in df.columns:
+            rad = pd.to_numeric(df["stellar_radius"], errors="coerce")
+            teff = pd.to_numeric(df["stellar_effective_temperature"], errors="coerce")
+            sb_lum = np.where(
+                rad.notna() & (rad > 0) & teff.notna() & (teff > 0),
+                (rad ** 2) * ((teff / 5780.0) ** 4),
+                np.nan
+            )
+            df["stellar_luminosity"] = df["stellar_luminosity"].fillna(pd.Series(sb_lum, index=df.index))
+
+        # Handle distance (pc) and distance_ly (light-years)
+        if "distance" in df.columns:
+            dist = pd.to_numeric(df["distance"], errors="coerce")
+            df["distance_ly"] = np.where(dist.notna() & (dist >= 0), dist * 3.26156, np.nan)
+
+        # Derive stellar host name from planet_name if not provided
+        if "stellar_name" not in df.columns or df["stellar_name"].isna().all():
+            if "planet_name" in df.columns:
+                # E.g. "TOI-700 d" -> "TOI-700", "Kepler-6 b" -> "Kepler-6"
+                df["stellar_name"] = df["planet_name"].astype(str).str.replace(r"\s+[a-z]$", "", regex=True)
+
         return df
 
+    def validate_and_deduplicate(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Remove invalid records, duplicate planet entries, and unphysical outliers.
+        """
+        df = df.copy()
+
+        # Ensure planet_name is clean string
+        df["planet_name"] = df["planet_name"].astype(str).str.strip().str.replace('"', "")
+        invalid_names = {"", "null", "none", "nan", "undefined"}
+        df = df[~df["planet_name"].str.lower().isin(invalid_names)]
+
+        # Deduplicate on planet_name (keep first occurrence)
+        df = df.drop_duplicates(subset=["planet_name"]).reset_index(drop=True)
+
+        # Astrophysical sanity bounds:
+        # Flag/clamp corrupt radius (> 40 Earth radii or <= 0)
+        if "planet_radius" in df.columns:
+            df.loc[(df["planet_radius"] <= 0) | (df["planet_radius"] > 40.0), "planet_radius"] = np.nan
+
+        # Clamp corrupt equilibrium temperature (> 10,000 K or <= 0)
+        if "equilibrium_temperature" in df.columns:
+            df.loc[(df["equilibrium_temperature"] <= 0) | (df["equilibrium_temperature"] > 10000.0), "equilibrium_temperature"] = np.nan
+
+        # Clamp corrupt orbital period (<= 0)
+        if "orbital_period" in df.columns:
+            df.loc[df["orbital_period"] <= 0, "orbital_period"] = np.nan
+
+        # Clamp corrupt semi-major axis (<= 0)
+        if "semi_major_axis" in df.columns:
+            df.loc[df["semi_major_axis"] <= 0, "semi_major_axis"] = np.nan
+
+        return df.reset_index(drop=True)
+
     def clean(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Run the full cleaning pipeline."""
-        df = self.clean_columns(df)
+        """Run the end-to-end cleaning and standardization pipeline."""
+        if df.empty:
+            return df
+
+        df = self.standardize_column_names(df)
 
         numeric_columns = [
-            "planet_mass",
-            "planet_mass_err1",
-            "planet_radius",
-            "planet_radius_err1",
-            "planet_radius_min",
-            "planet_radius_max",
-            "orbital_period",
-            "orbital_period_err1",
-            "orbital_period_err2",
-            "semi_major_axis",
-            "semi_major_axis_err1",
-            "semi_major_axis_err2",
-            "equilibrium_temperature",
-            "equilibrium_temperature_err1",
-            "equilibrium_temperature_err2",
-            "eccentricity",
-            "eccentricity_err1",
-            "discovery_year",
-            "period_in_years",
-            "period_in_years_err1",
-            "period_in_years_err2",
-            # Stellar properties
-            "stellar_effective_temperature",
-            "stellar_radius",
-            "stellar_mass",
-            "stellar_metallicity",
-            "stellar_luminosity",
-            "distance",
+            "planet_radius", "planet_mass", "orbital_period", "semi_major_axis",
+            "equilibrium_temperature", "eccentricity", "discovery_year",
+            "stellar_effective_temperature", "stellar_radius", "stellar_mass",
+            "stellar_metallicity", "st_lum_log10", "stellar_luminosity",
+            "distance", "j_magnitude", "k_magnitude"
         ]
         df = self.sanitize_numeric(df, numeric_columns)
-
-        df = self.remove_invalid_records(df)
+        df = self.handle_astrophysical_units(df)
+        df = self.validate_and_deduplicate(df)
 
         return df

@@ -1,173 +1,200 @@
-import React from 'react'
+import React, { useState } from 'react'
+import SectionDivider from '../components/SectionDivider'
+import SegmentedTabs from '../components/SegmentedTabs'
 
 const Methodology = () => {
+  const [activeTab, setActiveTab] = useState('framework')
+
+  const methodologyTabs = [
+    { id: 'context', label: 'Scientific Context', icon: '🔭' },
+    { id: 'pipeline', label: 'Data Pipeline', icon: '⚙️' },
+    { id: 'framework', label: 'Scoring Framework', icon: '📐' },
+    { id: 'constraints', label: 'Scientific Constraints', icon: '⚖️' },
+    { id: 'all', label: 'Full Methodology Document', icon: '📑' }
+  ]
+
+  const showAll = activeTab === 'all'
+
   return (
-    <div>
-      <h1 className="text-3xl font-bold text-exosignal-text mb-6">Methodology</h1>
-
-      {/* Scientific Context */}
-      <section className="bg-space-darker rounded-lg border border-exosignal-blue/20 p-8 mb-8">
-        <h2 className="text-xl font-semibold text-exosignal-text mb-4">Scientific Context</h2>
-        <p className="text-exosignal-text/80 mb-4">
-          Astronomical surveys have identified thousands of confirmed exoplanets and candidates.
-          However, telescope observation time is limited, making it difficult to determine which
-          systems deserve greater attention when searching for possible technosignatures.
-        </p>
-        <p className="text-exosignal-text/80 mb-4">
-          ExoSignal addresses this by combining publicly available astronomical data with
-          computational analysis and machine learning to provide a scientifically interpretable
-          target priority ranking.
-        </p>
-      </section>
-
-      {/* Data Pipeline */}
-      <section className="bg-space-darker rounded-lg border border-exosignal-blue/20 p-8 mb-8">
-        <h2 className="text-xl font-semibold text-exosignal-text mb-4">Data Pipeline</h2>
-        <ol className="list-decimal list-inside space-y-3 text-exosignal-text/80">
-          <li>
-            <strong>Data Ingestion:</strong> Collect exoplanet and stellar parameters from
-            the NASA Exoplanet Archive composite table.
-          </li>
-          <li>
-            <strong>Data Cleaning:</strong> Standardize column names, remove invalid records,
-            convert data types, handle missing values explicitly
-          </li>
-          <li>
-            <strong>Feature Engineering:</strong> Create derived features including Earth
-            similarity indices, habitable zone classifications, and observational accessibility scores
-          </li>
-          <li>
-            <strong>Missing Value Handling:</strong> Missing values are not fabricated; they are
-            explicitly handled in calculations
-          </li>
-          <li>
-            <strong>Feature Scaling:</strong> Normalize features for ML models
-          </li>
-          <li>
-            <strong>ML Model:</strong> Anomaly detection using Isolation Forest and Local Outlier Factor
-          </li>
-          <li>
-            <strong>Scientific Scoring:</strong> Combine ML outputs with domain-specific scoring
-          </li>
-          <li>
-            <strong>Final Ranking:</strong> Rank exoplanets by target priority score
-          </li>
-        </ol>
-      </section>
-
-      {/* Scoring Framework */}
-      <section className="bg-space-darker rounded-lg border border-exosignal-blue/20 p-8 mb-8">
-        <h2 className="text-xl font-semibold text-exosignal-text mb-4">Scoring Framework</h2>
-        <p className="text-exosignal-text/80 mb-4">
-          The Target Priority Score is calculated using five scientifically motivated components:
-        </p>
-        <div className="bg-space-dark rounded-lg p-6 border border-exosignal-blue/10">
-          <pre className="text-sm font-mono text-exosignal-text/80">
-{`Target Priority Score (0–100)
-├── Planetary Relevance (25%)
-│   ├── Radius relevance (Earth-like ~1.0 R⊕)
-│   ├── Mass relevance (Earth-like ~1.0 M⊕)
-│   ├── Temperature relevance (moderate ~300 K)
-│   └── Orbital period relevance
-├── Stellar Characteristics (25%)
-│   ├── Stellar temperature relevance (Sun-like ~5778 K)
-│   ├── Stellar radius relevance (~1.0 R☉)
-│   └── Stellar metallicity relevance
-├── Observational Accessibility (20%)
-│   ├── Distance score (closer = better)
-│   ├── Brightness score (brighter = better)
-│   └── Transit detectability (larger/shorter = better)
-├── Data Quality (15%)
-│   └── Number of available measurements
-└── Anomaly Score (15%)
-    ├── Isolation Forest anomaly detection
-    └── Local Outlier Factor anomaly detection`}
-          </pre>
-        </div>
-      </section>
-
-      {/* Scientific Constraints */}
-      <section className="bg-space-darker rounded-lg border border-exosignal-blue/20 p-8 mb-8">
-        <h2 className="text-xl font-semibold text-exosignal-text mb-4">Scientific Constraints</h2>
-        <ul className="space-y-2 text-exosignal-text/80">
-          <li>
-            <strong>No alien claims:</strong> The priority score does not represent the probability
-            of extraterrestrial life or intelligence. It is a computational ranking intended to
-            identify targets that may warrant further scientific investigation.
-          </li>
-          <li>
-            <strong>Missing data:</strong> Missing values are handled explicitly and never fabricated.
-            Planets with insufficient data are labeled "Insufficient data" rather than being assigned
-            incorrect values.
-          </li>
-          <li>
-            <strong>Anomaly ≠ Alien:</strong> Anomaly scores indicate unusual combinations of
-            astronomical properties relative to the analyzed dataset, not extraterrestrial activity.
-          </li>
-          <li>
-            <strong>Habitable Zone:</strong> HZ status is an approximate estimate based on stellar
-            luminosity and orbital distance. Being in or near the HZ does not guarantee habitability.
-          </li>
-        </ul>
-      </section>
-
-      {/* Machine Learning */}
-      <section className="bg-space-darker rounded-lg border border-exosignal-blue/20 p-8 mb-8">
-        <h2 className="text-xl font-semibold text-exosignal-text mb-4">Machine Learning Approach</h2>
-        <p className="text-exosignal-text/80 mb-4">
-          ExoSignal uses unsupervised machine learning for anomaly detection, not prediction.
-          The models identify unusual combinations of astronomical properties without requiring
-          labeled ground truth data (which doesn't exist for technosignature detection).
-        </p>
-        <div className="bg-space-dark rounded-lg p-6 border border-exosignal-blue/10">
-          <h3 className="text-lg font-medium text-exosignal-text mb-3">Models Used</h3>
-          <ul className="space-y-2 text-exosignal-text/80">
-            <li>
-              <strong>Isolation Forest:</strong> Identifies anomalies by isolating unusual observations.
-              Anomalous points require fewer splits to isolate in the tree structure.
-            </li>
-            <li>
-              <strong>Local Outlier Factor (LOF):</strong> Measures the local density deviation of a
-              point relative to its neighbors. Points with significantly lower local density are flagged.
-            </li>
-          </ul>
-          <p className="text-sm text-exosignal-text/60 mt-4">
-            The combined anomaly score is the average of both model scores, normalized to 0–1 range
-            where 1 indicates the most anomalous observations.
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="border-b border-exosignal-cyan/20 pb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <div className="text-xs font-mono text-exosignal-cyan uppercase tracking-wider font-bold mb-1">
+            Astrophysical Methodology & Physics Basis
+          </div>
+          <h1 className="text-3xl font-black text-white font-display">
+            Prioritization Methodology & Scientific Gating
+          </h1>
+          <p className="text-sm text-exosignal-text-secondary mt-1 max-w-2xl">
+            Mathematical foundations, 21-feature engineering formulations, unsupervised outlier detection, and empirical ranking constraints.
           </p>
         </div>
-      </section>
+        <div className="text-xs font-mono text-exosignal-cyan bg-space-void/90 px-3 py-1.5 rounded-xl border border-exosignal-cyan/20">
+          Supervised LTR + TreeSHAP
+        </div>
+      </div>
 
-      {/* Observational Suitability */}
-      <section className="bg-space-darker rounded-lg border border-exosignal-blue/20 p-8 mb-8">
-        <h2 className="text-xl font-semibold text-exosignal-text mb-4">Observational Suitability</h2>
-        <p className="text-exosignal-text/80 mb-4">
-          Observational accessibility estimates how practical a target may be for observation
-          using factors such as distance, stellar brightness, transit detectability, and data
-          availability.
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-space-dark rounded-lg p-4 border border-exosignal-blue/10">
-            <h4 className="font-medium text-exosignal-text mb-2">Distance</h4>
-            <p className="text-exosignal-text/70 text-sm">
-              Closer stars are easier to observe. Distance score is calculated as 1/(1+d/100)
-              where d is distance in parsecs.
+      {/* Modular Tab Division Control */}
+      <div>
+        <SegmentedTabs
+          tabs={methodologyTabs}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+        />
+      </div>
+
+      {/* SECTION 1: Scientific Context */}
+      {(showAll || activeTab === 'context') && (
+        <div className="space-y-4">
+          <SectionDivider
+            number="01"
+            title="Scientific Context & Mission Rationale"
+            subtitle="The observational bottleneck in high-resolution transmission and emission spectroscopy"
+            badge="CONTEXT"
+            accent="cyan"
+          />
+
+          <div className="divided-compartment p-8 space-y-4">
+            <h3 className="text-lg font-bold text-white font-display">Observational Time Scarcity</h3>
+            <p className="text-sm text-exosignal-text-secondary leading-relaxed">
+              Astronomical surveys like Kepler, K2, and TESS have identified thousands of confirmed exoplanets and candidates.
+              However, observation time on premiere spectroscopic observatories (JWST, HST, and upcoming Extremely Large Telescopes) is intensely oversubscribed by factors of 4× to 7×.
             </p>
-          </div>
-          <div className="bg-space-dark rounded-lg p-4 border border-exosignal-blue/10">
-            <h4 className="font-medium text-exosignal-text mb-2">Transit Detectability</h4>
-            <p className="text-exosignal-text/70 text-sm">
-              Larger planets with shorter orbital periods produce more detectable transit signals.
-            </p>
-          </div>
-          <div className="bg-space-dark rounded-lg p-4 border border-exosignal-blue/10">
-            <h4 className="font-medium text-exosignal-text mb-2">Data Quality</h4>
-            <p className="text-exosignal-text/70 text-sm">
-              Based on the number of available measurements (radius, mass, temperature, semi-major axis, eccentricity).
+            <p className="text-sm text-exosignal-text-secondary leading-relaxed">
+              ExoSignal addresses this by fusing NASA Exoplanet Archive composite physical parameters with
+              supervised Learning-to-Rank LightGBM models, zero-copy columnar querying in DuckDB, and TreeSHAP exact attribution to provide an empirically grounded target prioritization index.
             </p>
           </div>
         </div>
-      </section>
+      )}
+
+      {/* SECTION 2: Data Pipeline */}
+      {(showAll || activeTab === 'pipeline') && (
+        <div className="space-y-4">
+          <SectionDivider
+            number="02"
+            title="End-to-End Data Processing Pipeline"
+            subtitle="Deterministic multistage ETL, schema standardization, and physics-informed feature derivation"
+            badge="DATA PIPELINE"
+            accent="purple"
+          />
+
+          <div className="divided-compartment p-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+              <div className="bg-space-void/80 p-4 rounded-xl border border-exosignal-cyan/20 space-y-1.5">
+                <span className="text-exosignal-cyan font-bold block text-sm">01 // Ingestion & Manifest Validation</span>
+                <p className="text-exosignal-text-muted">
+                  Ingests composite parameters from the NASA Exoplanet Archive with SHA256 integrity hashing and local snapshot versioning.
+                </p>
+              </div>
+              <div className="bg-space-void/80 p-4 rounded-xl border border-exosignal-cyan/20 space-y-1.5">
+                <span className="text-exosignal-cyan font-bold block text-sm">02 // Physical Fallbacks</span>
+                <p className="text-exosignal-text-muted">
+                  Applies Chen & Kipping (2017) probabilistic mass-radius relations when dynamical RV masses are unmeasured.
+                </p>
+              </div>
+              <div className="bg-space-void/80 p-4 rounded-xl border border-exosignal-purple/20 space-y-1.5">
+                <span className="text-exosignal-purple font-bold block text-sm">03 // Spectroscopic Feature Extraction</span>
+                <p className="text-exosignal-text-muted">
+                  Derives 21 physical metrics: Transmission Spectroscopy Metric (TSM), Emission Spectroscopy Metric (ESM), and atmospheric scale height.
+                </p>
+              </div>
+              <div className="bg-space-void/80 p-4 rounded-xl border border-emerald-500/20 space-y-1.5">
+                <span className="text-emerald-400 font-bold block text-sm">04 // Zero-Copy Parquet Storage</span>
+                <p className="text-exosignal-text-muted">
+                  Serializes processed tables to columnar Snappy-compressed Parquet, queried directly in memory with sub-5ms latency.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SECTION 3: Scoring Framework */}
+      {(showAll || activeTab === 'framework') && (
+        <div className="space-y-4">
+          <SectionDivider
+            number="03"
+            title="Scoring Framework & Feature Weighting"
+            subtitle="Multi-component ranking formulation combining supervised ML and domain astrophysical models"
+            badge="FORMULATION"
+            accent="emerald"
+          />
+
+          <div className="divided-compartment">
+            <div className="compartment-header">
+              <h3 className="text-base font-bold text-white font-display">
+                Mathematical Component Hierarchy (0–100 Scale)
+              </h3>
+              <span className="text-xs font-mono text-emerald-400">LightGBM Supervised LTR</span>
+            </div>
+            <div className="p-6">
+              <div className="bg-space-void/90 rounded-xl p-5 border border-exosignal-cyan/20">
+                <pre className="text-xs font-mono text-exosignal-cyan leading-relaxed overflow-x-auto">
+{`Target Priority Score (0–100)
+├── Planetary Bulk Properties (25%)
+│   ├── Planetary Radius (Earth-like / Sub-Neptune boundary ~1.6–2.0 R⊕)
+│   ├── Planetary Mass & Bulk Density Proxy (g/cm³)
+│   ├── Equilibrium Temperature (~200–350 K temperate window)
+│   └── Insolation Flux (S/S⊕)
+├── Host Star & Radiative Environment (25%)
+│   ├── Host Star Effective Temperature (Teff)
+│   ├── Stellar Radius (R☉) — smaller M-dwarfs yield higher transit depths
+│   └── 2MASS Near-Infrared K-Magnitude (stellar flux in spectroscopy bands)
+├── Observational Transmission Yield (20%)
+│   ├── Transmission SNR Proxy (~ (Rp² · H) / (Rs² · 10^(0.2·K)))
+│   ├── Atmospheric Scale Height (H = k·T / (μ·g))
+│   └── Distance Attenuation (parsec geometric dilution)
+├── Data Quality & Completeness (15%)
+│   └── Non-missing parameter coverage across critical orbital elements
+└── Anomaly Index (15%)
+    ├── Isolation Forest Outlier Score
+    └── Local Outlier Factor (LOF) density deviation`}
+                </pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SECTION 4: Scientific Constraints */}
+      {(showAll || activeTab === 'constraints') && (
+        <div className="space-y-4">
+          <SectionDivider
+            number="04"
+            title="Scientific Constraints & Guardrails"
+            subtitle="Transparent caveats, methodological boundaries, and anti-hallucination standards"
+            badge="GUARDRAILS"
+            accent="amber"
+          />
+
+          <div className="divided-compartment p-6">
+            <div className="space-y-4 text-xs font-mono">
+              <div className="p-4 rounded-xl bg-space-void/80 border border-emerald-500/20">
+                <span className="text-emerald-400 font-bold block mb-1">01 // No Extraterrestrial Claims</span>
+                <p className="text-exosignal-text-secondary leading-relaxed">
+                  Priority scores indicate suitability for atmospheric characterization with current spectroscopic hardware. A high score does not represent probability of extraterrestrial biosignatures.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-space-void/80 border border-exosignal-cyan/20">
+                <span className="text-exosignal-cyan font-bold block mb-1">02 // Zero Fabrication of Missing Data</span>
+                <p className="text-exosignal-text-secondary leading-relaxed">
+                  Missing parameters are treated explicitly via documented physical fallbacks (e.g. Chen & Kipping mass estimation) or penalized under data completeness. Missing values are never fabricated.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-space-void/80 border border-amber-500/20">
+                <span className="text-amber-400 font-bold block mb-1">03 // Habitable Zone Approximations</span>
+                <p className="text-exosignal-text-secondary leading-relaxed">
+                  Circumstellar habitable zone boundaries follow Kopparapu et al. (2013) 1D radiative-convective equilibrium models. Being inside the HZ is a necessary but insufficient condition for habitability.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
