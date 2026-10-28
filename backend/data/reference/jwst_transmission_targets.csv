@@ -1,0 +1,36 @@
+planet_name,program_id,cycle,mode,source_url
+TRAPPIST-1 b,1201,1,NIRISS/SOSS,https://www.stsci.edu/jwst/science-execution/program-information?id=1201
+TRAPPIST-1 c,1201,1,MIRI/LRS,https://www.stsci.edu/jwst/science-execution/program-information?id=1201
+TRAPPIST-1 d,2589,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2589
+TRAPPIST-1 e,2589,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2589
+TRAPPIST-1 f,2589,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2589
+TRAPPIST-1 g,2589,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2589
+TRAPPIST-1 h,2589,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2589
+LHS 1140 b,3817,2,NIRISS/SOSS,https://www.stsci.edu/jwst/science-execution/program-information?id=3817
+L 98-59 b,2512,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2512
+L 98-59 c,2512,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2512
+L 98-59 d,2512,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2512
+GJ 1132 b,1995,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=1995
+GJ 1214 b,1803,1,MIRI/LRS,https://www.stsci.edu/jwst/science-execution/program-information?id=1803
+GJ 436 b,2534,1,NIRCam,https://www.stsci.edu/jwst/science-execution/program-information?id=2534
+GJ 3470 b,2445,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2445
+LP 791-18 d,4252,2,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=4252
+TOI-270 d,2722,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2722
+K2-18 b,2722,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2722
+55 Cnc e,1952,1,NIRCam,https://www.stsci.edu/jwst/science-execution/program-information?id=1952
+WASP-39 b,1366,1,NIRSpec/NIRISS/NIRCam,https://www.stsci.edu/jwst/science-execution/program-information?id=1366
+WASP-96 b,2734,1,NIRISS/SOSS,https://www.stsci.edu/jwst/science-execution/program-information?id=2734
+WASP-121 b,1729,1,NIRSpec/G395H,https://www.stsci.edu/jwst/science-execution/program-information?id=1729
+WASP-76 b,2644,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2644
+WASP-43 b,1366,1,MIRI/LRS,https://www.stsci.edu/jwst/science-execution/program-information?id=1366
+WASP-18 b,2470,1,NIRISS/SOSS,https://www.stsci.edu/jwst/science-execution/program-information?id=2470
+WASP-80 b,2114,1,NIRCam,https://www.stsci.edu/jwst/science-execution/program-information?id=2114
+WASP-107 b,2481,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2481
+HD 209458 b,2489,1,NIRCam,https://www.stsci.edu/jwst/science-execution/program-information?id=2489
+HD 189733 b,1633,1,NIRSpec/MIRI,https://www.stsci.edu/jwst/science-execution/program-information?id=1633
+HAT-P-18 b,2472,1,NIRISS/SOSS,https://www.stsci.edu/jwst/science-execution/program-information?id=2472
+HAT-P-26 b,1743,1,NIRSpec/G395H,https://www.stsci.edu/jwst/science-execution/program-information?id=1743
+HAT-P-32 b,2146,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2146
+TOI-700 d,,3,NIRISS/SOSS,TODO: Check if GO 6193 (exomoon search / transit timing) qualifies as atmospheric transmission
+TOI-849 b,,3,NIRSpec/G395H,TODO: Check if GO 5967 (secondary eclipse emission spectroscopy) qualifies as atmospheric transmission
+GJ 367 b,,1,MIRI/LRS,TODO: Check if GO 2508 (thermal phase curve) qualifies as atmospheric transmission

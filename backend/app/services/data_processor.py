@@ -116,7 +116,20 @@ class DataProcessor:
         df = self.scorer.score(df)
 
         print("Sorting by priority score...")
-        df = df.sort_values("target_priority_score", ascending=False).reset_index(drop=True)
+        if "eligible_for_transmission" in df.columns:
+            eligible_mask = df["eligible_for_transmission"] == True
+            df["heuristic_rank"] = np.nan
+            df.loc[eligible_mask, "heuristic_rank"] = (
+                df.loc[eligible_mask, "target_priority_score"]
+                .rank(ascending=False, method="first")
+                .astype(int)
+            )
+            df = pd.concat([
+                df[eligible_mask].sort_values("target_priority_score", ascending=False),
+                df[~eligible_mask].sort_values("target_priority_score", ascending=False)
+            ]).reset_index(drop=True)
+        else:
+            df = df.sort_values("target_priority_score", ascending=False).reset_index(drop=True)
 
         print("Saving processed data...")
         self.save_processed_data(df)
@@ -150,9 +163,13 @@ class DataProcessor:
         return matches.head(limit)
 
     def get_top_targets(self, limit: int = 10, min_priority: float = 0.0) -> pd.DataFrame:
-        """Get top priority targets."""
+        """Get top priority targets (eligible planets only, ranked by priority_score)."""
         df = self.get_processed_data()
-        df = df[df["target_priority_score"] >= min_priority]
+        if "eligible_for_transmission" in df.columns:
+            df = df[df["eligible_for_transmission"] == True]
+        score_col = "priority_score" if "priority_score" in df.columns else ("ml_priority_score" if "ml_priority_score" in df.columns else "target_priority_score")
+        df = df[df[score_col] >= min_priority]
+        df = df.sort_values(score_col, ascending=False)
         result = df.head(limit)
         return result
 

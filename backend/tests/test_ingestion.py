@@ -40,6 +40,11 @@ def test_data_cleaning():
     # Verify no invalid name values
     assert not cleaned['planet_name'].str.lower().isin(['null', 'none']).any()
 
+    # Verify transit eligibility columns
+    assert 'is_transiting' in cleaned.columns
+    assert 'eligible_for_transmission' in cleaned.columns
+    assert 'exclusion_reason' in cleaned.columns
+
     print(f"✓ Data cleaning processed {len(df)} -> {len(cleaned)} records")
 
 

@@ -20,7 +20,7 @@ class DataIngestion:
             "https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query="
             "select+pl_name,pl_rade,pl_bmasse,pl_orbper,pl_orbsmax,pl_eqt,pl_orbeccen,"
             "st_teff,st_rad,st_mass,st_met,st_lum,sy_dist,sy_jmag,sy_kmag,"
-            "discoverymethod,disc_year+from+pscomppars&format=csv"
+            "discoverymethod,disc_year,tran_flag+from+pscomppars&format=csv"
         )
 
     def create_directories(self) -> None:

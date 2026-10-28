@@ -1,8 +1,9 @@
-"""Data cleaning and standardization service for NASA Exoplanet Archive datasets."""
-
+import logging
 import numpy as np
 import pandas as pd
 from typing import List, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class DataCleaning:
@@ -28,6 +29,7 @@ class DataCleaning:
             "sy_kmag": "k_magnitude",
             "discoverymethod": "discovery_method",
             "disc_year": "discovery_year",
+            "tran_flag": "tran_flag",
         }
 
         # Legacy column names for backward compatibility with sample CSVs
@@ -155,6 +157,75 @@ class DataCleaning:
 
         return df.reset_index(drop=True)
 
+    def compute_transmission_eligibility(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Derive transit flag and atmospheric transmission spectroscopy eligibility.
+
+        eligible_for_transmission = (
+            is_transiting & planet_radius.notna() &
+            equilibrium_temperature.notna() & stellar_radius.notna() &
+            (j_magnitude.notna() | k_magnitude.notna())
+        )
+        """
+        df = df.copy()
+
+        # Map tran_flag -> is_transiting
+        if "tran_flag" in df.columns and not df["tran_flag"].isna().all():
+            df["is_transiting"] = pd.to_numeric(df["tran_flag"], errors="coerce").fillna(0).astype(int) == 1
+        elif "is_transiting" in df.columns and not df["is_transiting"].isna().all():
+            df["is_transiting"] = df["is_transiting"].apply(
+                lambda x: True if str(x).strip().lower() in ("1", "true", "1.0") or x is True else False
+            )
+        else:
+            logger.warning("tran_flag missing from data; deriving is_transiting from discovery_method == 'Transit'")
+            if "discovery_method" in df.columns:
+                df["is_transiting"] = (
+                    df["discovery_method"].fillna("").astype(str).str.strip().str.lower() == "transit"
+                )
+            else:
+                df["is_transiting"] = False
+
+        df["is_transiting"] = df["is_transiting"].astype(bool)
+
+        # Ensure required columns exist
+        for col in ["planet_radius", "equilibrium_temperature", "stellar_radius", "j_magnitude", "k_magnitude"]:
+            if col not in df.columns:
+                df[col] = np.nan
+
+        is_transiting = df["is_transiting"]
+        has_radius = df["planet_radius"].notna()
+        has_teq = df["equilibrium_temperature"].notna()
+        has_srad = df["stellar_radius"].notna()
+        has_mag = df["j_magnitude"].notna() | df["k_magnitude"].notna()
+
+        df["eligible_for_transmission"] = (
+            is_transiting & has_radius & has_teq & has_srad & has_mag
+        ).astype(bool)
+
+        # Compute exclusion reason string column
+        reasons = []
+        for trans, r, teq, srad, mag, elig in zip(
+            is_transiting, has_radius, has_teq, has_srad, has_mag, df["eligible_for_transmission"]
+        ):
+            if elig:
+                reasons.append("")
+            else:
+                r_list = []
+                if not trans:
+                    r_list.append("Non-transiting")
+                if not r:
+                    r_list.append("Missing planet radius")
+                if not teq:
+                    r_list.append("Missing equilibrium temperature")
+                if not srad:
+                    r_list.append("Missing stellar radius")
+                if not mag:
+                    r_list.append("Missing J/K magnitude")
+                reasons.append("; ".join(r_list) if r_list else "Ineligible")
+
+        df["exclusion_reason"] = reasons
+        return df
+
     def clean(self, df: pd.DataFrame) -> pd.DataFrame:
         """Run the end-to-end cleaning and standardization pipeline."""
         if df.empty:
@@ -172,5 +243,7 @@ class DataCleaning:
         df = self.sanitize_numeric(df, numeric_columns)
         df = self.handle_astrophysical_units(df)
         df = self.validate_and_deduplicate(df)
+        df = self.compute_transmission_eligibility(df)
 
         return df
+
