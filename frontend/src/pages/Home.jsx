@@ -142,48 +142,56 @@ const Home = () => {
         precision10: Number((m['precision@10'] || 0).toFixed(3))
       }))
     }
-    return [
-      { model: 'LightGBM GBDT', ndcg10: 0.724, map: 0.581, precision10: 0.700 },
-      { model: 'Random Forest', ndcg10: 0.612, map: 0.490, precision10: 0.550 },
-      { model: 'Heuristic Scorer', ndcg10: 0.550, map: 0.460, precision10: 0.500 },
-      { model: 'Random Baseline', ndcg10: 0.320, map: 0.280, precision10: 0.250 }
-    ]
+    return []
+  }, [benchmark])
+
+  const modelAEntry = useMemo(() => {
+    if (benchmark?.leaderboard && Array.isArray(benchmark.leaderboard)) {
+      return (
+        benchmark.leaderboard.find(
+          m =>
+            m.model_name.includes('Model A') ||
+            m.model_name.includes('Supervised') ||
+            m.model_name.includes('LightGBM')
+        ) || benchmark.leaderboard[0]
+      )
+    }
+    return null
   }, [benchmark])
 
   // 4. Circular Habitable Zone Donut Chart Data
   const hzPieData = useMemo(() => {
     if (stats?.hz_distribution) {
       const raw = stats.hz_distribution
-      const total = stats.total_planets || ((raw['Inside HZ'] || 0) + (raw['Near HZ'] || 0) + (raw['Outside HZ'] || 0)) || 5743
+      const inside = raw['Inside HZ'] || 0
+      const near = raw['Near HZ'] || 0
+      const outside = raw['Outside HZ'] || 0
+      const total = stats.total_planets || ((inside + near + outside) || 1)
       return [
         {
           name: 'Inside HZ',
-          value: raw['Inside HZ'] || 104,
-          percentage: Number((((raw['Inside HZ'] || 104) / total) * 100).toFixed(1)),
+          value: inside,
+          percentage: Number(((inside / total) * 100).toFixed(1)),
           color: '#10b981',
           desc: 'Liquid water boundary'
         },
         {
           name: 'Near HZ',
-          value: raw['Near HZ'] || 356,
-          percentage: Number((((raw['Near HZ'] || 356) / total) * 100).toFixed(1)),
+          value: near,
+          percentage: Number(((near / total) * 100).toFixed(1)),
           color: '#f59e0b',
           desc: 'Marginal insolation'
         },
         {
           name: 'Outside HZ',
-          value: raw['Outside HZ'] || 5283,
-          percentage: Number((((raw['Outside HZ'] || 5283) / total) * 100).toFixed(1)),
+          value: outside,
+          percentage: Number(((outside / total) * 100).toFixed(1)),
           color: '#38bdf8',
           desc: 'Extreme hot/cold orbital regimes'
         }
       ]
     }
-    return [
-      { name: 'Inside HZ', value: 104, percentage: 1.8, color: '#10b981', desc: 'Liquid water boundary' },
-      { name: 'Near HZ', value: 356, percentage: 6.2, color: '#f59e0b', desc: 'Marginal insolation' },
-      { name: 'Outside HZ', value: 5283, percentage: 92.0, color: '#38bdf8', desc: 'Extreme hot/cold regimes' }
-    ]
+    return []
   }, [stats?.hz_distribution, stats?.total_planets])
 
   // 5. Circular Multi-Axis Polar Radar Data for Observational Targets
@@ -215,7 +223,7 @@ const Home = () => {
               <span className="text-exosignal-cyan/50">•</span>
               <span>LIGHTGBM LTR</span>
               <span className="text-exosignal-cyan/50">•</span>
-              <span>DUCKDB 4.1MS</span>
+              <span>DUCKDB IN-MEMORY</span>
               <span className="text-exosignal-cyan/50">•</span>
               <span>TREESHAP</span>
             </div>
@@ -292,7 +300,7 @@ const Home = () => {
             <span className="text-exosignal-cyan">DuckDB</span>
           </div>
           <div className="text-3xl font-black font-mono text-white">
-            {stats?.total_planets?.toLocaleString() || '5,743'}
+            {stats?.total_planets?.toLocaleString() || '—'}
           </div>
           <div className="text-[11px] text-emerald-400 mt-1 flex items-center space-x-1">
             <span>●</span>
@@ -306,10 +314,10 @@ const Home = () => {
             <span className="text-exosignal-cyan">NDCG@10</span>
           </div>
           <div className="text-3xl font-black font-mono text-exosignal-cyan">
-            {benchmark ? benchmark.leaderboard?.[0]?.['ndcg@10']?.toFixed(3) : '0.724'}
+            {modelAEntry && modelAEntry['ndcg@10'] !== undefined ? modelAEntry['ndcg@10'].toFixed(3) : '—'}
           </div>
           <div className="text-[11px] text-emerald-400 mt-1">
-            +31.6% vs Unsupervised Baseline
+            {modelAEntry ? `Precision@10: ${(modelAEntry['precision@10'] * 100).toFixed(0)}% • MAP: ${(modelAEntry.map || 0).toFixed(3)}` : 'Test Set Evaluation'}
           </div>
         </div>
 
@@ -319,7 +327,7 @@ const Home = () => {
             <span className="text-exosignal-purple">Zero-Copy</span>
           </div>
           <div className="text-3xl font-black font-mono text-exosignal-purple">
-            4.05 <span className="text-lg">ms</span>
+            &lt; 10 <span className="text-lg">ms</span>
           </div>
           <div className="text-[11px] text-emerald-400 mt-1">
             In-Process Columnar Parquet
@@ -366,7 +374,7 @@ const Home = () => {
               Machine Learning Bar Graphs & <span className="text-gradient-cyan">Circular Charts</span>
             </h2>
             <p className="text-xs text-exosignal-text-muted font-mono mt-1">
-              Comprehensive telemetry across the 5,743 NASA exoplanet archive catalog — featuring supervised ranking gains, circular habitability donuts, and 5-axis spectroscopic radar profiles.
+              Comprehensive telemetry across the NASA exoplanet archive catalog — featuring supervised ranking gains, circular habitability donuts, and 5-axis spectroscopic radar profiles.
             </p>
           </div>
 
@@ -555,7 +563,9 @@ const Home = () => {
               <div className="space-y-3 flex-1 flex flex-col justify-between">
                 <div className="flex items-center justify-between text-xs font-mono text-exosignal-text-muted">
                   <span>Holdout split benchmark (&ge; 2022 discoveries)</span>
-                  <span className="text-emerald-400 font-semibold">LightGBM: NDCG@10 = 0.724</span>
+                  <span className="text-emerald-400 font-semibold">
+                    {modelAEntry ? `LightGBM: NDCG@10 = ${modelAEntry['ndcg@10']?.toFixed(3) ?? '0.000'}` : 'Holdout Split Evaluation'}
+                  </span>
                 </div>
 
                 <div className="h-72 w-full pt-1">
@@ -593,7 +603,7 @@ const Home = () => {
                   </ResponsiveContainer>
                 </div>
                 <p className="text-[11px] font-mono text-exosignal-text-muted text-center">
-                  📈 Learning-to-Rank delivers a +31.6% NDCG gain over conventional observational heuristics.
+                  📈 Supervised ranking benchmarks evaluated across 7 models on held-out post-2022 discoveries.
                 </p>
               </div>
             )}
@@ -693,7 +703,7 @@ const Home = () => {
                   {/* Centered Circular Metric Readout */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                     <span className="text-2xl font-black font-mono text-white tracking-tight">
-                      {(stats?.total_planets || 5743).toLocaleString()}
+                      {stats?.total_planets?.toLocaleString() || '—'}
                     </span>
                     <span className="text-[10px] font-mono text-exosignal-text-muted uppercase tracking-wider">
                       Catalog Targets
@@ -722,9 +732,11 @@ const Home = () => {
                   ))}
                 </div>
 
-                <p className="text-[11px] font-mono text-exosignal-text-muted text-center">
-                  🪐 Only 104 exoplanets (~1.8%) reside in temperate liquid-water habitable orbits.
-                </p>
+                {hzPieData.length > 0 && (
+                  <p className="text-[11px] font-mono text-exosignal-text-muted text-center">
+                    🪐 {hzPieData.find(d => d.name === 'Inside HZ')?.value?.toLocaleString() || '0'} exoplanets ({hzPieData.find(d => d.name === 'Inside HZ')?.percentage || '0'}%) reside in temperate liquid-water habitable orbits.
+                  </p>
+                )}
               </div>
             )}
 
@@ -948,7 +960,7 @@ const Home = () => {
               </div>
               <h4 className="font-bold text-white text-sm">DuckDB Parquet Engine</h4>
               <p className="text-xs text-exosignal-text-muted leading-relaxed">
-                Zero-copy analytical query engine with predicate pushdown and secondary indexing achieving P50 latencies of 4.1ms.
+                Zero-copy analytical query engine with predicate pushdown and secondary indexing achieving sub-10ms P50 latency.
               </p>
             </div>
 
@@ -1016,7 +1028,7 @@ const Home = () => {
                 {topPlanets?.slice(0, 5).map((planet, idx) => (
                   <tr key={planet.planet_name} className="hover:bg-space-card-hover transition-colors">
                     <td className="py-3 px-4 text-exosignal-text-muted font-bold">
-                      #{idx + 1}
+                      #{planet.priority_rank ?? planet.ml_rank ?? (idx + 1)}
                     </td>
                     <td className="py-3 px-4">
                       <Link
@@ -1047,7 +1059,7 @@ const Home = () => {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-exosignal-cyan font-bold text-sm">
-                      {formatPriority(planet.target_priority_score)}
+                      {formatPriority(planet.priority_score ?? planet.ml_priority_score ?? planet.target_priority_score)}
                     </td>
                     <td className="py-3 px-4 text-right">
                       <Link

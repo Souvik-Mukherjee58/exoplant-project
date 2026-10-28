@@ -5,7 +5,7 @@ const Footer = () => {
   return (
     <footer className="mt-20 border-t border-exosignal-cyan/20 bg-space-void/90 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
           {/* Col 1: Platform Overview */}
           <div className="space-y-3">
             <div className="flex items-center space-x-2">
@@ -30,12 +30,27 @@ const Footer = () => {
             <h4 className="text-xs font-mono uppercase tracking-wider text-exosignal-cyan font-bold">
               Machine Learning Architecture
             </h4>
-            <ul className="space-y-1.5 text-xs text-exosignal-text-muted">
-              <li>• LightGBM GBDT Learning-to-Rank</li>
-              <li>• 21 Astrophysical Feature Inputs</li>
-              <li>• TreeSHAP Exact Feature Attribution</li>
-              <li>• Out-of-Time Temporal Split ($\ge 2022$)</li>
-              <li>• Cryptographic SHA256 Model Registry</li>
+            <ul className="space-y-2 text-xs text-exosignal-text-muted">
+              <li className="flex items-center space-x-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-exosignal-cyan"></span>
+                <span>LightGBM GBDT Learning-to-Rank</span>
+              </li>
+              <li className="flex items-center space-x-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-exosignal-cyan"></span>
+                <span>21 Astrophysical Feature Inputs</span>
+              </li>
+              <li className="flex items-center space-x-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-exosignal-cyan"></span>
+                <span>TreeSHAP Exact Feature Attribution</span>
+              </li>
+              <li className="flex items-center space-x-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-exosignal-cyan"></span>
+                <span>Out-of-Time Temporal Split (&ge; 2022 discoveries)</span>
+              </li>
+              <li className="flex items-center space-x-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-exosignal-cyan"></span>
+                <span>Cryptographic SHA256 Model Registry</span>
+              </li>
             </ul>
           </div>
 
@@ -44,12 +59,27 @@ const Footer = () => {
             <h4 className="text-xs font-mono uppercase tracking-wider text-exosignal-purple font-bold">
               Astrophysical Ground Truth
             </h4>
-            <ul className="space-y-1.5 text-xs text-exosignal-text-muted">
-              <li>• NASA Exoplanet Archive (PS Comp Pars)</li>
-              <li>• Kempton et al. TSM / ESM Metrics</li>
-              <li>• Kopparapu et al. Habitable Zone Bounds</li>
-              <li>• Chen & Kipping (2017) Mass-Radius Fallback</li>
-              <li>• Confirmed JWST Cycle 1–3 Programs</li>
+            <ul className="space-y-2 text-xs text-exosignal-text-muted">
+              <li className="flex items-center space-x-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-exosignal-purple"></span>
+                <span>NASA Exoplanet Archive (PS Comp Pars)</span>
+              </li>
+              <li className="flex items-center space-x-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-exosignal-purple"></span>
+                <span>Kempton et al. TSM / ESM Metrics</span>
+              </li>
+              <li className="flex items-center space-x-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-exosignal-purple"></span>
+                <span>Kopparapu et al. Habitable Zone Bounds</span>
+              </li>
+              <li className="flex items-center space-x-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-exosignal-purple"></span>
+                <span>Chen &amp; Kipping (2017) Mass-Radius Fallback</span>
+              </li>
+              <li className="flex items-center space-x-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-exosignal-purple"></span>
+                <span>Confirmed JWST Cycle 1–3 Programs</span>
+              </li>
             </ul>
           </div>
 
@@ -75,7 +105,7 @@ const Footer = () => {
             Scientific Disclaimer: Target Priority Scores represent comparative observational utility for spectroscopic follow-up. Scores do not represent a probability of extraterrestrial life.
           </p>
           <p className="font-mono">
-            ExoSignal ML Systems • Built for Enterprise ML Engineering
+            ExoSignal ML Systems • Open Scientific Follow-Up Prioritization
           </p>
         </div>
       </div>

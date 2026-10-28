@@ -87,6 +87,7 @@ export const PLANET_PRESETS = {
  */
 const Planet3DVisualizer = ({
   initialPlanet = 'trappist1e',
+  customPlanet = null,
   size = 360,
   showControls = true,
   interactive = true,
@@ -102,7 +103,13 @@ const Planet3DVisualizer = ({
   const cloudAngleRef = useRef(0)
   const transitAngleRef = useRef(0)
 
-  const planet = PLANET_PRESETS[selectedKey] || PLANET_PRESETS.trappist1e
+  useEffect(() => {
+    if (initialPlanet) {
+      setSelectedKey(initialPlanet)
+    }
+  }, [initialPlanet])
+
+  const planet = customPlanet || PLANET_PRESETS[selectedKey] || PLANET_PRESETS.trappist1e
 
   // Handle drag interaction
   const handleMouseDown = (e) => {

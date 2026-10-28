@@ -56,7 +56,7 @@ const Analytics = () => {
       x: Number((pcaData.pca_x?.[i] ?? 0).toFixed(2)),
       y: Number((pcaData.pca_y?.[i] ?? 0).toFixed(2)),
       anomaly: Number((pcaData.anomaly_score?.[i] ?? 0).toFixed(3)),
-      priority: Number((pcaData.target_priority_score?.[i] ?? 0).toFixed(1)),
+      priority: Number((pcaData.priority_score?.[i] ?? pcaData.target_priority_score?.[i] ?? 0).toFixed(1)),
       hz: pcaData.hz_status?.[i] ?? 'Unknown'
     }))
   }, [pcaData])
@@ -114,7 +114,7 @@ const Analytics = () => {
             Exoplanet Population Intelligence
           </h1>
           <p className="text-sm text-exosignal-text-secondary mt-1 max-w-2xl">
-            Empirical distributions, habitable zone representation, detection technique breakdowns, and unsupervised anomaly clustering across 5,743 archive targets.
+            Empirical distributions, habitable zone representation, detection technique breakdowns, and unsupervised anomaly clustering across the archive catalog.
           </p>
         </div>
         <div className="text-xs font-mono text-exosignal-cyan bg-space-void/90 px-3 py-1.5 rounded-xl border border-exosignal-cyan/20">

@@ -66,7 +66,8 @@ const Favorites = () => {
                   {formatDistance(planet.distance)}
                 </td>
                 <td className="px-6 py-4 text-exosignal-accent font-semibold">
-                  {formatPriority(planet.target_priority_score)}
+                  {formatPriority(planet.priority_score ?? planet.ml_priority_score ?? planet.target_priority_score)}
+                  {planet.priority_rank ? ` (#${planet.priority_rank})` : ''}
                 </td>
                 <td className="px-6 py-4 text-exosignal-text/70">
                   {formatAnomaly(planet.anomaly_score)}

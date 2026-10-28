@@ -86,7 +86,7 @@ const About = () => {
                 <h3 className="font-bold text-exosignal-cyan text-sm font-mono uppercase">Backend Engine</h3>
                 <ul className="text-xs font-mono space-y-2 text-exosignal-text-secondary">
                   <li>• FastAPI (Python 3.11) asynchronous REST microservice</li>
-                  <li>• DuckDB in-memory analytical query engine (4.1ms P50 latency)</li>
+                  <li>• DuckDB in-memory analytical query engine (sub-10ms P50 latency)</li>
                   <li>• LightGBM Learning-to-Rank (LTR) with NDCG@10 optimization</li>
                   <li>• TreeSHAP exact local and differential feature attributions</li>
                   <li>• Local cryptographic SHA256 model registry with tamper validation</li>

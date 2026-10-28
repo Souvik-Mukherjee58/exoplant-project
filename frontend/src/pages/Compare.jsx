@@ -108,7 +108,7 @@ const Compare = () => {
                   >
                     <span className="font-semibold truncate">{planet.planet_name}</span>
                     <span className="text-[10px] text-exosignal-cyan">
-                      {planet.target_priority_score?.toFixed(1)}
+                      {(planet.priority_score ?? planet.ml_priority_score ?? planet.target_priority_score)?.toFixed(1)}
                     </span>
                   </button>
                 )
@@ -182,7 +182,7 @@ const Compare = () => {
                         </Link>
 
                         <div className="text-[11px] font-mono text-exosignal-text-muted mb-3 truncate">
-                          Host: {planet.hostname || planet.stellar_name || 'Star'}
+                          Host: {planet.hostname || planet.stellar_name || planet.planet_name?.replace(/\s+[a-z]$/i, '') || '—'}
                         </div>
 
                         <div className="space-y-1.5 text-xs font-mono bg-space-void/60 p-2.5 rounded-xl border border-exosignal-cyan/15 mb-3">
@@ -207,13 +207,17 @@ const Compare = () => {
 
                       <div className="pt-2 border-t border-exosignal-cyan/15">
                         <div className="flex justify-between text-xs font-mono mb-1">
-                          <span className="text-exosignal-text-muted">ML Priority</span>
-                          <span className="text-exosignal-cyan font-bold">{formatPriority(planet.target_priority_score)}</span>
+                          <span className="text-exosignal-text-muted">
+                            Priority Score {planet.priority_rank ? `(#${planet.priority_rank})` : ''}
+                          </span>
+                          <span className="text-exosignal-cyan font-bold">
+                            {formatPriority(planet.priority_score ?? planet.ml_priority_score ?? planet.target_priority_score)}
+                          </span>
                         </div>
                         <div className="w-full bg-space-void rounded-full h-1.5 overflow-hidden">
                           <div
                             className="bg-gradient-to-r from-exosignal-cyan to-exosignal-purple h-full rounded-full"
-                            style={{ width: `${Math.min(Math.max(planet.target_priority_score, 5), 100)}%` }}
+                            style={{ width: `${Math.min(Math.max(planet.priority_score ?? planet.ml_priority_score ?? planet.target_priority_score ?? 0, 5), 100)}%` }}
                           ></div>
                         </div>
                       </div>

@@ -21,8 +21,8 @@ const TopTargets = () => {
     if (!topTargets || topTargets.length === 0) return []
     return topTargets.slice(0, 10).map((p, idx) => ({
       name: p.planet_name,
-      rank: `#${idx + 1}`,
-      priority: Number(p.target_priority_score?.toFixed(1) || 0),
+      rank: p.priority_rank ? `#${p.priority_rank}` : `#${idx + 1}`,
+      priority: Number((p.priority_score ?? p.ml_priority_score ?? p.target_priority_score)?.toFixed(1) || 0),
       anomaly: Number(((p.anomaly_score || 0) * 100).toFixed(1)),
       hz: p.hz_status
     }))
@@ -108,7 +108,7 @@ const TopTargets = () => {
                   </Link>
 
                   <div className="text-xs font-mono text-exosignal-text-muted mb-4">
-                    Host Star: {planet.hostname || planet.stellar_name || 'Host Star'}
+                    Host Star: {planet.hostname || planet.stellar_name || planet.planet_name?.replace(/\s+[a-z]$/i, '') || '—'}
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-space-void/70 p-3 rounded-xl border border-exosignal-cyan/15 mb-4">
@@ -133,9 +133,9 @@ const TopTargets = () => {
 
                 <div className="pt-3 border-t border-exosignal-cyan/15 flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] font-mono text-exosignal-text-muted">Target Priority Score</span>
+                    <span className="text-[10px] font-mono text-exosignal-text-muted">Priority Score</span>
                     <div className="text-xl font-bold font-mono text-gradient-gold">
-                      {formatPriority(planet.target_priority_score)} / 100
+                      {formatPriority(planet.priority_score ?? planet.ml_priority_score ?? planet.target_priority_score)} / 100
                     </div>
                   </div>
                   <Link
@@ -283,10 +283,12 @@ const TopTargets = () => {
               ) : (
                 topTargets.map((planet, index) => {
                   const isFav = isFavorite(planet.planet_name)
+                  const pRank = planet.priority_rank ?? planet.ml_rank ?? (index + 1)
+                  const pScore = planet.priority_score ?? planet.ml_priority_score ?? planet.target_priority_score
                   return (
                     <tr key={planet.planet_name} className="hover:bg-space-card-hover transition-colors">
                       <td className="py-3.5 px-4 font-bold text-amber-400">
-                        #{index + 1}
+                        #{pRank}
                       </td>
                       <td className="py-3.5 px-4">
                         <Link
@@ -313,7 +315,7 @@ const TopTargets = () => {
                       </td>
                       <td className="py-3.5 px-4 text-amber-400">{formatAnomaly(planet.anomaly_score)}</td>
                       <td className="py-3.5 px-4 text-exosignal-cyan font-bold text-sm">
-                        {formatPriority(planet.target_priority_score)}
+                        {formatPriority(pScore)}
                       </td>
                       <td className="py-3.5 px-4 text-center">
                         <button

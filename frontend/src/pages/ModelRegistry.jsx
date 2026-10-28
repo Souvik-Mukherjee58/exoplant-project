@@ -192,9 +192,9 @@ const ModelRegistry = () => {
                     <div className="text-2xl font-bold font-mono text-exosignal-cyan mt-1">
                       {activeVersionData.evaluation?.['ndcg@10'] !== undefined
                         ? activeVersionData.evaluation['ndcg@10'].toFixed(4)
-                        : '0.7240'}
+                        : '—'}
                     </div>
-                    <span className="text-[11px] text-emerald-400">+31.6% vs Heuristic</span>
+                    <span className="text-[11px] text-emerald-400">Held-Out Test Split</span>
                   </div>
 
                   <div className="bg-space-void/80 rounded-xl p-4 border border-exosignal-cyan/20 shadow-sm">
@@ -202,9 +202,9 @@ const ModelRegistry = () => {
                     <div className="text-2xl font-bold font-mono text-exosignal-purple mt-1">
                       {activeVersionData.evaluation?.map !== undefined
                         ? activeVersionData.evaluation.map.toFixed(4)
-                        : '0.5812'}
+                        : '—'}
                     </div>
-                    <span className="text-[11px] text-emerald-400">+26.4% vs Heuristic</span>
+                    <span className="text-[11px] text-emerald-400">Ranking Relevance</span>
                   </div>
 
                   <div className="bg-space-void/80 rounded-xl p-4 border border-exosignal-cyan/20 shadow-sm">
@@ -212,9 +212,9 @@ const ModelRegistry = () => {
                     <div className="text-2xl font-bold font-mono text-emerald-400 mt-1">
                       {activeVersionData.evaluation?.['precision@10'] !== undefined
                         ? activeVersionData.evaluation['precision@10'].toFixed(4)
-                        : '0.7000'}
+                        : '—'}
                     </div>
-                    <span className="text-[11px] text-emerald-400">7/10 Verified JWST</span>
+                    <span className="text-[11px] text-emerald-400">Confirmed JWST</span>
                   </div>
 
                   <div className="bg-space-void/80 rounded-xl p-4 border border-exosignal-cyan/20 shadow-sm">

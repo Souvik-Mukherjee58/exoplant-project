@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useFavorites } from '../context/FavoritesContext'
 import { healthApi } from '../services/api'
+import QuickSearchModal from './QuickSearchModal'
 
 const NAV_ITEMS = [
   { path: '/', label: 'Home', icon: '🌌' },
@@ -18,6 +19,26 @@ const Navbar = () => {
   const { favorites } = useFavorites()
   const [systemStatus, setSystemStatus] = useState({ ok: true, version: 'v1_2026-10-23' })
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [quickSearchOpen, setQuickSearchOpen] = useState(false)
+
+  // Global keyboard shortcut: Ctrl+K or / to open Quick Search
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const activeTag = document.activeElement?.tagName?.toLowerCase()
+      if (activeTag === 'input' || activeTag === 'textarea') return
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setQuickSearchOpen(true)
+      } else if (e.key === '/') {
+        e.preventDefault()
+        setQuickSearchOpen(true)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   useEffect(() => {
     healthApi.check()
@@ -57,7 +78,7 @@ const Navbar = () => {
                     ML LTR
                   </span>
                 </div>
-                <span className="text-[11px] font-mono text-exosignal-text-muted hidden sm:inline">
+                <span className="text-[11px] font-mono text-exosignal-text-muted hidden xl:inline">
                   Atmospheric Spectroscopy Prioritization
                 </span>
               </div>
@@ -85,14 +106,27 @@ const Navbar = () => {
             })}
           </nav>
 
-          {/* Telemetry Chip & Favorites */}
-          <div className="hidden md:flex items-center space-x-3">
+          {/* Telemetry Chip, Quick Search & Favorites (Desktop) */}
+          <div className="hidden lg:flex items-center space-x-3">
+            {/* Quick Search Trigger Pill */}
+            <button
+              onClick={() => setQuickSearchOpen(true)}
+              className="glass-pill hover:border-exosignal-cyan/60 text-xs font-mono text-exosignal-text-secondary hover:text-white transition-all flex items-center space-x-1.5 cursor-pointer bg-space-void/60"
+              title="Search targets & launch SHAP (Ctrl+K or /)"
+            >
+              <span className="text-exosignal-cyan">🔍</span>
+              <span>Search Target</span>
+              <kbd className="text-[10px] bg-space-card px-1.5 py-0.5 rounded border border-slate-700 text-slate-400 font-mono">
+                Ctrl+K
+              </kbd>
+            </button>
+
             {/* Live System Telemetry */}
             <div className="glass-pill text-xs font-mono text-exosignal-text-secondary">
               <span className={`pulsing-dot ${systemStatus.ok ? 'emerald' : 'cyan'}`}></span>
               <span>DuckDB In-Memory</span>
               <span className="text-exosignal-cyan/60">•</span>
-              <span className="text-exosignal-cyan">4.1ms P50</span>
+              <span className="text-exosignal-cyan">&lt; 10ms P50</span>
             </div>
 
             {/* Favorites Counter Pill */}
@@ -108,6 +142,24 @@ const Navbar = () => {
                   {favorites.length}
                 </span>
               )}
+            </Link>
+          </div>
+
+          {/* Quick Search & Favorites on Tablet/Mobile */}
+          <div className="flex lg:hidden items-center space-x-2 mr-2">
+            <button
+              onClick={() => setQuickSearchOpen(true)}
+              className="glass-pill text-xs font-mono text-exosignal-cyan flex items-center space-x-1"
+              title="Quick Search"
+            >
+              <span>🔍</span>
+              <span>Search</span>
+            </button>
+            <Link
+              to="/favorites"
+              className="hidden sm:flex glass-pill text-xs font-mono text-amber-300"
+            >
+              ★ Watchlist {favorites && favorites.length > 0 && `(${favorites.length})`}
             </Link>
           </div>
 
@@ -155,6 +207,12 @@ const Navbar = () => {
           </Link>
         </div>
       )}
+
+      {/* Quick Search Modal */}
+      <QuickSearchModal
+        isOpen={quickSearchOpen}
+        onClose={() => setQuickSearchOpen(false)}
+      />
     </header>
   )
 }

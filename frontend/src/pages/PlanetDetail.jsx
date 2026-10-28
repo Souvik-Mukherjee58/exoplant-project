@@ -55,7 +55,8 @@ const PlanetDetail = () => {
       ? 'It orbits near the empirical habitable zone boundary.'
       : 'It orbits outside the circumstellar habitable zone.'
 
-    return `${planet.planet_name} achieves an overall priority score of ${formatPriority(planet.target_priority_score)}/100 under the multi-criteria ranking model. ${hzDesc} Its estimated distance is ${formatDistance(planet.distance)} with an equilibrium temperature of ~${Math.round(planet.equilibrium_temperature || 0)} K.`
+    const pScore = planet.priority_score ?? planet.ml_priority_score ?? planet.target_priority_score
+    return `${planet.planet_name} achieves an overall priority score of ${formatPriority(pScore)}/100 under the multi-criteria ranking model. ${hzDesc} Its estimated distance is ${formatDistance(planet.distance)} with an equilibrium temperature of ~${Math.round(planet.equilibrium_temperature || 0)} K.`
   }
 
   const getSuggestedObservations = () => {
@@ -93,9 +94,13 @@ const PlanetDetail = () => {
     return list
   }
 
+  const currentRank = planet.priority_rank ?? planet.ml_rank
+  const currentScore = planet.priority_score ?? planet.ml_priority_score ?? planet.target_priority_score
+  const heurScore = planet.heuristic_habitability_score ?? planet.target_priority_score
+
   const detailTabs = [
     { id: 'overview', label: 'Planetary Specs', icon: '🪐' },
-    { id: 'explainability', label: 'TreeSHAP Attribution', icon: '🌲', badge: planet.ml_rank ? `#${planet.ml_rank}` : undefined },
+    { id: 'explainability', label: 'TreeSHAP Attribution', icon: '🌲', badge: currentRank ? `#${currentRank}` : undefined },
     { id: 'protocols', label: 'Observation Protocols', icon: '🔭', badge: getSuggestedObservations().length },
     { id: 'all', label: 'Full Target Dossier', icon: '📑' }
   ]
@@ -142,7 +147,7 @@ const PlanetDetail = () => {
                 {planet.planet_name}
               </h1>
               <p className="text-xs font-mono text-exosignal-cyan mt-1">
-                Host Star: {planet.hostname || planet.stellar_name || 'Host Star'} • Distance: {formatDistance(planet.distance)}
+                Host Star: {planet.hostname || planet.stellar_name || planet.planet_name?.replace(/\s+[a-z]$/i, '') || '—'} • Distance: {formatDistance(planet.distance)}
               </p>
 
               {/* Quick Metrics Badge */}
@@ -150,19 +155,34 @@ const PlanetDetail = () => {
                 <div>
                   <span className="text-[10px] font-mono text-exosignal-text-muted block uppercase">Priority Score</span>
                   <div className="text-3xl font-black font-mono text-exosignal-cyan">
-                    {formatPriority(planet.target_priority_score)}
+                    {formatPriority(currentScore)}
                   </div>
                 </div>
-                {planet.ml_rank && (
+                {currentRank ? (
                   <div className="border-l border-exosignal-cyan/20 pl-4">
-                    <span className="text-[10px] font-mono text-exosignal-text-muted block uppercase">ML Rank</span>
+                    <span className="text-[10px] font-mono text-exosignal-text-muted block uppercase">Priority Rank</span>
                     <div className="text-2xl font-bold font-mono text-white">
-                      #{planet.ml_rank}{' '}
+                      #{currentRank}{' '}
                       {planet.rank_delta !== undefined && (
                         <span className={`text-xs ${planet.rank_delta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                           ({planet.rank_delta >= 0 ? `▲ +${planet.rank_delta}` : `▼ ${planet.rank_delta}`})
                         </span>
                       )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="border-l border-exosignal-cyan/20 pl-4">
+                    <span className="text-[10px] font-mono text-exosignal-text-muted block uppercase">Eligibility</span>
+                    <div className="text-sm font-bold font-mono text-amber-400">
+                      Unranked ({planet.exclusion_reason || 'Ineligible'})
+                    </div>
+                  </div>
+                )}
+                {heurScore !== undefined && (
+                  <div className="border-l border-exosignal-cyan/20 pl-4">
+                    <span className="text-[10px] font-mono text-exosignal-text-muted block uppercase">Habitability (Heuristic)</span>
+                    <div className="text-xl font-bold font-mono text-emerald-400">
+                      {formatPriority(heurScore)}
                     </div>
                   </div>
                 )}
@@ -181,6 +201,21 @@ const PlanetDetail = () => {
             <div className="lg:col-span-4 flex justify-center">
               <Planet3DVisualizer
                 initialPlanet={getPresetForPlanet()}
+                customPlanet={{
+                  name: planet.planet_name,
+                  type: planet.hz_status === 'Inside HZ' ? 'Temperate Candidate' : planet.planet_radius > 6 ? 'Gas Giant' : planet.planet_radius > 1.8 ? 'Sub-Neptune' : 'Terrestrial',
+                  radius: planet.planet_radius ? `${planet.planet_radius.toFixed(2)} R⊕` : '1.0 R⊕',
+                  teq: planet.equilibrium_temperature ? `${Math.round(planet.equilibrium_temperature)} K` : '280 K',
+                  period: planet.orbital_period ? `${planet.orbital_period.toFixed(1)} days` : '10 days',
+                  transitDepth: '0.2%',
+                  atmosphereColor: planet.hz_status === 'Inside HZ' ? 'rgba(16, 185, 129, 0.45)' : (planet.equilibrium_temperature > 800 ? 'rgba(245, 158, 11, 0.55)' : 'rgba(56, 189, 248, 0.45)'),
+                  baseColor: planet.hz_status === 'Inside HZ' ? '#083344' : (planet.equilibrium_temperature > 800 ? '#7c2d12' : (planet.planet_radius > 2.0 ? '#1e1b4b' : '#312e81')),
+                  landColor: planet.hz_status === 'Inside HZ' ? '#1d5a3a' : (planet.equilibrium_temperature > 800 ? '#b45309' : '#451a03'),
+                  cloudColor: 'rgba(255, 255, 255, 0.65)',
+                  rings: Boolean(planet.planet_radius && planet.planet_radius > 8),
+                  banding: Boolean(planet.planet_radius && planet.planet_radius > 2.0),
+                  glowHex: planet.hz_status === 'Inside HZ' ? '#10b981' : (planet.equilibrium_temperature > 800 ? '#f97316' : '#00d4ff')
+                }}
                 size={220}
                 showControls={false}
                 interactive={true}
