@@ -1,0 +1,52 @@
+{
+  "version": "v1_2026-10-28",
+  "registered_at": "2026-10-27T21:59:37.572171+00:00",
+  "status": "registered",
+  "artifacts": {
+    "model": {
+      "path": "artifacts\\v1_2026-10-28\\ltr_model.joblib",
+      "sha256": "b3e1a6bc4b25a78fa31fb47882590f3b592f44faa1f052cb01c2467ded867586",
+      "size_bytes": 13195
+    },
+    "parquet": {
+      "path": "artifacts\\v1_2026-10-28\\planets.parquet",
+      "sha256": "b5fdcad74f080d3efb64e2bde5eee7b6696b9faf27c7cd0fb3bbb6508f2a2bbc",
+      "size_bytes": 1729496
+    }
+  },
+  "training": {
+    "algorithm": "LightGBM Supervised Classifier Ranking",
+    "n_features": 10,
+    "top_features": [
+      "distance",
+      "transmission_snr_proxy",
+      "stellar_radius",
+      "scale_height_proxy",
+      "earth_similarity"
+    ],
+    "random_state": 42,
+    "temporal_split": {
+      "train": "<= 2017 (2791 planets)",
+      "val": "2018-2021 (914 planets)",
+      "test": ">= 2022 (938 planets)"
+    }
+  },
+  "evaluation": {
+    "ndcg@10": 0.0,
+    "map": 0.0286,
+    "precision@10": 0.0,
+    "pr_auc": 0.0139,
+    "eval_split": "test"
+  },
+  "dataset": {
+    "total_planets": 6451,
+    "raw_rows": 6451,
+    "raw_sha256": "d9b6412dfb2b18d5..."
+  },
+  "environment": {
+    "python_version": "3.13.5",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "hostname": "souvik"
+  },
+  "notes": "Auto-registered by pipeline build on 2026-10-27T21:59:37.572149+00:00"
+}

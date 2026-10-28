@@ -1,0 +1,97 @@
+{
+  "evaluation_split": "test",
+  "train_set_size": 2791,
+  "val_set_size": 914,
+  "test_set_size": 938,
+  "eval_set_size": 938,
+  "eval_positive_rate": 0.0011,
+  "primary_metric": "precision@10",
+  "primary_metric_justification": "Observing time on flagship space observatories (JWST/HST) is strictly capacity-constrained. Precision@10 measures the fraction of top-10 proposed targets that yield viable spectroscopic data, directly minimizing wasted multimillion-dollar observing proposals.",
+  "models_evaluated": 7,
+  "leaderboard": [
+    {
+      "model_name": "TSM-Only Baseline",
+      "precision@5": 0.0,
+      "precision@10": 0.0,
+      "precision@20": 0.05,
+      "recall@10": 0.0,
+      "recall@25": 1.0,
+      "recall@50": 1.0,
+      "ndcg@10": 0.0,
+      "map": 0.0588,
+      "pr_auc": 0.5005
+    },
+    {
+      "model_name": "ESM-Only Baseline",
+      "precision@5": 0.0,
+      "precision@10": 0.0,
+      "precision@20": 0.05,
+      "recall@10": 0.0,
+      "recall@25": 1.0,
+      "recall@50": 1.0,
+      "ndcg@10": 0.0,
+      "map": 0.0588,
+      "pr_auc": 0.5005
+    },
+    {
+      "model_name": "Heuristic Composite (ExoSignal)",
+      "precision@5": 0.0,
+      "precision@10": 0.0,
+      "precision@20": 0.0,
+      "recall@10": 0.0,
+      "recall@25": 0.0,
+      "recall@50": 1.0,
+      "ndcg@10": 0.0,
+      "map": 0.0294,
+      "pr_auc": 0.0147
+    },
+    {
+      "model_name": "Model A (LightGBM - All Features)",
+      "precision@5": 0.0,
+      "precision@10": 0.0,
+      "precision@20": 0.0,
+      "recall@10": 0.0,
+      "recall@25": 0.0,
+      "recall@50": 1.0,
+      "ndcg@10": 0.0,
+      "map": 0.0286,
+      "pr_auc": 0.0139
+    },
+    {
+      "model_name": "Distance-Only Baseline",
+      "precision@5": 0.0,
+      "precision@10": 0.0,
+      "precision@20": 0.0,
+      "recall@10": 0.0,
+      "recall@25": 0.0,
+      "recall@50": 1.0,
+      "ndcg@10": 0.0,
+      "map": 0.0222,
+      "pr_auc": 0.0111
+    },
+    {
+      "model_name": "Model B (LightGBM - Raw Features Only)",
+      "precision@5": 0.0,
+      "precision@10": 0.0,
+      "precision@20": 0.0,
+      "recall@10": 0.0,
+      "recall@25": 0.0,
+      "recall@50": 0.0,
+      "ndcg@10": 0.0,
+      "map": 0.0152,
+      "pr_auc": 0.5053
+    },
+    {
+      "model_name": "Random Baseline",
+      "precision@5": 0.0,
+      "precision@10": 0.0,
+      "precision@20": 0.0,
+      "recall@10": 0.0,
+      "recall@25": 0.0,
+      "recall@50": 0.0,
+      "ndcg@10": 0.0,
+      "map": 0.0017,
+      "pr_auc": 0.0008
+    }
+  ]
+}

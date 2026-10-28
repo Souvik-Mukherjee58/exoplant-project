@@ -1,0 +1,193 @@
+{
+  "total_features": 21,
+  "top_features": [
+    {
+      "feature": "distance",
+      "split_count": 4,
+      "gain": 777.72,
+      "gain_percentage": 57.71
+    },
+    {
+      "feature": "transmission_snr_proxy",
+      "split_count": 4,
+      "gain": 417.91,
+      "gain_percentage": 31.01
+    },
+    {
+      "feature": "stellar_radius",
+      "split_count": 1,
+      "gain": 76.57,
+      "gain_percentage": 5.68
+    },
+    {
+      "feature": "scale_height_proxy",
+      "split_count": 3,
+      "gain": 34.78,
+      "gain_percentage": 2.58
+    },
+    {
+      "feature": "earth_similarity",
+      "split_count": 1,
+      "gain": 24.46,
+      "gain_percentage": 1.82
+    },
+    {
+      "feature": "k_magnitude",
+      "split_count": 2,
+      "gain": 11.84,
+      "gain_percentage": 0.88
+    },
+    {
+      "feature": "equilibrium_temperature",
+      "split_count": 1,
+      "gain": 4.23,
+      "gain_percentage": 0.31
+    },
+    {
+      "feature": "planet_radius",
+      "split_count": 1,
+      "gain": 0.0,
+      "gain_percentage": 0.0
+    },
+    {
+      "feature": "planet_mass",
+      "split_count": 1,
+      "gain": 0.0,
+      "gain_percentage": 0.0
+    },
+    {
+      "feature": "orbital_period",
+      "split_count": 0,
+      "gain": 0.0,
+      "gain_percentage": 0.0
+    }
+  ],
+  "all_features": [
+    {
+      "feature": "distance",
+      "split_count": 4,
+      "gain": 777.72,
+      "gain_percentage": 57.71
+    },
+    {
+      "feature": "transmission_snr_proxy",
+      "split_count": 4,
+      "gain": 417.91,
+      "gain_percentage": 31.01
+    },
+    {
+      "feature": "stellar_radius",
+      "split_count": 1,
+      "gain": 76.57,
+      "gain_percentage": 5.68
+    },
+    {
+      "feature": "scale_height_proxy",
+      "split_count": 3,
+      "gain": 34.78,
+      "gain_percentage": 2.58
+    },
+    {
+      "feature": "earth_similarity",
+      "split_count": 1,
+      "gain": 24.46,
+      "gain_percentage": 1.82
+    },
+    {
+      "feature": "k_magnitude",
+      "split_count": 2,
+      "gain": 11.84,
+      "gain_percentage": 0.88
+    },
+    {
+      "feature": "equilibrium_temperature",
+      "split_count": 1,
+      "gain": 4.23,
+      "gain_percentage": 0.31
+    },
+    {
+      "feature": "planet_radius",
+      "split_count": 1,
+      "gain": 0.0,
+      "gain_percentage": 0.0
+    },
+    {
+      "feature": "planet_mass",
+      "split_count": 1,
+      "gain": 0.0,
+      "gain_percentage": 0.0
+    },
+    {
+      "feature": "orbital_period",
+      "split_count": 0,
+      "gain": 0.0,
+      "gain_percentage": 0.0
+    },
+    {
+      "feature": "semi_major_axis",
+      "split_count": 0,
+      "gain": 0.0,
+      "gain_percentage": 0.0
+    },
+    {
+      "feature": "stellar_effective_temperature",
+      "split_count": 0,
+      "gain": 0.0,
+      "gain_percentage": 0.0
+    },
+    {
+      "feature": "stellar_mass",
+      "split_count": 0,
+      "gain": 0.0,
+      "gain_percentage": 0.0
+    },
+    {
+      "feature": "stellar_metallicity",
+      "split_count": 0,
+      "gain": 0.0,
+      "gain_percentage": 0.0
+    },
+    {
+      "feature": "j_magnitude",
+      "split_count": 0,
+      "gain": 0.0,
+      "gain_percentage": 0.0
+    },
+    {
+      "feature": "transit_depth_proxy",
+      "split_count": 0,
+      "gain": 0.0,
+      "gain_percentage": 0.0
+    },
+    {
+      "feature": "bulk_density_proxy",
+      "split_count": 0,
+      "gain": 0.0,
+      "gain_percentage": 0.0
+    },
+    {
+      "feature": "insolation_flux",
+      "split_count": 0,
+      "gain": 0.0,
+      "gain_percentage": 0.0
+    },
+    {
+      "feature": "distance_attenuation",
+      "split_count": 0,
+      "gain": 0.0,
+      "gain_percentage": 0.0
+    },
+    {
+      "feature": "infrared_brightness_proxy",
+      "split_count": 0,
+      "gain": 0.0,
+      "gain_percentage": 0.0
+    },
+    {
+      "feature": "hz_proximity_score",
+      "split_count": 0,
+      "gain": 0.0,
+      "gain_percentage": 0.0
+    }
+  ]
+}

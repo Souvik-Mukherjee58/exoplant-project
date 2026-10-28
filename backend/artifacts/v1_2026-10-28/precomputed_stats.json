@@ -1,0 +1,64 @@
+{
+  "total_planets": 6451,
+  "score_distribution": {
+    "min": 0.9,
+    "max": 12.9,
+    "mean": 2.1,
+    "median": 0.9,
+    "std": 3.1
+  },
+  "heuristic_score_distribution": {
+    "min": 22.1,
+    "max": 86.9,
+    "mean": 47.8,
+    "median": 46.8,
+    "std": 8.8
+  },
+  "priority_histogram": [
+    {
+      "range": "0-20",
+      "count": 6451
+    },
+    {
+      "range": "20-40",
+      "count": 0
+    },
+    {
+      "range": "40-60",
+      "count": 0
+    },
+    {
+      "range": "60-80",
+      "count": 0
+    },
+    {
+      "range": "80-100",
+      "count": 0
+    }
+  ],
+  "anomaly_distribution": {
+    "min": 0.152,
+    "max": 0.887,
+    "mean": 0.234,
+    "median": 0.209
+  },
+  "hz_distribution": {
+    "Outside HZ": 5343,
+    "Insufficient data": 826,
+    "Inside HZ": 182,
+    "Near HZ": 100
+  },
+  "discovery_method_distribution": {
+    "Transit": 4785,
+    "Radial Velocity": 1204,
+    "Microlensing": 292,
+    "Imaging": 98,
+    "Transit Timing Variations": 29,
+    "Eclipse Timing Variations": 17,
+    "Orbital Brightness Modulation": 9,
+    "Pulsar Timing": 8,
+    "Astrometry": 6,
+    "Pulsation Timing Variations": 2,
+    "Disk Kinematics": 1
+  }
+}

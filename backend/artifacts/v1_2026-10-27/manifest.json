@@ -1,0 +1,141 @@
+{
+  "artifact_version": "v1_2026-10-27",
+  "build_timestamp": "2026-10-27T18:26:21.474312+00:00",
+  "raw_data": {
+    "file": "nasa_exoplanet_archive.csv",
+    "sha256": "d9b6412dfb2b18d51b53c5418d37a73ebf5c8fbe3ef281a0c0fd7257886d99e8",
+    "raw_rows": 6451
+  },
+  "catalog": {
+    "total_planets": 6451,
+    "parquet_file": "planets.parquet",
+    "parquet_size_bytes": 1633019
+  },
+  "models": {
+    "anomaly_detector": "model.joblib",
+    "anomaly_algorithm": "IsolationForest + LocalOutlierFactor (in-sample)",
+    "ltr_model": "ltr_model.joblib",
+    "ltr_algorithm": "LightGBM Supervised Learning-to-Rank GBDT",
+    "ltr_top_features": [
+      {
+        "feature": "distance",
+        "split_count": 4,
+        "gain": 777.72,
+        "gain_percentage": 57.71
+      },
+      {
+        "feature": "transmission_snr_proxy",
+        "split_count": 4,
+        "gain": 417.91,
+        "gain_percentage": 31.01
+      },
+      {
+        "feature": "stellar_radius",
+        "split_count": 1,
+        "gain": 76.57,
+        "gain_percentage": 5.68
+      },
+      {
+        "feature": "scale_height_proxy",
+        "split_count": 3,
+        "gain": 34.78,
+        "gain_percentage": 2.58
+      },
+      {
+        "feature": "earth_similarity",
+        "split_count": 1,
+        "gain": 24.46,
+        "gain_percentage": 1.82
+      }
+    ]
+  },
+  "benchmark": {
+    "evaluation_split": "test",
+    "primary_metric": "precision@10",
+    "leaderboard": [
+      {
+        "model_name": "Random Baseline",
+        "precision@5": 0.0,
+        "precision@10": 0.0,
+        "precision@20": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "recall@20": 0.0,
+        "ndcg@5": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@20": 0.0,
+        "map": 0.0017,
+        "pr_auc": 0.0008
+      },
+      {
+        "model_name": "Distance-Only Baseline",
+        "precision@5": 0.0,
+        "precision@10": 0.0,
+        "precision@20": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "recall@20": 0.0,
+        "ndcg@5": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@20": 0.0,
+        "map": 0.0222,
+        "pr_auc": 0.0111
+      },
+      {
+        "model_name": "ESI Heuristic Ranker",
+        "precision@5": 0.0,
+        "precision@10": 0.0,
+        "precision@20": 0.05,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "recall@20": 1.0,
+        "ndcg@5": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@20": 0.2354,
+        "map": 0.0556,
+        "pr_auc": 0.0278
+      },
+      {
+        "model_name": "ExoSignal v1 Composite",
+        "precision@5": 0.0,
+        "precision@10": 0.0,
+        "precision@20": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "recall@20": 0.0,
+        "ndcg@5": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@20": 0.0,
+        "map": 0.0294,
+        "pr_auc": 0.0147
+      },
+      {
+        "model_name": "Supervised LightGBM LTR",
+        "precision@5": 0.0,
+        "precision@10": 0.0,
+        "precision@20": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0,
+        "recall@20": 0.0,
+        "ndcg@5": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@20": 0.0,
+        "map": 0.0286,
+        "pr_auc": 0.0139
+      }
+    ]
+  },
+  "scoring_weights": {
+    "planetary_relevance_weight": 0.35,
+    "observational_accessibility_weight": 0.3,
+    "stellar_characteristics_weight": 0.15,
+    "data_quality_weight": 0.1,
+    "anomaly_score_weight": 0.1
+  },
+  "hz_counts": {
+    "Outside HZ": 5343,
+    "Insufficient data": 826,
+    "Inside HZ": 182,
+    "Near HZ": 100
+  }
+}
