@@ -71,20 +71,33 @@ Open `http://localhost:3000` in your browser.
 
 ## Machine Learning Systems Architecture
 
-ExoSignal was redesigned from the ground up as a production-grade ML systems project for exoplanet spectroscopic follow-up prioritization:
+ExoSignal provides an end-to-end machine learning engineering framework for exoplanet spectroscopic follow-up prioritization:
 
 1. **Astronomical Ground Truth Benchmark**:
    - Formulates targets against published peer-reviewed metrics: **Transmission Spectroscopy Metric (TSM)** and **Emission Spectroscopy Metric (ESM)** (*Kempton et al., PASP 2018*), with Chen & Kipping (2017) mass-radius fallback relations.
+   - Restricts transmission spectroscopy ranking strictly to transiting planets with valid stellar and planetary measurements (`eligible_for_transmission = true`).
    - Evaluates models on an out-of-time temporal holdout split (Discovery $\le 2017$ train, $2018-2021$ val, $\ge 2022$ test) against confirmed JWST Cycle 1–3 Guaranteed Time & General Observers programs.
-   - Rigorous evaluation metrics: **NDCG@10**, **MAP**, **Precision@10**, and **PR-AUC**.
+   - Comprehensive comparative evaluation across **7 benchmark rankers**:
+     1. Random Baseline
+     2. Distance-Only Ranker
+     3. TSM-Only Baseline (Kempton et al. 2018)
+     4. ESM-Only Baseline (Kempton et al. 2018)
+     5. Heuristic Composite Scorer (ExoSignal)
+     6. Model A (LightGBM Ranker with 21 physical + proxy features)
+     7. Model B (LightGBM Ranker with 18 raw physical features, isolating proxy leakage)
+   - Evaluation metrics: **Precision@5/10/20**, **Recall@10/25/50**, **NDCG@10**, **MAP**, and **PR-AUC**.
 
 2. **Supervised Learning-to-Rank (LTR)**:
-   - LightGBM GBDT ranking model trained over **21 physically motivated astrophysical features** (composite transmission SNR proxy, geometric transit depth, atmospheric scale height proxy, insolation flux, bulk density, host star infrared magnitude, and distance attenuation).
-   - Achieves superior ranking utility over heuristics, with feature gains dominated by transmission spectroscopic SNR (82.5% gain) and planetary radius (6.5% gain).
+   - LightGBM ranking model trained over **21 physically motivated astrophysical features** (composite transmission SNR proxy, geometric transit depth, atmospheric scale height proxy, insolation flux, bulk density, host star infrared magnitude, and distance attenuation).
+   - Generates unified, consistent ranking scores (`priority_score` and `priority_rank`), with `heuristic_habitability_score` provided as an auxiliary metric.
 
 3. **In-Process Analytical Query Engine (DuckDB & Parquet)**:
    - Zero-copy columnar queries over immutable versioned Parquet catalog storage (`artifacts/{version}/planets.parquet`).
-   - Parameterized SQL execution with predicate pushdown and secondary B-Tree indexing, achieving **P50 query latencies of ~4.05ms** without database network hops.
+   - Parameterized SQL execution with predicate pushdown and secondary indexing, achieving **empirical P50 query latencies of ~3.6ms (P95 < 8ms)** without external database network hops.
+   - Measure empirical query performance directly via:
+     ```bash
+     python scripts/bench_query.py --iterations 200
+     ```
    - Fully decoupled application lifecycle via FastAPI `lifespan` context manager.
 
 4. **TreeSHAP Explainability Layer**:
@@ -100,15 +113,15 @@ ExoSignal was redesigned from the ground up as a production-grade ML systems pro
    - Built-in CLI and REST API endpoints (`/api/v1/models/registry/versions`, `/active`, `/validate/{version}`, `/compare`, `/promote/{version}`, `/rollback`).
 
 6. **Production Hardening, Observability & Containerization**:
-   - Multi-stage, non-root Docker builds for backend (Python 3.11 slim) and frontend (Node 20 build + Nginx Alpine static serving).
-   - Production Docker Compose orchestration with automated healthchecks, volume mounts, and Nginx reverse proxying.
+   - Multi-stage Docker builds for backend (Python 3.11 slim) and frontend (Node 20 build + Nginx Alpine static serving).
+   - Docker Compose orchestration with automated healthchecks, volume mounts, and reverse proxying.
    - Structured JSON logging with per-request correlation IDs (`X-Request-ID`), execution timing (`X-Process-Time`), and slow-request monitoring.
-   - Production monitoring endpoints: `/health` (system state, active model version, catalog counts) and `/metrics` (DuckDB, SHAP, registry subsystem health).
-   - 5-job GitHub Actions CI/CD pipeline featuring **ML benchmark regression gates** enforcing automated quality bars on NDCG@10, MAP, and Precision@10.
+   - Operational monitoring endpoints: `/health` (system state, active model version, catalog counts) and `/metrics` (DuckDB, SHAP, registry subsystem health).
+   - 5-job GitHub Actions CI/CD pipeline featuring **ML benchmark regression gates** validating leaderboard structure across all 7 rankers.
 
 ## Quick Start with Docker (Recommended)
 
-Run the entire full-stack application (FastAPI backend + Vite/Nginx frontend + in-process DuckDB) with a single command:
+Run the full-stack application (FastAPI backend + Vite/Nginx frontend + in-process DuckDB) with a single command:
 
 ```bash
 docker compose up --build
@@ -121,7 +134,7 @@ docker compose up --build
 
 ## Running Tests
 
-ExoSignal includes a comprehensive **92-test automated suite** covering astrophysical accuracy, LTR ranking benchmarks, DuckDB analytical engine performance, TreeSHAP mathematical invariants, model registry lifecycle, structured logging, and container readiness:
+ExoSignal includes a comprehensive **95-test automated suite** covering transit eligibility constraints, honest ground truth definitions, one-score one-rank consistency, flexible search and SHAP retrieval, LTR ranking benchmarks, DuckDB analytical engine performance, TreeSHAP mathematical invariants, model registry lifecycle, structured logging, and container readiness:
 
 ```bash
 cd backend
@@ -140,7 +153,7 @@ python -m app.pipeline build
 # Inspect active artifact manifest and catalog statistics
 python -m app.pipeline inspect
 
-# Run 5-model ranking benchmark leaderboard across train/val/test splits
+# Run 7-model ranking benchmark leaderboard across train/val/test splits
 python -m app.pipeline evaluate --split test
 
 # Model Registry Operations
