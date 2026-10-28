@@ -19,6 +19,9 @@ router = APIRouter()
 # Pydantic models for API responses with validation
 class PlanetResponse(BaseModel):
     planet_name: str = Field(..., description="Name of the exoplanet")
+    priority_score: Optional[float] = Field(None, ge=0.0, le=100.0, description="Supervised ML priority score (0-100)")
+    priority_rank: Optional[int] = Field(None, ge=1, description="Rank among eligible planets (1 = top target; None for ineligible)")
+    heuristic_habitability_score: Optional[float] = Field(None, ge=0.0, le=100.0, description="Heuristic habitability score (0-100)")
     target_priority_score: float = Field(..., ge=0.0, le=100.0, description="Heuristic priority score (0-100)")
     ml_priority_score: Optional[float] = Field(None, ge=0.0, le=100.0, description="Supervised LTR priority score (0-100)")
     ml_rank: Optional[int] = Field(None, ge=1, description="Rank under supervised Learning-to-Rank model")
@@ -31,6 +34,9 @@ class PlanetResponse(BaseModel):
     hz_status: Optional[str] = Field(None, description="Habitable zone status")
     anomaly_score: Optional[float] = Field(None, ge=0.0, le=1.0, description="Anomaly score (0-1)")
     discovery_method: Optional[str] = Field(None, description="Discovery method")
+    is_transiting: Optional[bool] = Field(None, description="Whether the planet transits its host star")
+    eligible_for_transmission: Optional[bool] = Field(None, description="Eligibility for transmission spectroscopy")
+    exclusion_reason: Optional[str] = Field(None, description="Exclusion reason if ineligible")
 
     @field_validator('target_priority_score')
     @classmethod
@@ -143,12 +149,28 @@ def _parse_components(val):
 
 
 def _row_to_planet_response(row: pd.Series) -> PlanetResponse:
-    """Convert a DataFrame row to PlanetResponse."""
+    """Convert a DataFrame row to PlanetResponse with unified One Score, One Rank."""
+    p_score = _clean_val(row.get("priority_score"))
+    if p_score is None:
+        p_score = _clean_val(row.get("ml_priority_score"))
+    if p_score is None:
+        p_score = float(row.get("target_priority_score", 0.0))
+
+    ml_r = int(row["ml_rank"]) if pd.notna(row.get("ml_rank")) else None
+    p_rank = int(row["priority_rank"]) if pd.notna(row.get("priority_rank")) else ml_r
+
+    heur_score = _clean_val(row.get("heuristic_habitability_score"))
+    if heur_score is None:
+        heur_score = float(row.get("target_priority_score", 0.0))
+
     return PlanetResponse(
         planet_name=row.get("planet_name", ""),
-        target_priority_score=float(row.get("target_priority_score", 0)),
-        ml_priority_score=_clean_val(row.get("ml_priority_score")),
-        ml_rank=int(row["ml_rank"]) if pd.notna(row.get("ml_rank")) else None,
+        priority_score=p_score,
+        priority_rank=p_rank,
+        heuristic_habitability_score=heur_score,
+        target_priority_score=float(row.get("target_priority_score", heur_score or 0.0)),
+        ml_priority_score=_clean_val(row.get("ml_priority_score")) or p_score,
+        ml_rank=ml_r or p_rank,
         rank_delta=int(row["rank_delta"]) if pd.notna(row.get("rank_delta")) else None,
         planet_radius=_clean_val(row.get("planet_radius")),
         planet_mass=_clean_val(row.get("planet_mass")),
@@ -158,16 +180,35 @@ def _row_to_planet_response(row: pd.Series) -> PlanetResponse:
         hz_status=_clean_val(row.get("hz_status")),
         anomaly_score=_clean_val(row.get("anomaly_score")),
         discovery_method=_clean_val(row.get("discovery_method")),
+        is_transiting=_clean_val(row.get("is_transiting")),
+        eligible_for_transmission=_clean_val(row.get("eligible_for_transmission")),
+        exclusion_reason=_clean_val(row.get("exclusion_reason")),
     )
 
 
 def _row_to_planet_detail_response(row: pd.Series) -> PlanetDetailResponse:
-    """Convert a DataFrame row to PlanetDetailResponse."""
+    """Convert a DataFrame row to PlanetDetailResponse with unified One Score, One Rank."""
+    p_score = _clean_val(row.get("priority_score"))
+    if p_score is None:
+        p_score = _clean_val(row.get("ml_priority_score"))
+    if p_score is None:
+        p_score = float(row.get("target_priority_score", 0.0))
+
+    ml_r = int(row["ml_rank"]) if pd.notna(row.get("ml_rank")) else None
+    p_rank = int(row["priority_rank"]) if pd.notna(row.get("priority_rank")) else ml_r
+
+    heur_score = _clean_val(row.get("heuristic_habitability_score"))
+    if heur_score is None:
+        heur_score = float(row.get("target_priority_score", 0.0))
+
     return PlanetDetailResponse(
         planet_name=row.get("planet_name", ""),
-        target_priority_score=float(row.get("target_priority_score", 0)),
-        ml_priority_score=_clean_val(row.get("ml_priority_score")),
-        ml_rank=int(row["ml_rank"]) if pd.notna(row.get("ml_rank")) else None,
+        priority_score=p_score,
+        priority_rank=p_rank,
+        heuristic_habitability_score=heur_score,
+        target_priority_score=float(row.get("target_priority_score", heur_score or 0.0)),
+        ml_priority_score=_clean_val(row.get("ml_priority_score")) or p_score,
+        ml_rank=ml_r or p_rank,
         rank_delta=int(row["rank_delta"]) if pd.notna(row.get("rank_delta")) else None,
         planet_radius=_clean_val(row.get("planet_radius")),
         planet_mass=_clean_val(row.get("planet_mass")),
@@ -177,6 +218,9 @@ def _row_to_planet_detail_response(row: pd.Series) -> PlanetDetailResponse:
         hz_status=_clean_val(row.get("hz_status")),
         anomaly_score=_clean_val(row.get("anomaly_score")),
         discovery_method=_clean_val(row.get("discovery_method")),
+        is_transiting=_clean_val(row.get("is_transiting")),
+        eligible_for_transmission=_clean_val(row.get("eligible_for_transmission")),
+        exclusion_reason=_clean_val(row.get("exclusion_reason")),
         priority_components=_parse_components(row.get("priority_components", {})),
         stellar_effective_temperature=_clean_val(row.get("stellar_effective_temperature")),
         stellar_radius=_clean_val(row.get("stellar_radius")),
@@ -197,7 +241,7 @@ def get_planets(
     max_priority: float = Query(100.0, ge=0.0, le=100.0, description="Maximum priority score filter"),
     q: Optional[str] = Query(None, description="Search term for planet name substring"),
     hz_status: Optional[str] = Query(None, description="Filter by habitable zone status (Inside HZ, Near HZ, Outside HZ)"),
-    sort_by: str = Query("heuristic", pattern="^(heuristic|ml)$", description="Ranking scheme: 'heuristic' (default) or 'ml' (Supervised LTR)")
+    sort_by: str = Query("priority", pattern="^(priority|heuristic|ml)$", description="Ranking scheme: 'priority' (default, Supervised ML) or 'heuristic'")
 ):
     """
     Get list of exoplanets with priority scores via vectorized DuckDB engine.
@@ -354,7 +398,7 @@ def get_planet_details(planet_name: str):
 def get_top_targets(
     limit: int = Query(10, ge=1, le=500, description="Maximum number of top targets to return"),
     min_priority: float = Query(0.0, ge=0.0, le=100.0, description="Minimum priority score threshold"),
-    sort_by: str = Query("heuristic", pattern="^(heuristic|ml)$", description="Ranking scheme: 'heuristic' or 'ml'")
+    sort_by: str = Query("priority", pattern="^(priority|heuristic|ml)$", description="Ranking scheme: 'priority' (default, Supervised ML) or 'heuristic'")
 ):
     """
     Get top priority targets via vectorized DuckDB index scan.

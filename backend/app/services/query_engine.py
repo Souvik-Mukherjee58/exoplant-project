@@ -130,7 +130,8 @@ class CatalogQueryEngine:
         max_priority: float = 100.0,
         q: Optional[str] = None,
         hz_status: Optional[str] = None,
-        sort_by: str = "heuristic"
+        sort_by: str = "heuristic",
+        eligible_only: bool = False
     ) -> List[Dict[str, Any]]:
         """
         Query exoplanets with predicate pushdown, parametric filters, and pagination.
@@ -139,15 +140,44 @@ class CatalogQueryEngine:
         """
         cursor = self.get_cursor()
 
-        sort_col = "ml_priority_score" if sort_by == "ml" else "target_priority_score"
-        filter_col = sort_col
+        # Check existing columns in table
+        try:
+            table_cols = {c[0] for c in cursor.execute("DESCRIBE planets").fetchall()}
+        except Exception:
+            table_cols = set()
+
+        if sort_by == "heuristic":
+            sort_order = "target_priority_score DESC"
+            filter_col = "heuristic_habitability_score" if "heuristic_habitability_score" in table_cols else "target_priority_score"
+        elif sort_by in ("ml", "priority"):
+            sort_order = "priority_rank ASC NULLS LAST" if "priority_rank" in table_cols else "ml_priority_score DESC"
+            filter_col = "priority_score" if "priority_score" in table_cols else "ml_priority_score"
+        else:
+            sort_order = "target_priority_score DESC"
+            filter_col = "target_priority_score"
 
         where_clauses = [f"{filter_col} >= ?", f"{filter_col} <= ?"]
         params: List[Any] = [float(min_priority), float(max_priority)]
 
+        if eligible_only:
+            if "eligible_for_transmission" in table_cols:
+                where_clauses.append("eligible_for_transmission = true")
+            elif "is_transiting" in table_cols:
+                where_clauses.append("is_transiting = true")
+
         if q and q.strip():
-            where_clauses.append("lower(planet_name) LIKE ?")
-            params.append(f"%{q.strip().lower()}%")
+            clean_q = q.strip().lower()
+            q_variants = [
+                f"%{clean_q}%",
+                f"%{clean_q.replace('-', ' ')}%",
+                f"%{clean_q.replace('-', '').replace(' ', '')}%"
+            ]
+            where_clauses.append(
+                "(lower(planet_name) LIKE ? OR "
+                "replace(lower(planet_name), '-', ' ') LIKE ? OR "
+                "replace(replace(lower(planet_name), '-', ''), ' ', '') LIKE ?)"
+            )
+            params.extend(q_variants)
 
         if hz_status and hz_status.strip():
             where_clauses.append("lower(hz_status) = ?")
@@ -155,6 +185,15 @@ class CatalogQueryEngine:
 
         where_sql = " AND ".join(where_clauses)
         params.extend([int(limit), int(offset)])
+
+        extra_selects = []
+        for c in [
+            "priority_score", "priority_rank", "heuristic_habitability_score",
+            "is_transiting", "eligible_for_transmission", "exclusion_reason"
+        ]:
+            if c in table_cols:
+                extra_selects.append(c)
+        extra_sql = (",\n                " + ",\n                ".join(extra_selects)) if extra_selects else ""
 
         sql = f"""
             SELECT
@@ -170,10 +209,10 @@ class CatalogQueryEngine:
                 distance,
                 hz_status,
                 anomaly_score,
-                discovery_method
+                discovery_method{extra_sql}
             FROM planets
             WHERE {where_sql}
-            ORDER BY {sort_col} DESC
+            ORDER BY {sort_order}
             LIMIT ? OFFSET ?
         """
 
@@ -188,13 +227,16 @@ class CatalogQueryEngine:
             return None
 
         cursor = self.get_cursor()
+        clean = planet_name.strip()
         sql = """
             SELECT *
             FROM planets
             WHERE lower(trim(planet_name)) = lower(trim(?))
+               OR replace(lower(trim(planet_name)), '-', ' ') = replace(lower(trim(?)), '-', ' ')
+               OR replace(replace(lower(trim(planet_name)), '-', ''), ' ', '') = replace(replace(lower(trim(?)), '-', ''), ' ', '')
             LIMIT 1
         """
-        df = cursor.execute(sql, [planet_name.strip()]).df()
+        df = cursor.execute(sql, [clean, clean, clean]).df()
         if df.empty:
             return None
         return df.iloc[0].to_dict()
@@ -203,14 +245,15 @@ class CatalogQueryEngine:
         self,
         limit: int = 10,
         min_priority: float = 0.0,
-        sort_by: str = "heuristic"
+        sort_by: str = "priority"
     ) -> List[Dict[str, Any]]:
-        """Retrieve highest-ranked targets above priority threshold."""
+        """Retrieve highest-ranked targets above priority threshold (eligible planets only)."""
         return self.query_planets(
             limit=limit,
             offset=0,
             min_priority=min_priority,
-            sort_by=sort_by
+            sort_by=sort_by,
+            eligible_only=True
         )
 
     def get_analysis_stats(self) -> Dict[str, Any]:
