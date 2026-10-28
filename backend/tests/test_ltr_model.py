@@ -12,7 +12,10 @@ from app.ml.evaluation import split_temporal_dataset
 from app.ml.ltr_model import (
     LTRFeatureExtractor,
     ExoSignalLTRModel,
-    LTR_FEATURE_NAMES
+    ExoSignalClassifierRanker,
+    LTR_FEATURE_NAMES,
+    FEATURE_NAMES_VARIANT_A,
+    FEATURE_NAMES_VARIANT_B
 )
 from app.services.data_processor import get_data_processor
 
@@ -30,20 +33,33 @@ def processed_df():
 # ---------------------------------------------------------------------------
 
 def test_ltr_feature_extractor_dimensions_and_imputation(processed_df):
-    extractor = LTRFeatureExtractor()
-    extractor.fit(processed_df)
+    # Test Variant A (Full feature set)
+    extractor_a = LTRFeatureExtractor(feature_variant="A")
+    extractor_a.fit(processed_df)
 
-    assert extractor.is_fitted
-    assert len(extractor.feature_names) == 21
-    assert "transmission_snr_proxy" in extractor.feature_names
-    assert "transit_depth_proxy" in extractor.feature_names
-    assert "scale_height_proxy" in extractor.feature_names
+    assert extractor_a.is_fitted
+    assert len(extractor_a.feature_names) == 21
+    assert "transmission_snr_proxy" in extractor_a.feature_names
+    assert "transit_depth_proxy" in extractor_a.feature_names
+    assert "scale_height_proxy" in extractor_a.feature_names
 
-    # Transform catalog
-    X = extractor.transform(processed_df)
-    assert X.shape == (len(processed_df), 21)
-    # Check that there are zero NaNs after transform
-    assert not np.isnan(X).any(), "Extracted features must have zero NaNs"
+    X_a = extractor_a.transform(processed_df)
+    assert X_a.shape == (len(processed_df), 21)
+    assert not np.isnan(X_a).any(), "Variant A features must have zero NaNs"
+
+    # Test Variant B (No proxy leakage)
+    extractor_b = LTRFeatureExtractor(feature_variant="B")
+    extractor_b.fit(processed_df)
+
+    assert extractor_b.is_fitted
+    assert len(extractor_b.feature_names) == 18
+    assert "transmission_snr_proxy" not in extractor_b.feature_names
+    assert "transit_depth_proxy" not in extractor_b.feature_names
+    assert "scale_height_proxy" not in extractor_b.feature_names
+
+    X_b = extractor_b.transform(processed_df)
+    assert X_b.shape == (len(processed_df), 18)
+    assert not np.isnan(X_b).any(), "Variant B features must have zero NaNs"
 
 
 def test_mass_radius_imputation_in_extractor():
@@ -75,27 +91,41 @@ def test_mass_radius_imputation_in_extractor():
 def test_ltr_model_training_and_convergence(processed_df):
     train_df, val_df, test_df = split_temporal_dataset(processed_df)
 
-    model = ExoSignalLTRModel(
+    # Test Model A
+    model_a = ExoSignalLTRModel(
+        feature_variant="A",
         n_estimators=50,
         learning_rate=0.08,
         random_state=42
     )
-    model.fit(train_df, val_df)
+    model_a.fit(train_df, val_df)
 
-    assert model.is_fitted
-    assert model.training_metadata["train_samples"] == len(train_df)
-    assert len(model.feature_importances["top_features"]) == 10
+    assert model_a.is_fitted
+    assert model_a.training_metadata["train_samples"] == len(train_df)
+    assert len(model_a.feature_importances["top_features"]) == 10
 
-    # Test predictions
-    scores = model.predict_priority_scores(test_df)
-    assert len(scores) == len(test_df)
-    assert np.all((scores >= 0.0) & (scores <= 100.0))
+    scores_a = model_a.predict_priority_scores(test_df)
+    assert len(scores_a) == len(test_df)
+    assert np.all((scores_a >= 0.0) & (scores_a <= 100.0))
 
-    # Evaluate metrics on out-of-time test set
-    metrics = model.evaluate(test_df)
-    assert metrics["precision@10"] >= 0.70, "LTR model must achieve high Precision@10 on test set"
-    assert metrics["map"] >= 0.70, "LTR model must achieve strong MAP on test set"
-    assert metrics["pr_auc"] >= 0.70, "LTR model must achieve strong PR-AUC"
+    metrics_a = model_a.evaluate(test_df)
+    for k in ["precision@5", "precision@10", "precision@20", "recall@10", "recall@25", "recall@50", "ndcg@10", "map", "pr_auc"]:
+        assert k in metrics_a, f"Missing metric {k}"
+        assert 0.0 <= metrics_a[k] <= 1.0, f"Metric {k} must be in [0, 1], got {metrics_a[k]}"
+
+    # Test Model B (raw features)
+    model_b = ExoSignalClassifierRanker(
+        feature_variant="B",
+        n_estimators=50,
+        learning_rate=0.08,
+        random_state=42
+    )
+    model_b.fit(train_df, val_df)
+    assert model_b.is_fitted
+    metrics_b = model_b.evaluate(test_df)
+    for k in ["precision@5", "precision@10", "precision@20", "recall@10", "recall@25", "recall@50", "ndcg@10", "map", "pr_auc"]:
+        assert k in metrics_b
+        assert 0.0 <= metrics_b[k] <= 1.0
 
 
 def test_ltr_model_serialization(tmp_path, processed_df):

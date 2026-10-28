@@ -135,6 +135,9 @@ def split_temporal_dataset(
     Ensures zero temporal leakage from future observation technologies.
     """
     df = df.copy()
+    if "eligible_for_transmission" in df.columns:
+        df = df[df["eligible_for_transmission"] == True].copy()
+
     if "discovery_year" not in df.columns:
         raise ValueError("Dataset missing 'discovery_year' column for temporal splitting")
 
@@ -147,15 +150,18 @@ def split_temporal_dataset(
 
 
 # ---------------------------------------------------------------------------
-# Baseline Rankers & Models
+# Baseline Rankers & Models (7 Benchmark Models)
 # ---------------------------------------------------------------------------
 
 class RandomRanker:
-    """Random baseline ranker."""
+    """Random baseline ranker (deterministic seed=42)."""
     name = "Random Baseline"
 
-    def predict(self, df: pd.DataFrame, random_state: int = 42) -> np.ndarray:
-        rng = np.random.default_rng(random_state)
+    def __init__(self, random_state: int = 42):
+        self.random_state = random_state
+
+    def predict(self, df: pd.DataFrame) -> np.ndarray:
+        rng = np.random.default_rng(self.random_state)
         return rng.uniform(0.0, 1.0, size=len(df))
 
 
@@ -165,8 +171,48 @@ class DistanceRanker:
 
     def predict(self, df: pd.DataFrame) -> np.ndarray:
         dist = pd.to_numeric(df.get("distance", pd.Series(np.nan, index=df.index)), errors="coerce")
-        # Inverted distance: closer gets higher score
+        # Inverted distance: closer stars yield higher score; missing distance yields 0
         return np.where(dist.notna() & (dist > 0), 1.0 / (1.0 + dist / 50.0), 0.0)
+
+
+class TSMRanker:
+    """TSM-only baseline: rank by Transmission Spectroscopy Metric (Kempton et al. 2018) descending."""
+    name = "TSM-Only Baseline"
+
+    def predict(self, df: pd.DataFrame) -> np.ndarray:
+        tsm = pd.to_numeric(
+            df.get("transmission_spectroscopy_metric", pd.Series(np.nan, index=df.index)),
+            errors="coerce"
+        ).fillna(0.0)
+        return tsm.to_numpy()
+
+
+class ESMRanker:
+    """ESM-only baseline: rank by Emission Spectroscopy Metric (Kempton et al. 2018) descending."""
+    name = "ESM-Only Baseline"
+
+    def predict(self, df: pd.DataFrame) -> np.ndarray:
+        esm = pd.to_numeric(
+            df.get("emission_spectroscopy_metric", pd.Series(np.nan, index=df.index)),
+            errors="coerce"
+        ).fillna(0.0)
+        return esm.to_numpy()
+
+
+class HeuristicCompositeRanker:
+    """ExoSignal composite heuristic baseline (target_priority_score)."""
+    name = "Heuristic Composite (ExoSignal)"
+
+    def predict(self, df: pd.DataFrame) -> np.ndarray:
+        scores = pd.to_numeric(
+            df.get("target_priority_score", pd.Series(0.0, index=df.index)),
+            errors="coerce"
+        ).fillna(0.0)
+        return scores.to_numpy()
+
+
+# Alias for backward compatibility
+ExoSignalV1Ranker = HeuristicCompositeRanker
 
 
 class ESIRanker:
@@ -178,35 +224,53 @@ class ESIRanker:
         return esi.to_numpy()
 
 
-class ExoSignalV1Ranker:
-    """ExoSignal v1 composite heuristic scoring rule."""
-    name = "ExoSignal v1 Composite"
-
-    def predict(self, df: pd.DataFrame) -> np.ndarray:
-        scores = pd.to_numeric(df.get("target_priority_score", pd.Series(0.0, index=df.index)), errors="coerce").fillna(0.0)
-        return scores.to_numpy()
-
-
-class SupervisedMLRanker:
+class ModelARanker:
     """
-    Supervised LightGBM Learning-to-Rank (LTR) Ranker.
+    Model A: Supervised LightGBM Ranker with all features (including proxies).
     Trained strictly on historical train era (<= 2017), evaluated on out-of-time test set (2022-2026).
     """
-    name = "Supervised LightGBM LTR"
+    name = "Model A (LightGBM - All Features)"
 
     def __init__(self, random_state: int = 42):
         from app.ml.ltr_model import ExoSignalLTRModel
-        self.ltr_model = ExoSignalLTRModel(random_state=random_state)
+        self.ltr_model = ExoSignalLTRModel(feature_variant="A", random_state=random_state)
         self.is_fitted = False
 
-    def fit(self, train_df: pd.DataFrame, val_df: Optional[pd.DataFrame] = None) -> "SupervisedMLRanker":
+    def fit(self, train_df: pd.DataFrame, val_df: Optional[pd.DataFrame] = None) -> "ModelARanker":
         self.ltr_model.fit(train_df, val_df)
         self.is_fitted = True
         return self
 
     def predict(self, df: pd.DataFrame) -> np.ndarray:
         if not self.is_fitted:
-            raise ValueError("SupervisedMLRanker must be fitted before predict")
+            raise ValueError("ModelARanker must be fitted before predict")
+        return self.ltr_model.predict_raw_scores(df)
+
+
+# Backward compatibility alias
+SupervisedMLRanker = ModelARanker
+
+
+class ModelBRanker:
+    """
+    Model B: Supervised LightGBM Ranker with raw physical features only (no proxy leakage).
+    Trained strictly on historical train era (<= 2017), evaluated on out-of-time test set (2022-2026).
+    """
+    name = "Model B (LightGBM - Raw Features Only)"
+
+    def __init__(self, random_state: int = 42):
+        from app.ml.ltr_model import ExoSignalLTRModel
+        self.ltr_model = ExoSignalLTRModel(feature_variant="B", random_state=random_state)
+        self.is_fitted = False
+
+    def fit(self, train_df: pd.DataFrame, val_df: Optional[pd.DataFrame] = None) -> "ModelBRanker":
+        self.ltr_model.fit(train_df, val_df)
+        self.is_fitted = True
+        return self
+
+    def predict(self, df: pd.DataFrame) -> np.ndarray:
+        if not self.is_fitted:
+            raise ValueError("ModelBRanker must be fitted before predict")
         return self.ltr_model.predict_raw_scores(df)
 
 
@@ -215,7 +279,7 @@ class SupervisedMLRanker:
 # ---------------------------------------------------------------------------
 
 class RankingBenchmarkSuite:
-    """Orchestrates comparative model evaluation against ground truth."""
+    """Orchestrates comparative model evaluation against ground truth across 7 benchmark baselines."""
 
     def __init__(self, k_list: Optional[List[int]] = None):
         self.k_list = k_list or [5, 10, 20]
@@ -230,17 +294,16 @@ class RankingBenchmarkSuite:
         """Compute all ranking metrics for a specific model's predictions."""
         results: Dict[str, Any] = {"model_name": name}
 
-        # Precision@K
-        for k in self.k_list:
+        # Precision@5, 10, 20
+        for k in [5, 10, 20]:
             results[f"precision@{k}"] = round(precision_at_k(y_true_binary, y_pred, k=k), 4)
 
-        # Recall@K
-        for k in self.k_list:
+        # Recall@10, 25, 50
+        for k in [10, 25, 50]:
             results[f"recall@{k}"] = round(recall_at_k(y_true_binary, y_pred, k=k), 4)
 
-        # NDCG@K
-        for k in self.k_list:
-            results[f"ndcg@{k}"] = round(ndcg_at_k(y_true_graded, y_pred, k=k), 4)
+        # NDCG@10
+        results["ndcg@10"] = round(ndcg_at_k(y_true_graded, y_pred, k=10), 4)
 
         # Global ranking metrics
         results["map"] = round(mean_average_precision(y_true_binary, y_pred), 4)
@@ -254,7 +317,7 @@ class RankingBenchmarkSuite:
         eval_split: str = "test"
     ) -> Dict[str, Any]:
         """
-        Run full benchmark on temporal split.
+        Run full benchmark on temporal split across 7 rankers.
 
         Args:
             full_df: Complete processed exoplanet catalog
@@ -263,24 +326,29 @@ class RankingBenchmarkSuite:
         # 1. Generate ground truth labels
         df_with_gt = generate_ground_truth_labels(full_df)
 
-        # 2. Split temporally
+        # 2. Split temporally (only transmission-eligible planets)
         train_df, val_df, test_df = split_temporal_dataset(df_with_gt)
         target_eval_df = test_df if eval_split == "test" else val_df
 
         y_true_binary = target_eval_df["ground_truth_binary"].to_numpy()
         y_true_graded = target_eval_df["ground_truth_graded"].to_numpy()
 
-        # 3. Fit supervised ranker strictly on train set with validation early stopping
-        supervised_ranker = SupervisedMLRanker(random_state=42)
-        supervised_ranker.fit(train_df, val_df)
+        # 3. Fit supervised rankers strictly on train set with validation early stopping
+        model_a = ModelARanker(random_state=42)
+        model_a.fit(train_df, val_df)
 
-        # 4. Instantiate all models
+        model_b = ModelBRanker(random_state=42)
+        model_b.fit(train_df, val_df)
+
+        # 4. Instantiate all 7 models
         models = [
-            RandomRanker(),
+            RandomRanker(random_state=42),
             DistanceRanker(),
-            ESIRanker(),
-            ExoSignalV1Ranker(),
-            supervised_ranker
+            TSMRanker(),
+            ESMRanker(),
+            HeuristicCompositeRanker(),
+            model_a,
+            model_b
         ]
 
         leaderboard = []
@@ -294,8 +362,8 @@ class RankingBenchmarkSuite:
             )
             leaderboard.append(metrics)
 
-        # Sort leaderboard by primary telescope objective: Precision@10
-        leaderboard.sort(key=lambda m: m["precision@10"], reverse=True)
+        # Sort leaderboard by primary telescope objective: Precision@10, then MAP
+        leaderboard.sort(key=lambda m: (m["precision@10"], m["map"]), reverse=True)
 
         benchmark_report = {
             "evaluation_split": eval_split,
@@ -324,7 +392,8 @@ class RankingBenchmarkSuite:
         """Save JSON benchmark results and formatted Markdown summary."""
         output_dir.mkdir(parents=True, exist_ok=True)
         json_path = output_dir / "benchmark_report.json"
-        md_path = output_dir / "BENCHMARK_EVALUATION.md"
+        md_path = output_dir / "benchmark_report.md"
+        legacy_md_path = output_dir / "BENCHMARK_EVALUATION.md"
 
         # Write JSON
         with open(json_path, "w") as f:
@@ -332,14 +401,15 @@ class RankingBenchmarkSuite:
 
         # Write Markdown Table
         headers = [
-            "Model", "Precision@5", "Precision@10", "Recall@10",
-            "NDCG@10", "MAP", "PR-AUC"
+            "Model", "Precision@5", "Precision@10", "Precision@20",
+            "Recall@10", "Recall@25", "Recall@50", "NDCG@10", "MAP", "PR-AUC"
         ]
         rows = []
         for m in report["leaderboard"]:
             rows.append(
-                f"| **{m['model_name']}** | {m['precision@5']:.4f} | {m['precision@10']:.4f} | "
-                f"{m['recall@10']:.4f} | {m['ndcg@10']:.4f} | {m['map']:.4f} | {m['pr_auc']:.4f} |"
+                f"| **{m['model_name']}** | {m['precision@5']:.4f} | {m['precision@10']:.4f} | {m['precision@20']:.4f} | "
+                f"{m['recall@10']:.4f} | {m['recall@25']:.4f} | {m['recall@50']:.4f} | "
+                f"{m['ndcg@10']:.4f} | {m['map']:.4f} | {m['pr_auc']:.4f} |"
             )
 
         md_content = f"""# ExoSignal Model Evaluation Benchmark Report
@@ -355,7 +425,7 @@ class RankingBenchmarkSuite:
 ### Metric Justification
 > {report['primary_metric_justification']}
 
-## Leaderboard Comparison
+## Leaderboard Comparison (7 Models)
 
 | {' | '.join(headers)} |
 | {' | '.join(['---'] * len(headers))} |
@@ -363,10 +433,14 @@ class RankingBenchmarkSuite:
 
 ## Scientific Ground Truth Formulation
 Ground truth targets are determined by:
-1. **Kempton et al. (2018)** Transmission Spectroscopy Metric (TSM) ($TSM \\ge 10$ for rocky/temperate, $TSM \\ge 80$ for sub-Neptunes).
-2. **NASA / STScI Approved JWST Atmospheric Programs** (Cycles 1, 2, and 3 accepted spectroscopic follow-up targets).
+1. **NASA / STScI Approved JWST Atmospheric Transmission Spectroscopy Programs** (Cycles 1, 2, 3, and GTO accepted transmission spectroscopic follow-up targets).
+2. Evaluated strictly on transmission-eligible planets to ensure physical observation feasibility.
 """
         with open(md_path, "w") as f:
+            f.write(md_content)
+
+        # Also write legacy path for compatibility
+        with open(legacy_md_path, "w") as f:
             f.write(md_content)
 
         return json_path, md_path

@@ -242,22 +242,33 @@ class SHAPExplainer:
             # Impact in calibrated score units
             score_impact = round(phi * scale_factor, 1)
 
+            if phi >= 0:
+                direction = "positive"
+                phi_rounded = round(phi, 4)
+                if phi_rounded <= 0:
+                    phi_rounded = 0.0001
+            else:
+                direction = "negative"
+                phi_rounded = round(phi, 4)
+                if phi_rounded >= 0:
+                    phi_rounded = -0.0001
+
             waterfall_items.append({
                 "feature": feat,
                 "display_name": meta["display_name"],
                 "description": meta.get("description", ""),
                 "raw_value": self._format_raw_value(feat, raw_val),
-                "shap_value": round(phi, 4),
+                "shap_value": phi_rounded,
                 "score_impact": score_impact,
-                "direction": "positive" if phi > 0 else "negative",
+                "direction": direction,
                 "abs_importance": abs(phi)
             })
 
         # Sort by absolute SHAP impact
         waterfall_items.sort(key=lambda x: x["abs_importance"], reverse=True)
 
-        positive_drivers = [item for item in waterfall_items if item["direction"] == "positive"][:5]
-        negative_barriers = [item for item in waterfall_items if item["direction"] == "negative"][:5]
+        positive_drivers = [item for item in waterfall_items if item["direction"] == "positive" and item["shap_value"] > 0][:5]
+        negative_barriers = [item for item in waterfall_items if item["direction"] == "negative" and item["shap_value"] < 0][:5]
 
         return {
             "planet_name": planet_data.get("planet_name", "Target"),

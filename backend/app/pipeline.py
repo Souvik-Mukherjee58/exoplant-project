@@ -111,24 +111,47 @@ def build_artifacts(
     scorer = TargetPriorityScorer()
     scored_df = scorer.score(anom_df)
 
-    # 7. Supervised Learning-to-Rank (LTR) Training & Scoring
-    print(f"[6/8] Fitting Supervised LightGBM Learning-to-Rank (LTR) model...")
-    gt_df = generate_ground_truth_labels(scored_df)
+    # 7. Supervised LightGBM Ranking Models (Model A & Model B)
+    print(f"[6/8] Fitting Supervised LightGBM Ranking Models (Model A & Model B)...")
+    eligible_df = scored_df[scored_df["eligible_for_transmission"]].copy() if "eligible_for_transmission" in scored_df.columns else scored_df
+    gt_df = generate_ground_truth_labels(eligible_df)
     train_split, val_split, test_split = split_temporal_dataset(gt_df)
-    ltr_model = ExoSignalLTRModel(random_state=settings.RANDOM_STATE)
-    ltr_model.fit(train_split, val_split)
-    ltr_model_path = version_dir / "ltr_model.joblib"
-    ltr_model.save(str(ltr_model_path))
 
-    # Save feature importance breakdown
+    # Model A: All features (including proxy interaction features)
+    ltr_model_a = ExoSignalLTRModel(feature_variant="A", random_state=settings.RANDOM_STATE)
+    ltr_model_a.fit(train_split, val_split)
+    ltr_model_a_path = version_dir / "ltr_model_a.joblib"
+    ltr_model_a.save(str(ltr_model_a_path))
+    # Also save as default ltr_model.joblib for system compatibility
+    ltr_model_path = version_dir / "ltr_model.joblib"
+    ltr_model_a.save(str(ltr_model_path))
+
+    # Model B: Raw features only (proxy leakage features removed)
+    ltr_model_b = ExoSignalLTRModel(feature_variant="B", random_state=settings.RANDOM_STATE)
+    ltr_model_b.fit(train_split, val_split)
+    ltr_model_b_path = version_dir / "ltr_model_b.joblib"
+    ltr_model_b.save(str(ltr_model_b_path))
+
+    # Save feature importance breakdowns
     feat_imp_path = version_dir / "ltr_feature_importance.json"
     with open(feat_imp_path, "w") as f:
-        json.dump(ltr_model.feature_importances, f, indent=2)
+        json.dump(ltr_model_a.feature_importances, f, indent=2)
 
-    # Score full catalog with LTR and append rank delta
-    scored_df = ltr_model.score_catalog(scored_df)
-    print(f"      Saved fitted LTR model: {ltr_model_path.name}")
-    print(f"      Top ranking feature: {ltr_model.feature_importances['top_features'][0]['feature']} ({ltr_model.feature_importances['top_features'][0]['gain_percentage']}%)")
+    feat_imp_b_path = version_dir / "ltr_feature_importance_b.json"
+    with open(feat_imp_b_path, "w") as f:
+        json.dump(ltr_model_b.feature_importances, f, indent=2)
+
+    # Score full catalog with LTR Model A and append rank delta (ranking eligible planets only)
+    scored_df = ltr_model_a.score_catalog(scored_df)
+    if "eligible_for_transmission" in scored_df.columns:
+        scored_df = pd.concat([
+            scored_df[scored_df["eligible_for_transmission"]].sort_values("target_priority_score", ascending=False),
+            scored_df[~scored_df["eligible_for_transmission"]].sort_values("target_priority_score", ascending=False)
+        ]).reset_index(drop=True)
+    print(f"      Saved fitted LTR Model A: {ltr_model_a_path.name}")
+    print(f"      Saved fitted LTR Model B: {ltr_model_b_path.name}")
+    print(f"      Top ranking feature (Model A): {ltr_model_a.feature_importances['top_features'][0]['feature']} ({ltr_model_a.feature_importances['top_features'][0]['gain_percentage']}%)")
+    print(f"      Top ranking feature (Model B): {ltr_model_b.feature_importances['top_features'][0]['feature']} ({ltr_model_b.feature_importances['top_features'][0]['gain_percentage']}%)")
 
     # 8. Precompute 2D PCA feature projection
     print(f"[7/8] Precomputing PCA feature projections...")
@@ -163,6 +186,7 @@ def build_artifacts(
         "pca_x": [round(float(v), 3) for v in X_pca_out[:, 0]],
         "pca_y": [round(float(v), 3) for v in X_pca_out[:, 1]],
         "anomaly_score": [round(float(v), 3) for v in pca_sample_df["anomaly_score"]],
+        "priority_score": [round(float(v), 1) for v in pca_sample_df["priority_score"]],
         "target_priority_score": [round(float(v), 1) for v in pca_sample_df["target_priority_score"]],
         "hz_status": pca_sample_df["hz_status"].tolist(),
         "explained_variance": [round(float(v), 4) for v in pca.explained_variance_ratio_],
@@ -173,7 +197,7 @@ def build_artifacts(
 
     # 8. Precompute system statistics & empirical score histogram
     print(f"[7/8] Precomputing population statistics and saving artifacts...")
-    scores = scored_df["target_priority_score"].dropna()
+    scores = scored_df["priority_score"].dropna()
     counts, bin_edges = np.histogram(scores, bins=[0, 20, 40, 60, 80, 100])
     priority_histogram = [
         {"range": f"{int(bin_edges[i])}-{int(bin_edges[i+1])}", "count": int(counts[i])}
@@ -183,6 +207,13 @@ def build_artifacts(
     precomputed_stats = {
         "total_planets": len(scored_df),
         "score_distribution": {
+            "min": round(float(scored_df["priority_score"].min()), 1),
+            "max": round(float(scored_df["priority_score"].max()), 1),
+            "mean": round(float(scored_df["priority_score"].mean()), 1),
+            "median": round(float(scored_df["priority_score"].median()), 1),
+            "std": round(float(scored_df["priority_score"].std()), 1)
+        },
+        "heuristic_score_distribution": {
             "min": round(float(scored_df["target_priority_score"].min()), 1),
             "max": round(float(scored_df["target_priority_score"].max()), 1),
             "mean": round(float(scored_df["target_priority_score"].mean()), 1),
@@ -205,7 +236,8 @@ def build_artifacts(
     # 9. Execute ML Ranking Evaluation Benchmark
     print(f"[8/8] Running ML Ranking Evaluation Benchmark against ground truth...")
     bench_suite = RankingBenchmarkSuite()
-    bench_report = bench_suite.run_benchmark(scored_df, eval_split="test")
+    eval_input_df = scored_df[scored_df["eligible_for_transmission"]].copy() if "eligible_for_transmission" in scored_df.columns else scored_df
+    bench_report = bench_suite.run_benchmark(eval_input_df, eval_split="test")
     json_bench, md_bench = bench_suite.save_report(bench_report, version_dir)
     # Also save copy in root artifacts directory for quick access
     bench_suite.save_report(bench_report, artifacts_dir)
@@ -237,9 +269,11 @@ def build_artifacts(
         "models": {
             "anomaly_detector": model_path.name,
             "anomaly_algorithm": "IsolationForest + LocalOutlierFactor (in-sample)",
-            "ltr_model": ltr_model_path.name,
-            "ltr_algorithm": "LightGBM Supervised Learning-to-Rank GBDT",
-            "ltr_top_features": ltr_model.feature_importances["top_features"][:5]
+            "ltr_model_a": ltr_model_a_path.name,
+            "ltr_model_b": ltr_model_b_path.name,
+            "ltr_algorithm": "LightGBM Supervised Classifier Ranking",
+            "ltr_top_features_a": ltr_model_a.feature_importances["top_features"][:5],
+            "ltr_top_features_b": ltr_model_b.feature_importances["top_features"][:5]
         },
         "benchmark": {
             "evaluation_split": bench_report["evaluation_split"],
@@ -254,7 +288,9 @@ def build_artifacts(
 
     # Also write a copy of ltr_feature_importance to root artifacts dir
     with open(artifacts_dir / "ltr_feature_importance.json", "w") as f:
-        json.dump(ltr_model.feature_importances, f, indent=2)
+        json.dump(ltr_model_a.feature_importances, f, indent=2)
+    with open(artifacts_dir / "ltr_feature_importance_b.json", "w") as f:
+        json.dump(ltr_model_b.feature_importances, f, indent=2)
 
     # Update active pointer
     with open(artifacts_dir / "active_version.txt", "w") as f:
@@ -266,10 +302,10 @@ def build_artifacts(
         from app.ml.model_registry import ModelRegistry
         registry = ModelRegistry(artifacts_dir=str(artifacts_dir))
 
-        # Extract GBDT metrics from benchmark
+        # Extract Model A metrics from benchmark
         gbdt_entry = next(
             (m for m in bench_report["leaderboard"]
-             if "GBDT" in m["model_name"] or "Supervised" in m["model_name"]),
+             if "Model A" in m["model_name"] or "GBDT" in m["model_name"] or "Supervised" in m["model_name"]),
             {}
         )
 
@@ -278,9 +314,9 @@ def build_artifacts(
             model_path=str(ltr_model_path),
             parquet_path=str(parquet_path),
             training_config={
-                "algorithm": "LightGBM GBDT (Learning-to-Rank)",
-                "n_features": len(ltr_model.feature_importances.get("top_features", [])),
-                "top_features": [f["feature"] for f in ltr_model.feature_importances.get("top_features", [])[:5]],
+                "algorithm": "LightGBM Supervised Classifier Ranking",
+                "n_features": len(ltr_model_a.feature_importances.get("top_features", [])),
+                "top_features": [f["feature"] for f in ltr_model_a.feature_importances.get("top_features", [])[:5]],
                 "random_state": settings.RANDOM_STATE,
                 "temporal_split": {
                     "train": f"<= 2017 ({len(train_split)} planets)",
@@ -304,9 +340,9 @@ def build_artifacts(
         )
 
         registry.promote(version, reason="Pipeline auto-promotion after successful build")
-        print(f"      ✅ Registered and promoted {version} in model registry")
+        print(f"      [OK] Registered and promoted {version} in model registry")
     except Exception as e:
-        print(f"      ⚠️ Registry registration failed (non-fatal): {e}")
+        print(f"      [WARNING] Registry registration failed (non-fatal): {e}")
 
     print(f"\nBuild complete!")
     print(f"Artifact Version: {version}")

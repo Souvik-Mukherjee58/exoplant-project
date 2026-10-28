@@ -7,26 +7,45 @@ Implements published astronomical ground truth:
 4. Empirical Mass-Radius relations (Chen & Kipping 2017) for missing masses.
 """
 
+from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 import numpy as np
 import pandas as pd
 
 
-# Ground-truth confirmed targets in approved JWST Atmospheric Characterization Programs
-# (Cycles 1, 2, and 3: ERS, GTO, and GO programs)
-CONFIRMED_JWST_ATMOSPHERIC_TARGETS: Set[str] = {
-    # High-profile terrestrial & temperate M-dwarf systems
-    "TRAPPIST-1 b", "TRAPPIST-1 c", "TRAPPIST-1 d", "TRAPPIST-1 e",
-    "TRAPPIST-1 f", "TRAPPIST-1 g", "TRAPPIST-1 h",
-    "LHS 1140 b", "TOI-700 d", "L 98-59 b", "L 98-59 c", "L 98-59 d",
-    "GJ 1132 b", "GJ 1214 b", "GJ 436 b", "GJ 3470 b", "GJ 367 b",
-    "LP 791-18 d", "TOI-270 d", "K2-18 b", "55 Cnc e",
-    "Proxima Cen b", "Wolf 1061 c", "GJ 273 b", "Gl 725 B c",
-    # Benchmark giant/sub-Neptune spectroscopic laboratories
-    "WASP-39 b", "WASP-96 b", "WASP-121 b", "WASP-76 b", "WASP-43 b",
-    "WASP-18 b", "WASP-80 b", "WASP-107 b", "HD 209458 b", "HD 189733 b",
-    "HAT-P-18 b", "HAT-P-26 b", "HAT-P-32 b", "TOI-849 b"
-}
+def load_jwst_transmission_targets(reference_path: Optional[str] = None) -> pd.DataFrame:
+    """Load JWST transmission targets reference catalog."""
+    if reference_path:
+        csv_path = Path(reference_path)
+    else:
+        # Check standard locations
+        candidates = [
+            Path("data/reference/jwst_transmission_targets.csv"),
+            Path("backend/data/reference/jwst_transmission_targets.csv"),
+            Path(__file__).resolve().parent.parent.parent / "data" / "reference" / "jwst_transmission_targets.csv",
+        ]
+        csv_path = next((p for p in candidates if p.exists()), candidates[0])
+
+    if csv_path.exists():
+        return pd.read_csv(csv_path)
+    return pd.DataFrame(columns=["planet_name", "program_id", "cycle", "mode", "source_url"])
+
+
+def get_verified_jwst_targets(reference_path: Optional[str] = None) -> Set[str]:
+    """
+    Get set of verified JWST transmission targets.
+    Excludes non-transiting planets and unverified entries with empty program_id (marked with TODO).
+    """
+    df = load_jwst_transmission_targets(reference_path)
+    if df.empty or "planet_name" not in df.columns:
+        return set()
+    verified = df[df["program_id"].notna() & (df["program_id"].astype(str).str.strip() != "")]
+    return set(verified["planet_name"].astype(str).str.strip())
+
+
+# Backward-compatible reference to verified JWST targets loaded from reference CSV
+CONFIRMED_JWST_ATMOSPHERIC_TARGETS: Set[str] = get_verified_jwst_targets()
+
 
 
 def estimate_planet_mass(radius_earth: float) -> float:
@@ -148,25 +167,23 @@ def calculate_esm(
     return float(esm) if np.isfinite(esm) and esm >= 0 else np.nan
 
 
-def generate_ground_truth_labels(df: pd.DataFrame) -> pd.DataFrame:
+def generate_ground_truth_labels(
+    df: pd.DataFrame,
+    reference_path: Optional[str] = None
+) -> pd.DataFrame:
     """
     Generate ground-truth relevance labels for exoplanet spectroscopic follow-up targets.
 
-    Creates:
-    - tsm: Continuous Kempton et al. (2018) Transmission Spectroscopy Metric
-    - esm: Continuous Kempton et al. (2018) Emission Spectroscopy Metric
-    - is_jwst_target: Boolean flag for targets in approved JWST atmospheric programs
-    - ground_truth_binary: Binary relevance label (1 = high priority follow-up, 0 = non-target)
-        * 1 if confirmed JWST program target OR
-        * 1 if (TSM >= 10 for terrestrial/temperate planets R_p <= 1.8 R_earth) OR
-        * 1 if (TSM >= 80 for sub-Neptunes / gas giants in high SNR regimes)
-    - ground_truth_graded: Multi-level relevance grade (0-3 scale):
-        * 3: Elite target (Confirmed JWST atmospheric program target OR terrestrial HZ with TSM >= 15)
-        * 2: High priority candidate (TSM >= 10 for terrestrial OR TSM >= 80 for sub-Neptune)
-        * 1: Marginal / secondary candidate (TSM >= 5)
-        * 0: Non-target / unobservable / noisy
+    Labels are strictly JWST-membership-based:
+    - is_jwst_target: Boolean flag indicating verified JWST transmission target
+    - ground_truth_binary: Binary label (1 if in a verified JWST transmission program, 0 otherwise)
+    - ground_truth_graded: Relevance grade (3 for verified JWST program targets, 0 otherwise)
+
+    TSM and ESM are computed and preserved as separate columns for use ONLY as baselines,
+    NEVER in the ground truth label.
     """
     df = df.copy()
+    verified_jwst_targets = get_verified_jwst_targets(reference_path)
 
     # Vectorized / row-wise computation of TSM and ESM
     tsm_values = []
@@ -185,7 +202,7 @@ def generate_ground_truth_labels(df: pd.DataFrame) -> pd.DataFrame:
 
         tsm = calculate_tsm(r, m, teq, r_star, jmag, kmag)
         esm = calculate_esm(r, teq, t_star, r_star, kmag)
-        jwst_confirmed = p_name in CONFIRMED_JWST_ATMOSPHERIC_TARGETS
+        jwst_confirmed = p_name in verified_jwst_targets
 
         tsm_values.append(tsm)
         esm_values.append(esm)
@@ -195,45 +212,9 @@ def generate_ground_truth_labels(df: pd.DataFrame) -> pd.DataFrame:
     df["esm"] = esm_values
     df["is_jwst_target"] = is_jwst
 
-    # Determine binary and graded ground truth
-    binary_labels = []
-    graded_labels = []
-
-    for _, row in df.iterrows():
-        jwst = row["is_jwst_target"]
-        tsm = row["tsm"]
-        r = row.get("planet_radius", np.nan)
-        hz = str(row.get("hz_status", ""))
-
-        is_terrestrial = pd.notna(r) and (r <= 1.8)
-        is_hz = hz in ["Inside HZ", "Near HZ"]
-        tsm_valid = pd.notna(tsm) and tsm > 0
-
-        # Binary label
-        is_high_priority = False
-        if jwst:
-            is_high_priority = True
-        elif tsm_valid:
-            if is_terrestrial and tsm >= 10.0:
-                is_high_priority = True
-            elif not is_terrestrial and tsm >= 80.0:
-                is_high_priority = True
-
-        binary_labels.append(1 if is_high_priority else 0)
-
-        # Graded label (0 to 3)
-        if jwst or (is_terrestrial and is_hz and tsm_valid and tsm >= 15.0):
-            grade = 3
-        elif is_high_priority:
-            grade = 2
-        elif tsm_valid and tsm >= 5.0:
-            grade = 1
-        else:
-            grade = 0
-
-        graded_labels.append(grade)
-
-    df["ground_truth_binary"] = binary_labels
-    df["ground_truth_graded"] = graded_labels
+    # Labels are strictly JWST-membership-based (TSM is never used in the label)
+    df["ground_truth_binary"] = [1 if j else 0 for j in is_jwst]
+    df["ground_truth_graded"] = [3 if j else 0 for j in is_jwst]
 
     return df
+

@@ -57,12 +57,26 @@ LTR_FEATURE_NAMES: List[str] = [
     "hz_proximity_score"         # Continuous Habitable Zone score
 ]
 
+# Analytical proxy features removed in Variant B to eliminate mathematical leakage
+PROXY_LEAKAGE_FEATURES: List[str] = [
+    "transmission_snr_proxy",
+    "scale_height_proxy",
+    "transit_depth_proxy"
+]
+
+FEATURE_NAMES_VARIANT_A: List[str] = LTR_FEATURE_NAMES
+FEATURE_NAMES_VARIANT_B: List[str] = [f for f in LTR_FEATURE_NAMES if f not in PROXY_LEAKAGE_FEATURES]
+
 
 class LTRFeatureExtractor:
     """Extracts and standardizes physical and interaction features for ranking."""
 
-    def __init__(self):
-        self.feature_names = LTR_FEATURE_NAMES
+    def __init__(self, feature_variant: str = "A"):
+        self.feature_variant = feature_variant.upper() if feature_variant else "A"
+        if self.feature_variant in ("B", "NO_PROXIES"):
+            self.feature_names = FEATURE_NAMES_VARIANT_B
+        else:
+            self.feature_names = FEATURE_NAMES_VARIANT_A
         self.scaler = RobustScaler()
         self.median_impute_values: Dict[str, float] = {}
         self.is_fitted = False
@@ -157,7 +171,7 @@ class LTRFeatureExtractor:
 
     def fit(self, df: pd.DataFrame) -> "LTRFeatureExtractor":
         """Fit scaler and store median imputation benchmarks on training set."""
-        raw_feats = self._extract_raw_features(df)
+        raw_feats = self._extract_raw_features(df)[self.feature_names]
         self.median_impute_values = raw_feats.median().to_dict()
 
         imputed_feats = raw_feats.fillna(self.median_impute_values).fillna(0.0)
@@ -170,7 +184,7 @@ class LTRFeatureExtractor:
         if not self.is_fitted:
             raise ValueError("LTRFeatureExtractor must be fitted before transform")
 
-        raw_feats = self._extract_raw_features(df)
+        raw_feats = self._extract_raw_features(df)[self.feature_names]
         imputed_feats = raw_feats.fillna(self.median_impute_values).fillna(0.0)
         scaled = self.scaler.transform(imputed_feats)
         return scaled
@@ -178,14 +192,16 @@ class LTRFeatureExtractor:
 
 class ExoSignalLTRModel:
     """
-    Supervised Learning-to-Rank (LTR) model for exoplanet prioritization.
+    Supervised LightGBM classifier ranking model for exoplanet spectroscopic follow-up prioritization.
 
-    Uses LightGBM gradient boosted decision trees calibrated against
-    astronomical ground truth (Kempton et al. 2018 TSM & approved JWST programs).
+    Trains gradient boosted decision tree classifier calibrated against
+    membership in approved JWST transmission spectroscopy programs.
+    Supports Variant A (all physical + interaction features) and Variant B (proxy features removed).
     """
 
     def __init__(
         self,
+        feature_variant: str = "A",
         n_estimators: int = 150,
         learning_rate: float = 0.04,
         num_leaves: int = 31,
@@ -195,7 +211,9 @@ class ExoSignalLTRModel:
         colsample_bytree: float = 0.85,
         random_state: int = 42
     ):
+        self.feature_variant = feature_variant.upper() if feature_variant else "A"
         self.hyperparameters = {
+            "feature_variant": self.feature_variant,
             "n_estimators": n_estimators,
             "learning_rate": learning_rate,
             "num_leaves": num_leaves,
@@ -205,7 +223,7 @@ class ExoSignalLTRModel:
             "colsample_bytree": colsample_bytree,
             "random_state": random_state,
         }
-        self.feature_extractor = LTRFeatureExtractor()
+        self.feature_extractor = LTRFeatureExtractor(feature_variant=self.feature_variant)
         self.model = lgb.LGBMClassifier(
             objective="binary",
             metric=["binary_logloss", "auc"],
@@ -326,24 +344,54 @@ class ExoSignalLTRModel:
 
         Adds:
         - ml_priority_score: Calibrated 0-100 LTR score
-        - ml_rank: Integer rank (1 = highest priority target)
+        - ml_rank: Integer rank (1 = highest priority target), ranked on raw continuous probability
         - heuristic_rank: Legacy rank based on target_priority_score
         - rank_delta: (heuristic_rank - ml_rank) -> positive value means LTR elevated target
         """
         df = df.copy()
-        scores = self.predict_priority_scores(df)
-        df["ml_priority_score"] = scores
+        raw_scores = self.predict_raw_scores(df)
+        df["ml_priority_score"] = np.round(raw_scores * 100.0, 1)
 
-        # Compute ML rank
-        df["ml_rank"] = df["ml_priority_score"].rank(ascending=False, method="min").astype(int)
+        # Only eligible planets receive ranks; ineligible planets remain unranked (NaN)
+        eligible_mask = (
+            df["eligible_for_transmission"] == True
+            if "eligible_for_transmission" in df.columns
+            else pd.Series(True, index=df.index)
+        )
 
-        # Compute Heuristic rank if target_priority_score exists
-        if "target_priority_score" in df.columns:
-            df["heuristic_rank"] = df["target_priority_score"].rank(ascending=False, method="min").astype(int)
-            df["rank_delta"] = df["heuristic_rank"] - df["ml_rank"]
-        else:
-            df["heuristic_rank"] = df["ml_rank"]
-            df["rank_delta"] = 0
+        df["ml_rank"] = np.nan
+        df["heuristic_rank"] = np.nan
+        df["rank_delta"] = np.nan
+
+        if eligible_mask.any():
+            raw_series = pd.Series(raw_scores, index=df.index)
+            df.loc[eligible_mask, "ml_rank"] = (
+                raw_series.loc[eligible_mask]
+                .rank(ascending=False, method="first")
+                .astype(int)
+            )
+
+            if "target_priority_score" in df.columns:
+                df.loc[eligible_mask, "heuristic_rank"] = (
+                    df.loc[eligible_mask, "target_priority_score"]
+                    .rank(ascending=False, method="first")
+                    .astype(int)
+                )
+                df.loc[eligible_mask, "rank_delta"] = (
+                    df.loc[eligible_mask, "heuristic_rank"] - df.loc[eligible_mask, "ml_rank"]
+                )
+            else:
+                df.loc[eligible_mask, "heuristic_rank"] = df.loc[eligible_mask, "ml_rank"]
+                df.loc[eligible_mask, "rank_delta"] = 0
+
+        # One score, one rank: standardized system columns
+        df["priority_score"] = df["ml_priority_score"]
+        df["priority_rank"] = df["ml_rank"]
+        df["heuristic_habitability_score"] = (
+            df["target_priority_score"]
+            if "target_priority_score" in df.columns
+            else np.nan
+        )
 
         return df
 
@@ -357,16 +405,16 @@ class ExoSignalLTRModel:
         scores = self.predict_raw_scores(test_df)
 
         return {
-            "model_name": "Supervised LightGBM LTR Ranker",
+            "model_name": f"LightGBM Classifier Ranking (Variant {self.feature_variant})",
+            "feature_variant": self.feature_variant,
             "test_samples": len(test_df),
             "precision@5": round(precision_at_k(y_true_binary, scores, k=5), 4),
             "precision@10": round(precision_at_k(y_true_binary, scores, k=10), 4),
             "precision@20": round(precision_at_k(y_true_binary, scores, k=20), 4),
             "recall@10": round(recall_at_k(y_true_binary, scores, k=10), 4),
-            "recall@20": round(recall_at_k(y_true_binary, scores, k=20), 4),
-            "ndcg@5": round(ndcg_at_k(y_true_graded, scores, k=5), 4),
+            "recall@25": round(recall_at_k(y_true_binary, scores, k=25), 4),
+            "recall@50": round(recall_at_k(y_true_binary, scores, k=50), 4),
             "ndcg@10": round(ndcg_at_k(y_true_graded, scores, k=10), 4),
-            "ndcg@20": round(ndcg_at_k(y_true_graded, scores, k=20), 4),
             "map": round(mean_average_precision(y_true_binary, scores), 4),
             "pr_auc": round(pr_auc_score(y_true_binary, scores), 4)
         }
@@ -403,3 +451,7 @@ class ExoSignalLTRModel:
         instance.feature_importances = bundle["feature_importances"]
         instance.is_fitted = True
         return instance
+
+
+# Production Alias
+ExoSignalClassifierRanker = ExoSignalLTRModel
