@@ -34,54 +34,6 @@ import {
 import SectionDivider from '../components/SectionDivider';
 import Planet3DVisualizer from '../components/Planet3DVisualizer';
 
-// Curated Golden Benchmark Targets for observational spectroscopy
-const GOLDEN_TARGETS = [
-  {
-    name: 'TOI-700 d',
-    radius: '1.07 R⊕',
-    period: '37.4 days',
-    hz: 'Inside HZ',
-    hzColor: 'emerald',
-    mlScore: 88.4,
-    rankDelta: '+18',
-    featureNote: 'Clean M-dwarf transit, high scale height proxy, JWST Cycle target',
-    type: 'Terrestrial HZ Benchmark',
-  },
-  {
-    name: 'TRAPPIST-1 e',
-    radius: '0.92 R⊕',
-    period: '6.1 days',
-    hz: 'Inside HZ',
-    hzColor: 'emerald',
-    mlScore: 92.1,
-    rankDelta: '+14',
-    featureNote: 'Prime JWST GTO transmission spectroscopy candidate; dense bulk proxy',
-    type: 'Ultra-Cool Dwarf System',
-  },
-  {
-    name: 'LHS 1140 b',
-    radius: '1.73 R⊕',
-    period: '24.7 days',
-    hz: 'Inside HZ',
-    hzColor: 'emerald',
-    mlScore: 89.6,
-    rankDelta: '+9',
-    featureNote: 'High TSM score (26.4), bright near-IR host star, retainable atmosphere',
-    type: 'Super-Earth Benchmark',
-  },
-  {
-    name: 'K2-18 b',
-    radius: '2.61 R⊕',
-    period: '32.9 days',
-    hz: 'Inside HZ',
-    hzColor: 'emerald',
-    mlScore: 91.5,
-    rankDelta: '+21',
-    featureNote: 'Confirmed JWST transmission features; elevated atmospheric scale height',
-    type: 'Sub-Neptune / Hycean',
-  },
-];
-
 const FEATURE_LABEL_MAP = {
   transmission_snr_proxy: 'Transmission SNR',
   planet_radius: 'Planetary Radius',
@@ -164,6 +116,41 @@ const Home = () => {
     }
     return null;
   }, [benchmark]);
+
+  const goldenTargets = useMemo(() => {
+    if (!Array.isArray(topPlanets) || topPlanets.length === 0) {
+      return [];
+    }
+
+    return topPlanets.slice(0, 4).map((planet, index) => {
+      const priorityScore =
+        planet.ml_priority_score ?? planet.priority_score ?? planet.target_priority_score ?? 0;
+      const rankDelta =
+        planet.ml_rank && planet.priority_rank ? planet.ml_rank - planet.priority_rank : null;
+      const hzStatus = planet.hz_status || 'Insufficient data';
+
+      return {
+        name: planet.planet_name || `Target ${index + 1}`,
+        radius: planet.planet_radius
+          ? `${Number(planet.planet_radius).toFixed(2)} R⊕`
+          : '—',
+        period: planet.orbital_period
+          ? `${Number(planet.orbital_period).toFixed(1)} days`
+          : '—',
+        hz: hzStatus,
+        hzColor: hzStatus === 'Inside HZ' ? 'emerald' : hzStatus === 'Near HZ' ? 'amber' : 'gray',
+        mlScore: Number(priorityScore) || 0,
+        rankDelta:
+          rankDelta === null
+            ? '—'
+            : rankDelta >= 0
+              ? `+${rankDelta}`
+              : `${rankDelta}`,
+        featureNote: `${planet.kempton_size_class || 'Spectroscopic'} candidate with ${planet.discovery_method || 'transit'} geometry`,
+        type: planet.discovery_method || 'Live benchmark target',
+      };
+    });
+  }, [topPlanets]);
 
   // 4. Circular Habitable Zone Donut Chart Data (4 slices, uniform denominator, sums to 100 +/- 0.1%)
   const hzPieData = useMemo(() => {
@@ -960,7 +947,7 @@ const Home = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            {GOLDEN_TARGETS.map((t) => (
+            {goldenTargets.map((t) => (
               <div
                 key={t.name}
                 className="glass-panel glass-panel-hover p-5 border-exosignal-cyan/20 flex flex-col justify-between card-shine group"
