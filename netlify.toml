@@ -1,0 +1,25 @@
+# ==============================================================================
+# Netlify Configuration for ExoSignal Frontend (Monorepo root)
+# Docs: https://docs.netlify.com/configure-builds/file-based-configuration/
+# ==============================================================================
+
+[build]
+  base = "frontend"
+  publish = "dist"
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Single-Page Application (SPA) routing: redirect all paths to index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Aggressive cache headers for Vite content-hashed assets
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+

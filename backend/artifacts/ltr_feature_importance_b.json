@@ -2,174 +2,202 @@
   "total_features": 18,
   "top_features": [
     {
-      "feature": "distance_attenuation",
-      "split_count": 2,
-      "gain": 824.54,
-      "gain_percentage": 87.36
-    },
-    {
-      "feature": "stellar_effective_temperature",
-      "split_count": 1,
-      "gain": 58.58,
-      "gain_percentage": 6.21
-    },
-    {
-      "feature": "earth_similarity",
-      "split_count": 1,
-      "gain": 41.0,
-      "gain_percentage": 4.34
-    },
-    {
-      "feature": "bulk_density_proxy",
-      "split_count": 1,
-      "gain": 12.81,
-      "gain_percentage": 1.36
-    },
-    {
-      "feature": "orbital_period",
-      "split_count": 1,
-      "gain": 6.92,
-      "gain_percentage": 0.73
+      "feature": "distance",
+      "coefficient": -6.122,
+      "gain": 6.122,
+      "gain_percentage": 23.87,
+      "split_count": 1
     },
     {
       "feature": "planet_radius",
-      "split_count": 0,
-      "gain": 0.0,
-      "gain_percentage": 0.0
-    },
-    {
-      "feature": "planet_mass",
-      "split_count": 0,
-      "gain": 0.0,
-      "gain_percentage": 0.0
+      "coefficient": 4.8127,
+      "gain": 4.8127,
+      "gain_percentage": 18.76,
+      "split_count": 1
     },
     {
       "feature": "semi_major_axis",
-      "split_count": 0,
-      "gain": 0.0,
-      "gain_percentage": 0.0
+      "coefficient": -3.7457,
+      "gain": 3.7457,
+      "gain_percentage": 14.6,
+      "split_count": 1
     },
     {
-      "feature": "equilibrium_temperature",
-      "split_count": 0,
-      "gain": 0.0,
-      "gain_percentage": 0.0
+      "feature": "planet_mass",
+      "coefficient": -2.0649,
+      "gain": 2.0649,
+      "gain_percentage": 8.05,
+      "split_count": 1
     },
     {
       "feature": "stellar_radius",
-      "split_count": 0,
-      "gain": 0.0,
-      "gain_percentage": 0.0
+      "coefficient": -1.7593,
+      "gain": 1.7593,
+      "gain_percentage": 6.86,
+      "split_count": 1
+    },
+    {
+      "feature": "k_magnitude",
+      "coefficient": 1.5304,
+      "gain": 1.5304,
+      "gain_percentage": 5.97,
+      "split_count": 1
+    },
+    {
+      "feature": "orbital_period",
+      "coefficient": 1.1992,
+      "gain": 1.1992,
+      "gain_percentage": 4.68,
+      "split_count": 1
+    },
+    {
+      "feature": "hz_proximity_score",
+      "coefficient": 0.8778,
+      "gain": 0.8778,
+      "gain_percentage": 3.42,
+      "split_count": 1
+    },
+    {
+      "feature": "equilibrium_temperature",
+      "coefficient": 0.8332,
+      "gain": 0.8332,
+      "gain_percentage": 3.25,
+      "split_count": 1
+    },
+    {
+      "feature": "stellar_mass",
+      "coefficient": 0.5778,
+      "gain": 0.5778,
+      "gain_percentage": 2.25,
+      "split_count": 1
     }
   ],
   "all_features": [
     {
-      "feature": "distance_attenuation",
-      "split_count": 2,
-      "gain": 824.54,
-      "gain_percentage": 87.36
-    },
-    {
-      "feature": "stellar_effective_temperature",
-      "split_count": 1,
-      "gain": 58.58,
-      "gain_percentage": 6.21
-    },
-    {
-      "feature": "earth_similarity",
-      "split_count": 1,
-      "gain": 41.0,
-      "gain_percentage": 4.34
-    },
-    {
-      "feature": "bulk_density_proxy",
-      "split_count": 1,
-      "gain": 12.81,
-      "gain_percentage": 1.36
-    },
-    {
-      "feature": "orbital_period",
-      "split_count": 1,
-      "gain": 6.92,
-      "gain_percentage": 0.73
+      "feature": "distance",
+      "coefficient": -6.122,
+      "gain": 6.122,
+      "gain_percentage": 23.87,
+      "split_count": 1
     },
     {
       "feature": "planet_radius",
-      "split_count": 0,
-      "gain": 0.0,
-      "gain_percentage": 0.0
-    },
-    {
-      "feature": "planet_mass",
-      "split_count": 0,
-      "gain": 0.0,
-      "gain_percentage": 0.0
+      "coefficient": 4.8127,
+      "gain": 4.8127,
+      "gain_percentage": 18.76,
+      "split_count": 1
     },
     {
       "feature": "semi_major_axis",
-      "split_count": 0,
-      "gain": 0.0,
-      "gain_percentage": 0.0
+      "coefficient": -3.7457,
+      "gain": 3.7457,
+      "gain_percentage": 14.6,
+      "split_count": 1
     },
     {
-      "feature": "equilibrium_temperature",
-      "split_count": 0,
-      "gain": 0.0,
-      "gain_percentage": 0.0
+      "feature": "planet_mass",
+      "coefficient": -2.0649,
+      "gain": 2.0649,
+      "gain_percentage": 8.05,
+      "split_count": 1
     },
     {
       "feature": "stellar_radius",
-      "split_count": 0,
-      "gain": 0.0,
-      "gain_percentage": 0.0
-    },
-    {
-      "feature": "stellar_mass",
-      "split_count": 0,
-      "gain": 0.0,
-      "gain_percentage": 0.0
-    },
-    {
-      "feature": "stellar_metallicity",
-      "split_count": 0,
-      "gain": 0.0,
-      "gain_percentage": 0.0
-    },
-    {
-      "feature": "distance",
-      "split_count": 0,
-      "gain": 0.0,
-      "gain_percentage": 0.0
-    },
-    {
-      "feature": "j_magnitude",
-      "split_count": 0,
-      "gain": 0.0,
-      "gain_percentage": 0.0
+      "coefficient": -1.7593,
+      "gain": 1.7593,
+      "gain_percentage": 6.86,
+      "split_count": 1
     },
     {
       "feature": "k_magnitude",
-      "split_count": 0,
-      "gain": 0.0,
-      "gain_percentage": 0.0
+      "coefficient": 1.5304,
+      "gain": 1.5304,
+      "gain_percentage": 5.97,
+      "split_count": 1
     },
     {
-      "feature": "insolation_flux",
-      "split_count": 0,
-      "gain": 0.0,
-      "gain_percentage": 0.0
-    },
-    {
-      "feature": "infrared_brightness_proxy",
-      "split_count": 0,
-      "gain": 0.0,
-      "gain_percentage": 0.0
+      "feature": "orbital_period",
+      "coefficient": 1.1992,
+      "gain": 1.1992,
+      "gain_percentage": 4.68,
+      "split_count": 1
     },
     {
       "feature": "hz_proximity_score",
-      "split_count": 0,
-      "gain": 0.0,
-      "gain_percentage": 0.0
+      "coefficient": 0.8778,
+      "gain": 0.8778,
+      "gain_percentage": 3.42,
+      "split_count": 1
+    },
+    {
+      "feature": "equilibrium_temperature",
+      "coefficient": 0.8332,
+      "gain": 0.8332,
+      "gain_percentage": 3.25,
+      "split_count": 1
+    },
+    {
+      "feature": "stellar_mass",
+      "coefficient": 0.5778,
+      "gain": 0.5778,
+      "gain_percentage": 2.25,
+      "split_count": 1
+    },
+    {
+      "feature": "distance_attenuation",
+      "coefficient": -0.5718,
+      "gain": 0.5718,
+      "gain_percentage": 2.23,
+      "split_count": 1
+    },
+    {
+      "feature": "insolation_flux",
+      "coefficient": 0.4863,
+      "gain": 0.4863,
+      "gain_percentage": 1.9,
+      "split_count": 1
+    },
+    {
+      "feature": "stellar_effective_temperature",
+      "coefficient": 0.4817,
+      "gain": 0.4817,
+      "gain_percentage": 1.88,
+      "split_count": 1
+    },
+    {
+      "feature": "bulk_density_proxy",
+      "coefficient": 0.2789,
+      "gain": 0.2789,
+      "gain_percentage": 1.09,
+      "split_count": 1
+    },
+    {
+      "feature": "earth_similarity",
+      "coefficient": -0.1082,
+      "gain": 0.1082,
+      "gain_percentage": 0.42,
+      "split_count": 1
+    },
+    {
+      "feature": "stellar_metallicity",
+      "coefficient": 0.1045,
+      "gain": 0.1045,
+      "gain_percentage": 0.41,
+      "split_count": 1
+    },
+    {
+      "feature": "infrared_brightness_proxy",
+      "coefficient": 0.0649,
+      "gain": 0.0649,
+      "gain_percentage": 0.25,
+      "split_count": 1
+    },
+    {
+      "feature": "j_magnitude",
+      "coefficient": 0.0311,
+      "gain": 0.0311,
+      "gain_percentage": 0.12,
+      "split_count": 1
     }
   ]
 }

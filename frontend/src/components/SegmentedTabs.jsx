@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'react';
 
 /**
  * SegmentedTabs - Modular high-tech tab rail to divide dense pages into dedicated views
@@ -8,13 +8,13 @@ const SegmentedTabs = ({
   activeTab,
   onChange,
   variant = 'pills', // 'pills' | 'underline' | 'boxed'
-  className = ''
+  className = '',
 }) => {
   return (
     <div className={`w-full overflow-x-auto pb-1 ${className}`}>
       <div className="flex items-center space-x-2 p-1.5 rounded-2xl bg-space-void/90 border border-exosignal-cyan/25 backdrop-blur-xl shadow-inner min-w-max">
         {tabs.map((tab) => {
-          const isActive = activeTab === tab.id
+          const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
@@ -39,11 +39,11 @@ const SegmentedTabs = ({
                 </span>
               )}
             </button>
-          )
+          );
         })}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default SegmentedTabs
+export default SegmentedTabs;

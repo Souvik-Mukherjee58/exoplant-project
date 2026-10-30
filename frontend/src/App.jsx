@@ -1,18 +1,18 @@
-import React from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import Navbar from './components/Navbar'
-import Footer from './components/Footer'
-import Home from './pages/Home'
-import Explorer from './pages/Explorer'
-import TopTargets from './pages/TopTargets'
-import PlanetDetail from './pages/PlanetDetail'
-import Compare from './pages/Compare'
-import Analytics from './pages/Analytics'
-import Methodology from './pages/Methodology'
-import About from './pages/About'
-import Favorites from './pages/Favorites'
-import ModelRegistry from './pages/ModelRegistry'
-import './App.css'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import Home from './pages/Home';
+import Explorer from './pages/Explorer';
+import TopTargets from './pages/TopTargets';
+import PlanetDetail from './pages/PlanetDetail';
+import Compare from './pages/Compare';
+import Analytics from './pages/Analytics';
+import Methodology from './pages/Methodology';
+import About from './pages/About';
+import Favorites from './pages/Favorites';
+import ModelRegistry from './pages/ModelRegistry';
+import './App.css';
 
 function App() {
   return (
@@ -41,7 +41,7 @@ function App() {
         <Footer />
       </div>
     </Router>
-  )
+  );
 }
 
-export default App
+export default App;

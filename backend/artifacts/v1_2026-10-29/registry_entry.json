@@ -1,0 +1,107 @@
+{
+  "version": "v1_2026-10-29",
+  "registered_at": "2026-10-28T20:24:57.958520+00:00",
+  "status": "registered",
+  "artifacts": {
+    "model": {
+      "path": "artifacts\\v1_2026-10-29\\ltr_model.joblib",
+      "sha256": "4f998d601ac6a769e0623d32acff360144988e867476a2e0ed5a04b47e3d74a0",
+      "size_bytes": 5238
+    },
+    "parquet": {
+      "path": "artifacts\\v1_2026-10-29\\planets.parquet",
+      "sha256": "054e0aa50451820fef4043f369890e4f8fd1aa5700b5b7e3cdd703824ca493ff",
+      "size_bytes": 2108985
+    }
+  },
+  "training": {
+    "algorithm": "Regularized Logistic Regression (Balanced L2, Log-Transformed Features)",
+    "model_type": "logistic",
+    "hyperparameters": {
+      "model_type": "logistic",
+      "feature_variant": "A",
+      "c_param": 1.0,
+      "random_state": 42,
+      "n_estimators": 100,
+      "learning_rate": 0.05,
+      "num_leaves": 4,
+      "min_child_samples": 3
+    },
+    "n_features": 10,
+    "top_features": [
+      "distance",
+      "stellar_radius",
+      "planet_mass",
+      "planet_radius",
+      "semi_major_axis"
+    ],
+    "random_state": 42,
+    "evaluation_protocol": "test",
+    "score_diversity": {
+      "total_candidates": 4643,
+      "distinct_scores_total": 4643,
+      "distinct_scores_percentage": 100.0,
+      "top_50_distinct_scores": 50,
+      "top_50_ties_count": 0,
+      "top_50_tie_percentage": 0.0,
+      "tie_breaking_policy": "Deterministic multi-key tie-breaker: 1. Raw continuous score descending; 2. TSM descending; 3. Distance ascending; 4. Planet name ascending."
+    },
+    "calibration": {
+      "reliability_bins": [
+        {
+          "bin_range": "[0.00, 0.20]",
+          "planet_count": 4131,
+          "mean_priority_score": 0.0092,
+          "empirical_positive_rate": 0.0
+        },
+        {
+          "bin_range": "[0.20, 0.40]",
+          "planet_count": 159,
+          "mean_priority_score": 0.2895,
+          "empirical_positive_rate": 0.0063
+        },
+        {
+          "bin_range": "[0.40, 0.60]",
+          "planet_count": 103,
+          "mean_priority_score": 0.4934,
+          "empirical_positive_rate": 0.0
+        },
+        {
+          "bin_range": "[0.60, 0.80]",
+          "planet_count": 103,
+          "mean_priority_score": 0.6929,
+          "empirical_positive_rate": 0.0097
+        },
+        {
+          "bin_range": "[0.80, 1.00]",
+          "planet_count": 147,
+          "mean_priority_score": 0.9195,
+          "empirical_positive_rate": 0.2041
+        }
+      ],
+      "calibration_nature": "monotonic_ranking_score",
+      "calibration_statement": "Scores represent prioritized ranking scores designed for spectroscopic telescope follow-up, NOT uncalibrated posterior probabilities. Because balanced class weighting (class_weight='balanced') was applied to address severe 0.69% positive prevalence, output scores strictly optimize target ordering."
+    }
+  },
+  "evaluation": {
+    "mean_ap": null,
+    "mean_ap_ci95": [
+      0.3599,
+      0.5687
+    ],
+    "mean_recall@50": null,
+    "mean_ndcg@25": null,
+    "eval_split": "test"
+  },
+  "dataset": {
+    "total_planets": 6451,
+    "raw_rows": 6451,
+    "raw_sha256": "d9b6412dfb2b18d5..."
+  },
+  "environment": {
+    "python_version": "3.13.5",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "hostname": "souvik"
+  },
+  "notes": "Auto-registered by pipeline build on 2026-10-28T20:24:57.958501+00:00 - Selected Logistic Regression (Variant A) (production model)"
+}

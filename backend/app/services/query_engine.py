@@ -8,14 +8,13 @@ Provides:
 5. Decoupled read-only serving architecture separating pipeline builds from API requests.
 """
 
-from typing import Dict, List, Optional, Tuple, Any
-from pathlib import Path
-import json
 import logging
-import time
 import threading
+import time
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
 import duckdb
-import pandas as pd
 import numpy as np
 
 from app.config import settings
@@ -49,13 +48,18 @@ class CatalogQueryEngine:
         self.active_version: Optional[str] = None
         self.parquet_path: Optional[Path] = None
         self.conn: Optional[duckdb.DuckDBPyConnection] = None
+        self.manifest: Dict[str, Any] = {}
+        self.precomputed_pca: Dict[str, Any] = {}
+        self.precomputed_stats: Dict[str, Any] = {}
+        self.ltr_feature_importance: Dict[str, Any] = {}
+        self.benchmark_report: Dict[str, Any] = {}
         self._init_engine()
 
     @classmethod
     def get_instance(cls, artifacts_dir: Optional[str] = None) -> "CatalogQueryEngine":
         """Thread-safe singleton accessor."""
         with cls._lock:
-            if cls._instance is None:
+            if cls._instance is None or cls._instance.conn is None:
                 cls._instance = cls(artifacts_dir=artifacts_dir)
             return cls._instance
 
@@ -114,6 +118,138 @@ class CatalogQueryEngine:
         row_count = self.conn.execute("SELECT COUNT(*) FROM planets").fetchone()[0]
         logger.info(f"DuckDB Query Engine ready. Loaded {row_count} planets into memory.")
 
+        # Preload artifact JSONs into memory once at startup
+        self.manifest = self._load_json_artifact("manifest.json")
+        self.precomputed_pca = self._load_json_artifact("precomputed_pca.json")
+        self.precomputed_stats = self._load_json_artifact("precomputed_stats.json")
+        self.ltr_feature_importance = self._load_json_artifact("ltr_feature_importance.json")
+        self.benchmark_report = self._load_json_artifact("benchmark_report.json") or self._load_json_artifact(
+            "evaluation.json"
+        )
+
+    def _load_json_artifact(self, filename: str) -> Dict[str, Any]:
+        """Load a JSON artifact from active version directory or root artifacts dir."""
+        import json
+
+        if self.active_version:
+            v_file = self.artifacts_dir / self.active_version / filename
+            if v_file.exists():
+                try:
+                    with open(v_file, "r", encoding="utf-8") as f:
+                        return json.load(f)
+                except Exception as e:
+                    logger.warning(f"Failed to load {v_file}: {e}")
+        root_file = self.artifacts_dir / filename
+        if root_file.exists():
+            try:
+                with open(root_file, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.warning(f"Failed to load {root_file}: {e}")
+        return {}
+
+    def get_precomputed_pca(self) -> Dict[str, Any]:
+        """Return precomputed PCA projection from memory."""
+        if not self.precomputed_pca:
+            self.precomputed_pca = self._compute_pca_in_memory()
+        return self.precomputed_pca
+
+    def _compute_pca_in_memory(self) -> Dict[str, Any]:
+        """Compute PCA projection in memory if artifact is not present."""
+        import pandas as pd
+        from sklearn.decomposition import PCA
+        from sklearn.preprocessing import StandardScaler
+
+        cursor = self.get_cursor()
+        df = cursor.execute("SELECT * FROM planets").df()
+        feature_cols = [
+            "planet_radius",
+            "planet_mass",
+            "equilibrium_temperature",
+            "orbital_period",
+            "semi_major_axis",
+            "eccentricity",
+            "earth_similarity",
+            "observational_accessibility",
+        ]
+        available_cols = [col for col in feature_cols if col in df.columns]
+        if len(available_cols) < 2:
+            return {"error": "Insufficient features for PCA"}
+
+        if len(df) > 500:
+            top_part = df.head(200)
+            anom_col = "anomaly_score" if "anomaly_score" in df.columns else None
+            anom_part = df.nlargest(150, anom_col) if anom_col else df.tail(150)
+            rand_part = df.sample(n=min(150, len(df)), random_state=42)
+            df_sample = (
+                pd.concat([top_part, anom_part, rand_part])
+                .drop_duplicates(subset=["planet_name"])
+                .reset_index(drop=True)
+            )
+        else:
+            df_sample = df.reset_index(drop=True)
+
+        X = df_sample[available_cols].copy()
+        for c in available_cols:
+            X[c] = pd.to_numeric(X[c], errors="coerce")
+        X = X.fillna(X.median()).fillna(0.0)
+
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+        pca = PCA(n_components=2, random_state=42)
+        X_pca = pca.fit_transform(X_scaled)
+
+        return {
+            "planets": df_sample["planet_name"].tolist(),
+            "pca_x": [round(float(v), 3) for v in X_pca[:, 0]],
+            "pca_y": [round(float(v), 3) for v in X_pca[:, 1]],
+            "anomaly_score": (
+                [round(float(v), 3) for v in df_sample["anomaly_score"]]
+                if "anomaly_score" in df_sample
+                else [0.0] * len(df_sample)
+            ),
+            "target_priority_score": (
+                [round(float(v), 1) for v in df_sample["target_priority_score"]]
+                if "target_priority_score" in df_sample
+                else [0.0] * len(df_sample)
+            ),
+            "hz_status": (
+                df_sample["hz_status"].tolist() if "hz_status" in df_sample else ["Unknown"] * len(df_sample)
+            ),
+            "explained_variance": [round(float(v), 4) for v in pca.explained_variance_ratio_],
+            "feature_names": available_cols,
+        }
+
+    def get_ltr_info(self) -> Dict[str, Any]:
+        """Return LTR model metadata from in-memory manifest."""
+        models_info = self.manifest.get("models", {})
+        bench_info = self.manifest.get("benchmark", {})
+        return {
+            "artifact_version": self.active_version or "unknown",
+            "model_name": models_info.get(
+                "selected_production_model", models_info.get("ltr_model", "ltr_model.joblib")
+            ),
+            "algorithm": models_info.get(
+                "production_algorithm", models_info.get("ltr_algorithm", "LightGBM Supervised Learning-to-Rank GBDT")
+            ),
+            "top_features": models_info.get("top_features", models_info.get("ltr_top_features", [])),
+            "benchmark_leaderboard": bench_info.get("leaderboard", []),
+        }
+
+    def get_ltr_feature_importances(self) -> Dict[str, Any]:
+        """Return ranked feature importances from in-memory preloaded artifact."""
+        if self.ltr_feature_importance:
+            return self.ltr_feature_importance
+        return {"error": "LTR feature importance not available."}
+
+    def get_benchmark_report(self, split: str = "test") -> Dict[str, Any]:
+        """Return offline evaluation benchmark report from in-memory preloaded artifact."""
+        if self.benchmark_report and self.benchmark_report.get("evaluation_split") == split:
+            return self.benchmark_report
+        if self.benchmark_report:
+            return self.benchmark_report
+        return {"error": f"Evaluation benchmark report for split '{split}' not available."}
+
     def get_cursor(self) -> duckdb.DuckDBPyConnection:
         """Get a thread-safe connection cursor for concurrent query execution."""
         return self.conn.cursor()
@@ -131,7 +267,9 @@ class CatalogQueryEngine:
         q: Optional[str] = None,
         hz_status: Optional[str] = None,
         sort_by: str = "heuristic",
-        eligible_only: bool = False
+        eligible_only: bool = False,
+        exclude_observed: bool = False,
+        size_class: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
         Query exoplanets with predicate pushdown, parametric filters, and pagination.
@@ -148,9 +286,16 @@ class CatalogQueryEngine:
 
         if sort_by == "heuristic":
             sort_order = "target_priority_score DESC"
-            filter_col = "heuristic_habitability_score" if "heuristic_habitability_score" in table_cols else "target_priority_score"
-        elif sort_by in ("ml", "priority"):
-            sort_order = "priority_rank ASC NULLS LAST" if "priority_rank" in table_cols else "ml_priority_score DESC"
+            filter_col = (
+                "heuristic_habitability_score"
+                if "heuristic_habitability_score" in table_cols
+                else "target_priority_score"
+            )
+        elif sort_by == "ml":
+            sort_order = "ml_priority_score DESC"
+            filter_col = "ml_priority_score"
+        elif sort_by == "priority":
+            sort_order = "priority_rank ASC NULLS LAST" if "priority_rank" in table_cols else "priority_score DESC"
             filter_col = "priority_score" if "priority_score" in table_cols else "ml_priority_score"
         else:
             sort_order = "target_priority_score DESC"
@@ -165,12 +310,43 @@ class CatalogQueryEngine:
             elif "is_transiting" in table_cols:
                 where_clauses.append("is_transiting = true")
 
+        if exclude_observed and ("already_observed_jwst" in table_cols or "is_jwst_target" in table_cols):
+            obs_col = "already_observed_jwst" if "already_observed_jwst" in table_cols else "is_jwst_target"
+            where_clauses.append(f"({obs_col} IS NULL OR {obs_col} = false)")
+
+        if size_class and size_class.strip():
+            sc = size_class.strip().lower()
+            if "kempton_size_class" in table_cols:
+                if "terrestrial" in sc or "rocky" in sc:
+                    where_clauses.append("lower(kempton_size_class) = 'terrestrial'")
+                elif "small" in sc:
+                    where_clauses.append("lower(kempton_size_class) = 'small sub-neptune'")
+                elif "large" in sc:
+                    where_clauses.append("lower(kempton_size_class) = 'large sub-neptune'")
+                elif "giant" in sc or "jovian" in sc:
+                    where_clauses.append(
+                        "lower(kempton_size_class) LIKE '%giant%' OR lower(kempton_size_class) LIKE '%jovian%'"
+                    )
+                else:
+                    where_clauses.append("lower(kempton_size_class) LIKE ?")
+                    params.append(f"%{sc}%")
+            else:
+                # Radius thresholds fallback
+                if "terrestrial" in sc or "rocky" in sc:
+                    where_clauses.append("planet_radius < 1.5")
+                elif "small" in sc:
+                    where_clauses.append("planet_radius >= 1.5 AND planet_radius < 2.75")
+                elif "large" in sc:
+                    where_clauses.append("planet_radius >= 2.75 AND planet_radius < 4.0")
+                elif "giant" in sc or "jovian" in sc:
+                    where_clauses.append("planet_radius >= 4.0")
+
         if q and q.strip():
             clean_q = q.strip().lower()
             q_variants = [
                 f"%{clean_q}%",
                 f"%{clean_q.replace('-', ' ')}%",
-                f"%{clean_q.replace('-', '').replace(' ', '')}%"
+                f"%{clean_q.replace('-', '').replace(' ', '')}%",
             ]
             where_clauses.append(
                 "(lower(planet_name) LIKE ? OR "
@@ -188,8 +364,31 @@ class CatalogQueryEngine:
 
         extra_selects = []
         for c in [
-            "priority_score", "priority_rank", "heuristic_habitability_score",
-            "is_transiting", "eligible_for_transmission", "exclusion_reason"
+            "priority_score",
+            "priority_rank",
+            "heuristic_habitability_score",
+            "is_transiting",
+            "eligible_for_transmission",
+            "exclusion_reason",
+            "already_observed_jwst",
+            "is_jwst_target",
+            "tsm",
+            "tsm_threshold",
+            "kempton_size_class",
+            "percentile_rank",
+            "percentile_rank_string",
+            "oof_ml_rank",
+            "oof_priority_score",
+            "unobserved_rank",
+            "stellar_name",
+            "semi_major_axis",
+            "stellar_radius",
+            "stellar_mass",
+            "stellar_effective_temperature",
+            "stellar_metallicity",
+            "j_magnitude",
+            "k_magnitude",
+            "earth_similarity",
         ]:
             if c in table_cols:
                 extra_selects.append(c)
@@ -242,18 +441,52 @@ class CatalogQueryEngine:
         return df.iloc[0].to_dict()
 
     def get_top_targets(
-        self,
-        limit: int = 10,
-        min_priority: float = 0.0,
-        sort_by: str = "priority"
+        self, limit: int = 10, min_priority: float = 0.0, sort_by: str = "priority", exclude_observed: bool = True
     ) -> List[Dict[str, Any]]:
-        """Retrieve highest-ranked targets above priority threshold (eligible planets only)."""
+        """Retrieve highest-ranked targets above priority threshold (eligible unobserved planets only by default)."""
         return self.query_planets(
             limit=limit,
             offset=0,
             min_priority=min_priority,
             sort_by=sort_by,
-            eligible_only=True
+            eligible_only=True,
+            exclude_observed=exclude_observed,
+        )
+
+    def get_known_jwst_targets(self) -> List[Dict[str, Any]]:
+        """Retrieve confirmed JWST program targets ordered by out-of-fold rank."""
+        cursor = self.get_cursor()
+        try:
+            table_cols = {c[0] for c in cursor.execute("DESCRIBE planets").fetchall()}
+        except Exception:
+            table_cols = set()
+
+        obs_col = "already_observed_jwst" if "already_observed_jwst" in table_cols else "is_jwst_target"
+        order_col = (
+            "oof_ml_rank ASC NULLS LAST, priority_score DESC" if "oof_ml_rank" in table_cols else "priority_score DESC"
+        )
+
+        sql = f"""
+            SELECT *
+            FROM planets
+            WHERE ({obs_col} = true)
+            ORDER BY {order_col}
+        """
+        df = cursor.execute(sql).df()
+        return df.to_dict(orient="records")
+
+    def get_recommendations(
+        self, limit: int = 25, offset: int = 0, exclude_observed: bool = True, size_class: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Retrieve candidate recommendations filtered by observation status and size class."""
+        return self.query_planets(
+            limit=limit,
+            offset=offset,
+            min_priority=0.0,
+            sort_by="priority",
+            eligible_only=True,
+            exclude_observed=exclude_observed,
+            size_class=size_class,
         )
 
     def get_analysis_stats(self) -> Dict[str, Any]:
@@ -294,7 +527,7 @@ class CatalogQueryEngine:
             ORDER BY 1
         """).fetchall()
         bin_map = {r[0]: r[1] for r in hist_rows}
-        standard_bins = ['0-20', '20-40', '40-60', '60-80', '80-100']
+        standard_bins = ["0-20", "20-40", "40-60", "60-80", "80-100"]
         priority_histogram = [{"range": b, "count": bin_map.get(b, 0)} for b in standard_bins]
 
         # Habitable zone breakdown
@@ -323,17 +556,17 @@ class CatalogQueryEngine:
                 "max": round(float(score_stats[2]), 1),
                 "mean": round(float(score_stats[3]), 1),
                 "median": round(float(score_stats[4]), 1),
-                "std": round(float(score_stats[5]), 1)
+                "std": round(float(score_stats[5]), 1),
             },
             "priority_histogram": priority_histogram,
             "anomaly_distribution": {
                 "min": round(float(score_stats[6]), 3),
                 "max": round(float(score_stats[7]), 3),
                 "mean": round(float(score_stats[8]), 3),
-                "median": round(float(score_stats[9]), 3)
+                "median": round(float(score_stats[9]), 3),
             },
             "hz_distribution": hz_distribution,
-            "discovery_method_distribution": discovery_distribution
+            "discovery_method_distribution": discovery_distribution,
         }
 
     def benchmark_latency(self, iterations: int = 100) -> Dict[str, Any]:
@@ -350,7 +583,7 @@ class CatalogQueryEngine:
             ("SELECT * FROM planets WHERE lower(planet_name) LIKE '%toi%' LIMIT 20", []),
             ("SELECT * FROM planets WHERE hz_status = 'Inside HZ' ORDER BY ml_priority_score DESC LIMIT 20", []),
             ("SELECT avg(ml_priority_score), stddev(ml_priority_score) FROM planets GROUP BY hz_status", []),
-            ("SELECT * FROM planets WHERE planet_radius BETWEEN 0.8 AND 1.8 LIMIT 50", [])
+            ("SELECT * FROM planets WHERE planet_radius BETWEEN 0.8 AND 1.8 LIMIT 50", []),
         ]
 
         for i in range(iterations):
@@ -372,7 +605,7 @@ class CatalogQueryEngine:
             "p50_ms": round(float(latencies_ms[int(n * 0.50)]), 3),
             "p95_ms": round(float(latencies_ms[int(n * 0.95)]), 3),
             "p99_ms": round(float(latencies_ms[int(n * 0.99)]), 3),
-            "sub_10ms_guarantee": bool(latencies_ms[int(n * 0.95)] < 10.0)
+            "sub_10ms_guarantee": bool(latencies_ms[int(n * 0.95)] < 10.0),
         }
 
     def close(self) -> None:
@@ -381,3 +614,6 @@ class CatalogQueryEngine:
             self.conn.close()
             self.conn = None
             logger.info("DuckDB Query Engine closed.")
+        with CatalogQueryEngine._lock:
+            if CatalogQueryEngine._instance is self:
+                CatalogQueryEngine._instance = None

@@ -1,8 +1,8 @@
 """Golden benchmark tests for astrophysical accuracy and scientific defensibility."""
 
-import pytest
-import numpy as np
 import pandas as pd
+import pytest
+
 from app.services.data_processor import get_data_processor
 
 
@@ -162,6 +162,7 @@ def test_one_score_one_rank_consistency():
     - Ineligible planets have priority_rank is None
     """
     from fastapi.testclient import TestClient
+
     from app.main import app
 
     client = TestClient(app)
@@ -191,7 +192,9 @@ def test_one_score_one_rank_consistency():
         detail_data = detail_resp.json()
 
         assert detail_data["priority_score"] == p["priority_score"], f"Score mismatch on {name}"
-        assert detail_data["priority_rank"] == p["priority_rank"], f"Rank mismatch on {name}: list={p['priority_rank']}, detail={detail_data['priority_rank']}"
+        assert detail_data["priority_rank"] == p["priority_rank"], (
+            f"Rank mismatch on {name}: list={p['priority_rank']}, detail={detail_data['priority_rank']}"
+        )
 
     # 3. Check ineligible planets in general planets list have priority_rank is None
     planets_resp = client.get("/api/v1/planets?limit=200")
@@ -215,6 +218,7 @@ def test_flexible_search_kepler_452_b():
     and supports direct TreeSHAP explanation retrieval.
     """
     from fastapi.testclient import TestClient
+
     from app.main import app
 
     client = TestClient(app)
@@ -239,6 +243,3 @@ def test_flexible_search_kepler_452_b():
     assert exp_data["planet_name"] == "Kepler-452 b"
     assert "mathematical_invariants" in exp_data
     assert "full_waterfall" in exp_data
-
-
-

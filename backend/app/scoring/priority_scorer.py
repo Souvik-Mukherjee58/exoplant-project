@@ -1,8 +1,9 @@
 """Target priority scoring system based on published astrophysical metrics."""
 
+from typing import Dict
+
 import numpy as np
 import pandas as pd
-from typing import Dict, Any
 
 
 class TargetPriorityScorer:
@@ -13,10 +14,12 @@ class TargetPriorityScorer:
     - Host star viability (M, K, G dwarf suitability, metallicity)
     - Data completeness (single non-redundant accounting)
     - Anomaly / novelty factor
+
+    Fully vectorized implementation using NumPy and Pandas.
     """
 
-    def __init__(self):
-        self.scoring_config = {
+    def __init__(self) -> None:
+        self.scoring_config: Dict[str, float] = {
             "planetary_relevance_weight": 0.35,
             "observational_accessibility_weight": 0.30,
             "stellar_characteristics_weight": 0.15,
@@ -46,7 +49,7 @@ class TargetPriorityScorer:
             "Inside HZ": 1.0,
             "Near HZ": 0.65,
             "Outside HZ": 0.15,
-            "Insufficient data": 0.30
+            "Insufficient data": 0.30,
         }
         if "hz_status" in df.columns:
             hz_score = df["hz_status"].map(hz_mapping).fillna(0.30)
@@ -54,40 +57,29 @@ class TargetPriorityScorer:
             hz_score = pd.Series(0.30, index=df.index)
 
         # 3. Radius appropriateness for rocky / terrestrial atmospheres
-        # Peak at Earth radius (1.0 R_earth), super-Earths (up to 1.8 R_earth) viable
-        # Gas giants (> 4 R_earth, > 10 R_earth) penalized for habitability prioritization
         if "planet_radius" in df.columns:
             r = pd.to_numeric(df["planet_radius"], errors="coerce")
-            # Log-normal peak around 1.0 - 1.4 R_earth
             radius_score = np.where(
                 r.notna() & (r > 0),
                 np.where(
                     r <= 1.8,
                     np.exp(-0.5 * ((r - 1.1) / 0.5) ** 2),
-                    np.maximum(0.05, np.exp(-0.5 * ((r - 1.1) / 2.0) ** 2))
+                    np.maximum(0.05, np.exp(-0.5 * ((r - 1.1) / 2.0) ** 2)),
                 ),
-                np.nan
+                np.nan,
             )
         else:
             radius_score = pd.Series(np.nan, index=df.index)
 
-        # Weighted combination of available planetary components
-        rel_components = pd.DataFrame({
-            "esi": esi,
-            "hz": hz_score,
-            "radius": radius_score
-        }, index=df.index)
+        # Vectorized weighted combination of available planetary components
+        w_esi = np.where(esi.notna(), 0.40, 0.0)
+        w_hz = np.where(hz_score.notna(), 0.40, 0.0)
+        w_rad = np.where(pd.notna(radius_score), 0.20, 0.0)
 
-        weights = {"esi": 0.40, "hz": 0.40, "radius": 0.20}
+        total_w = w_esi + w_hz + w_rad
+        weighted_sum = np.nan_to_num(esi) * w_esi + np.nan_to_num(hz_score) * w_hz + np.nan_to_num(radius_score) * w_rad
 
-        def calc_row_relevance(row):
-            valid_w = [weights[k] for k in weights if pd.notna(row[k])]
-            valid_v = [row[k] * weights[k] for k in weights if pd.notna(row[k])]
-            if not valid_w or sum(valid_w) == 0:
-                return 0.3
-            return float(sum(valid_v) / sum(valid_w))
-
-        df["planetary_relevance"] = rel_components.apply(calc_row_relevance, axis=1)
+        df["planetary_relevance"] = np.where(total_w > 0, weighted_sum / total_w, 0.3)
         return df
 
     def calculate_stellar_characteristics(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -99,81 +91,78 @@ class TargetPriorityScorer:
         """
         df = df.copy()
 
-        # 1. Effective temperature suitability (M dwarfs to G dwarfs are prime spectroscopic hosts)
+        # 1. Effective temperature suitability
         if "stellar_effective_temperature" in df.columns:
             teff = pd.to_numeric(df["stellar_effective_temperature"], errors="coerce")
-            # Smooth plateau for Teff in [2600, 6000] K, dropping off for hot O/B/A stars (> 7500 K)
             teff_score = np.where(
                 teff.notna(),
                 np.where(
                     (teff >= 2600) & (teff <= 6200),
                     0.85 + 0.15 * np.exp(-0.5 * ((teff - 4500) / 1500) ** 2),
-                    np.maximum(0.1, np.exp(-0.5 * ((teff - 5000) / 2000) ** 2))
+                    np.maximum(0.1, np.exp(-0.5 * ((teff - 5000) / 2000) ** 2)),
                 ),
-                np.nan
+                np.nan,
             )
         else:
             teff_score = pd.Series(np.nan, index=df.index)
 
-        # 2. Stellar radius (smaller stars provide much higher transit depth SNR)
+        # 2. Stellar radius
         if "stellar_radius" in df.columns:
             rad = pd.to_numeric(df["stellar_radius"], errors="coerce")
-            # Small stars (0.1 - 1.2 R_sun) favored; giant stars (> 2.5 R_sun) penalized
             rad_score = np.where(
                 rad.notna() & (rad > 0),
                 np.where(
                     rad <= 1.2,
                     1.0 - 0.25 * rad,
-                    np.maximum(0.1, 1.0 / (1.0 + (rad - 1.0)))
+                    np.maximum(0.1, 1.0 / (1.0 + (rad - 1.0))),
                 ),
-                np.nan
+                np.nan,
             )
         else:
             rad_score = pd.Series(np.nan, index=df.index)
 
-        # 3. Metallicity (Fe/H): slight positive weight for metal-rich planet hosts
+        # 3. Metallicity (Fe/H)
         if "stellar_metallicity" in df.columns:
             met = pd.to_numeric(df["stellar_metallicity"], errors="coerce")
             met_score = np.where(
                 met.notna(),
                 np.clip((met + 0.5) / 1.0, 0.2, 1.0),
-                np.nan
+                np.nan,
             )
         else:
             met_score = pd.Series(np.nan, index=df.index)
 
-        # Composite stellar score
-        components = pd.DataFrame({
-            "teff": teff_score,
-            "rad": rad_score,
-            "met": met_score
-        }, index=df.index)
-        weights = {"teff": 0.45, "rad": 0.40, "met": 0.15}
+        # Vectorized weighted combination of host star components
+        w_teff = np.where(pd.notna(teff_score), 0.45, 0.0)
+        w_rad = np.where(pd.notna(rad_score), 0.40, 0.0)
+        w_met = np.where(pd.notna(met_score), 0.15, 0.0)
 
-        def calc_row_stellar(row):
-            valid_w = [weights[k] for k in weights if pd.notna(row[k])]
-            valid_v = [row[k] * weights[k] for k in weights if pd.notna(row[k])]
-            if not valid_w or sum(valid_w) == 0:
-                return 0.5
-            return float(sum(valid_v) / sum(valid_w))
+        total_w = w_teff + w_rad + w_met
+        weighted_sum = (
+            np.nan_to_num(teff_score) * w_teff + np.nan_to_num(rad_score) * w_rad + np.nan_to_num(met_score) * w_met
+        )
 
-        df["stellar_characteristics"] = components.apply(calc_row_stellar, axis=1)
+        df["stellar_characteristics"] = np.where(total_w > 0, weighted_sum / total_w, 0.5)
         return df
 
     def calculate_target_priority(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Calculate composite target priority score (0-100).
-        """
+        """Calculate composite target priority score (0-100)."""
         df = df.copy()
 
         # Component scores on 0-100 scale
-        p_rel = pd.to_numeric(df.get("planetary_relevance", pd.Series(0.3, index=df.index)), errors="coerce").fillna(0.3)
+        p_rel = pd.to_numeric(df.get("planetary_relevance", pd.Series(0.3, index=df.index)), errors="coerce").fillna(
+            0.3
+        )
         df["planetary_relevance_score"] = np.clip(p_rel * 100.0, 0.0, 100.0)
 
-        obs = pd.to_numeric(df.get("observational_accessibility", pd.Series(0.4, index=df.index)), errors="coerce").fillna(0.4)
+        obs = pd.to_numeric(
+            df.get("observational_accessibility", pd.Series(0.4, index=df.index)), errors="coerce"
+        ).fillna(0.4)
         df["observational_accessibility_score"] = np.clip(obs * 100.0, 0.0, 100.0)
 
-        s_char = pd.to_numeric(df.get("stellar_characteristics", pd.Series(0.5, index=df.index)), errors="coerce").fillna(0.5)
+        s_char = pd.to_numeric(
+            df.get("stellar_characteristics", pd.Series(0.5, index=df.index)), errors="coerce"
+        ).fillna(0.5)
         df["stellar_characteristics_score"] = np.clip(s_char * 100.0, 0.0, 100.0)
 
         dq = pd.to_numeric(df.get("data_quality", pd.Series(0.5, index=df.index)), errors="coerce").fillna(0.5)
@@ -193,18 +182,25 @@ class TargetPriorityScorer:
 
         df["target_priority_score"] = np.clip(final_scores, 0.0, 100.0)
 
-        # Store priority component breakdown dict
-        def make_components_dict(row):
-            return {
-                "planetary_relevance": round(float(row["planetary_relevance_score"]), 1),
-                "stellar_characteristics": round(float(row["stellar_characteristics_score"]), 1),
-                "observational_accessibility": round(float(row["observational_accessibility_score"]), 1),
-                "data_quality": round(float(row["data_quality_score"]), 1),
-                "anomaly_score": round(float(row["anomaly_score_normalized"]), 1),
-                "final_score": round(float(row["target_priority_score"]), 1),
-            }
+        # Store priority component breakdown dict fast without row-wise apply
+        p_vals = np.round(df["planetary_relevance_score"].to_numpy(dtype=float), 1)
+        s_vals = np.round(df["stellar_characteristics_score"].to_numpy(dtype=float), 1)
+        o_vals = np.round(df["observational_accessibility_score"].to_numpy(dtype=float), 1)
+        d_vals = np.round(df["data_quality_score"].to_numpy(dtype=float), 1)
+        a_vals = np.round(df["anomaly_score_normalized"].to_numpy(dtype=float), 1)
+        f_vals = np.round(df["target_priority_score"].to_numpy(dtype=float), 1)
 
-        df["priority_components"] = df.apply(make_components_dict, axis=1)
+        df["priority_components"] = [
+            {
+                "planetary_relevance": float(p),
+                "stellar_characteristics": float(s),
+                "observational_accessibility": float(o),
+                "data_quality": float(d),
+                "anomaly_score": float(a),
+                "final_score": float(f),
+            }
+            for p, s, o, d, a, f in zip(p_vals, s_vals, o_vals, d_vals, a_vals, f_vals)
+        ]
 
         # Sort descending by priority
         df = df.sort_values("target_priority_score", ascending=False).reset_index(drop=True)

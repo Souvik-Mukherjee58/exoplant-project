@@ -9,6 +9,11 @@ ENV/
 .pytest_cache/
 .coverage
 htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Root duplicate data directory (canonical data is under backend/data)
+/data/
 
 # Node.js / Vite
 node_modules/

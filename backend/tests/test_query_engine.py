@@ -1,6 +1,7 @@
 """Tests for vectorized DuckDB CatalogQueryEngine, concurrency, and API latency."""
 
 import concurrent.futures
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -19,6 +20,7 @@ def engine():
 # ---------------------------------------------------------------------------
 # 1. Engine Initialization & Invariants
 # ---------------------------------------------------------------------------
+
 
 def test_query_engine_initialization(engine):
     assert engine.active_version is not None
@@ -40,6 +42,7 @@ def test_table_indexes_exist(engine):
 # ---------------------------------------------------------------------------
 # 2. Parametric Querying & Filtering
 # ---------------------------------------------------------------------------
+
 
 def test_query_planets_pagination(engine):
     page1 = engine.query_planets(limit=5, offset=0, sort_by="heuristic")
@@ -89,6 +92,7 @@ def test_query_planets_ml_sort(engine):
 # 3. Exact Lookup & SQL Injection Defense
 # ---------------------------------------------------------------------------
 
+
 def test_get_planet_by_name_case_insensitive(engine):
     # Check mixed case
     p1 = engine.get_planet_by_name("tOI-700 D")
@@ -109,7 +113,7 @@ def test_sql_injection_defense(engine):
         "'; DROP TABLE planets; --",
         "' OR '1'='1",
         "1; SELECT * FROM planets",
-        "UNION ALL SELECT * FROM planets--"
+        "UNION ALL SELECT * FROM planets--",
     ]
     for injection in payloads:
         results = engine.query_planets(q=injection, limit=10)
@@ -124,8 +128,10 @@ def test_sql_injection_defense(engine):
 # 4. Multi-Threaded Concurrency
 # ---------------------------------------------------------------------------
 
+
 def test_concurrent_threads_query_execution(engine):
     """Simulate 20 concurrent threads querying DuckDB simultaneously."""
+
     def worker_task(thread_id: int):
         q_term = "kepler" if thread_id % 2 == 0 else "toi"
         res = engine.query_planets(q=q_term, limit=10, sort_by="ml")
@@ -142,6 +148,7 @@ def test_concurrent_threads_query_execution(engine):
 # ---------------------------------------------------------------------------
 # 5. Statistical Aggregations & Latency Benchmark
 # ---------------------------------------------------------------------------
+
 
 def test_population_stats_aggregates(engine):
     stats = engine.get_analysis_stats()
@@ -162,6 +169,7 @@ def test_latency_benchmark(engine):
 # ---------------------------------------------------------------------------
 # 6. API Endpoints Contract
 # ---------------------------------------------------------------------------
+
 
 def test_api_latency_benchmark_endpoint():
     client = TestClient(app)

@@ -1,13 +1,13 @@
 """Anomaly detection using Isolation Forest and Local Outlier Factor."""
 
+from pathlib import Path
+
+import joblib
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import IsolationForest
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.preprocessing import RobustScaler
-import joblib
-from pathlib import Path
-from typing import List, Tuple
 
 
 class AnomalyDetector:
@@ -24,14 +24,12 @@ class AnomalyDetector:
         self.contamination = contamination
         self.random_state = random_state
         self.isolation_forest = IsolationForest(
-            contamination=contamination,
-            random_state=random_state,
-            n_estimators=100
+            contamination=contamination, random_state=random_state, n_estimators=100
         )
         self.lof = LocalOutlierFactor(
             n_neighbors=20,
             contamination=contamination,
-            novelty=False  # For valid in-sample negative_outlier_factor_ computation
+            novelty=False,  # For valid in-sample negative_outlier_factor_ computation
         )
         self.scaler = RobustScaler()
         self.feature_names = [
@@ -42,7 +40,7 @@ class AnomalyDetector:
             "semi_major_axis",
             "eccentricity",
             "earth_similarity",
-            "observational_accessibility"
+            "observational_accessibility",
         ]
         self.is_fitted = False
         self.lof_scores_ = None
@@ -51,7 +49,7 @@ class AnomalyDetector:
         """Select and prepare feature matrix with missing-value imputation."""
         available_cols = [c for c in self.feature_names if c in df.columns]
         if not available_cols:
-            available_cols = [c for c in df.columns if df[c].dtype in ['float64', 'int64', 'float32', 'int32']][:8]
+            available_cols = [c for c in df.columns if df[c].dtype in ["float64", "int64", "float32", "int32"]][:8]
 
         X = df[available_cols].copy()
         for col in available_cols:
@@ -125,13 +123,16 @@ class AnomalyDetector:
             raise ValueError("Model is not fitted")
 
         Path(filepath).parent.mkdir(parents=True, exist_ok=True)
-        joblib.dump({
-            "isolation_forest": self.isolation_forest,
-            "scaler": self.scaler,
-            "feature_names": self.feature_names,
-            "contamination": self.contamination,
-            "random_state": self.random_state
-        }, filepath)
+        joblib.dump(
+            {
+                "isolation_forest": self.isolation_forest,
+                "scaler": self.scaler,
+                "feature_names": self.feature_names,
+                "contamination": self.contamination,
+                "random_state": self.random_state,
+            },
+            filepath,
+        )
 
     def load_model(self, filepath: str) -> None:
         """Load fitted model state from disk."""

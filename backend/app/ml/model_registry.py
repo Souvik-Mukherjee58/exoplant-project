@@ -17,13 +17,12 @@ Registry Structure:
         └── ...
 """
 
-import json
 import datetime
-import platform
 import hashlib
+import json
+import platform
 from pathlib import Path
-from typing import Dict, Any, List, Optional
-
+from typing import Any, Dict, List, Optional, cast
 
 REGISTRY_FILE = "registry.json"
 
@@ -58,12 +57,12 @@ class ModelRegistry:
         """Load or initialize the central registry index."""
         if self.registry_path.exists():
             with open(self.registry_path, "r") as f:
-                return json.load(f)
+                return cast(Dict[str, Any], json.load(f))
         return {
             "schema_version": "1.0",
             "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "versions": {},
-            "promotion_history": []
+            "promotion_history": [],
         }
 
     def _save_registry(self) -> None:
@@ -91,7 +90,7 @@ class ModelRegistry:
         training_config: Dict[str, Any],
         evaluation_metrics: Dict[str, Any],
         dataset_stats: Optional[Dict[str, Any]] = None,
-        notes: str = ""
+        notes: str = "",
     ) -> Dict[str, Any]:
         """
         Register a new artifact version with full provenance metadata.
@@ -119,13 +118,13 @@ class ModelRegistry:
                 "model": {
                     "path": str(model_file),
                     "sha256": self._compute_checksum(model_file) if model_file.exists() else None,
-                    "size_bytes": model_file.stat().st_size if model_file.exists() else None
+                    "size_bytes": model_file.stat().st_size if model_file.exists() else None,
                 },
                 "parquet": {
                     "path": str(parquet_file),
                     "sha256": self._compute_checksum(parquet_file) if parquet_file.exists() else None,
-                    "size_bytes": parquet_file.stat().st_size if parquet_file.exists() else None
-                }
+                    "size_bytes": parquet_file.stat().st_size if parquet_file.exists() else None,
+                },
             },
             "training": training_config,
             "evaluation": evaluation_metrics,
@@ -133,9 +132,9 @@ class ModelRegistry:
             "environment": {
                 "python_version": platform.python_version(),
                 "platform": platform.platform(),
-                "hostname": platform.node()
+                "hostname": platform.node(),
             },
-            "notes": notes
+            "notes": notes,
         }
 
         # Store in central registry
@@ -175,12 +174,14 @@ class ModelRegistry:
                 entry["status"] = "archived"
 
         # Audit trail
-        self._registry["promotion_history"].append({
-            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "from_version": previous_version,
-            "to_version": version,
-            "reason": reason
-        })
+        self._registry["promotion_history"].append(
+            {
+                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "from_version": previous_version,
+                "to_version": version,
+                "reason": reason,
+            }
+        )
 
         self._save_registry()
 
@@ -196,13 +197,13 @@ class ModelRegistry:
 
         previous = history[-1].get("from_version")
         if previous and previous in self._registry["versions"]:
-            self.promote(previous, reason=f"ROLLBACK: {reason}")
-            return previous
+            self.promote(str(previous), reason=f"ROLLBACK: {reason}")
+            return str(previous)
         return None
 
     def get_version(self, version: str) -> Optional[Dict[str, Any]]:
         """Get metadata for a specific registered version."""
-        return self._registry["versions"].get(version)
+        return cast(Optional[Dict[str, Any]], self._registry["versions"].get(version))
 
     def get_active_version(self) -> Optional[str]:
         """Get the currently active (production) version tag."""
@@ -215,19 +216,19 @@ class ModelRegistry:
         """List all registered versions with summary metadata."""
         versions = []
         for tag, entry in sorted(
-            self._registry["versions"].items(),
-            key=lambda x: x[1].get("registered_at", ""),
-            reverse=True
+            self._registry["versions"].items(), key=lambda x: x[1].get("registered_at", ""), reverse=True
         ):
-            versions.append({
-                "version": tag,
-                "status": entry.get("status", "unknown"),
-                "registered_at": entry.get("registered_at"),
-                "ndcg_at_10": entry.get("evaluation", {}).get("ndcg@10"),
-                "map": entry.get("evaluation", {}).get("map"),
-                "precision_at_10": entry.get("evaluation", {}).get("precision@10"),
-                "notes": entry.get("notes", "")
-            })
+            versions.append(
+                {
+                    "version": tag,
+                    "status": entry.get("status", "unknown"),
+                    "registered_at": entry.get("registered_at"),
+                    "ndcg_at_10": entry.get("evaluation", {}).get("ndcg@10"),
+                    "map": entry.get("evaluation", {}).get("map"),
+                    "precision_at_10": entry.get("evaluation", {}).get("precision@10"),
+                    "notes": entry.get("notes", ""),
+                }
+            )
         return versions
 
     def validate_integrity(self, version: str) -> Dict[str, Any]:
@@ -239,7 +240,7 @@ class ModelRegistry:
         if not entry:
             return {"valid": False, "error": f"Version '{version}' not found in registry"}
 
-        results = {"version": version, "checks": {}}
+        results: Dict[str, Any] = {"version": version, "checks": {}}
         all_valid = True
 
         for artifact_key in ["model", "parquet"]:
@@ -248,10 +249,7 @@ class ModelRegistry:
             expected_sha = artifact_info.get("sha256")
 
             if not filepath.exists():
-                results["checks"][artifact_key] = {
-                    "status": "MISSING",
-                    "path": str(filepath)
-                }
+                results["checks"][artifact_key] = {"status": "MISSING", "path": str(filepath)}
                 all_valid = False
             elif expected_sha:
                 actual_sha = self._compute_checksum(filepath)
@@ -259,7 +257,7 @@ class ModelRegistry:
                 results["checks"][artifact_key] = {
                     "status": "OK" if matched else "CORRUPTED",
                     "expected_sha256": expected_sha[:16] + "...",
-                    "actual_sha256": actual_sha[:16] + "..."
+                    "actual_sha256": actual_sha[:16] + "...",
                 }
                 if not matched:
                     all_valid = False
@@ -294,11 +292,7 @@ class ModelRegistry:
                     version_a: round(val_a, 4),
                     version_b: round(val_b, 4),
                     "delta": round(val_a - val_b, 4),
-                    "winner": version_a if val_a >= val_b else version_b
+                    "winner": version_a if val_a >= val_b else version_b,
                 }
 
-        return {
-            "version_a": version_a,
-            "version_b": version_b,
-            "metric_comparison": comparison
-        }
+        return {"version_a": version_a, "version_b": version_b, "metric_comparison": comparison}

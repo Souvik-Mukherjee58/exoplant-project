@@ -8,19 +8,15 @@ Tests cover:
 """
 
 import json
-import os
-import tempfile
 import logging
-import time
 from pathlib import Path
-from unittest.mock import MagicMock, AsyncMock, patch
 
 import pytest
-
 
 # ================================================================
 # Model Registry Tests
 # ================================================================
+
 
 class TestModelRegistry:
     """Tests for the local-first model registry."""
@@ -66,7 +62,7 @@ class TestModelRegistry:
             parquet_path=parquet_path,
             training_config={"algorithm": "LightGBM", "n_features": 21},
             evaluation_metrics={"ndcg@10": 0.65, "map": 0.55, "precision@10": 0.70},
-            notes="Test version registration"
+            notes="Test version registration",
         )
 
         assert entry["version"] == "v1_test_old"
@@ -86,11 +82,12 @@ class TestModelRegistry:
             model_path=model_path,
             parquet_path=parquet_path,
             training_config={"algorithm": "LightGBM"},
-            evaluation_metrics={"ndcg@10": 0.65}
+            evaluation_metrics={"ndcg@10": 0.65},
         )
 
         # Reload from disk
         from app.ml.model_registry import ModelRegistry
+
         fresh_registry = ModelRegistry(artifacts_dir=str(artifacts_dir))
         assert fresh_registry.get_version("v1_test_old") is not None
         assert fresh_registry.get_version("v1_test_old")["evaluation"]["ndcg@10"] == 0.65
@@ -106,7 +103,7 @@ class TestModelRegistry:
             model_path=model_path,
             parquet_path=parquet_path,
             training_config={},
-            evaluation_metrics={"ndcg@10": 0.70}
+            evaluation_metrics={"ndcg@10": 0.70},
         )
 
         registry.promote("v1_test_new", reason="Better NDCG")
@@ -125,7 +122,7 @@ class TestModelRegistry:
             model_path=model_path,
             parquet_path=parquet_path,
             training_config={},
-            evaluation_metrics={}
+            evaluation_metrics={},
         )
 
         registry.promote("v1_test_new", reason="A/B test winner")
@@ -146,11 +143,7 @@ class TestModelRegistry:
             model_path = str(artifacts_dir / v / "ltr_model.joblib")
             parquet_path = str(artifacts_dir / v / "planets.parquet")
             registry.register_version(
-                version=v,
-                model_path=model_path,
-                parquet_path=parquet_path,
-                training_config={},
-                evaluation_metrics={}
+                version=v, model_path=model_path, parquet_path=parquet_path, training_config={}, evaluation_metrics={}
             )
 
         registry.promote("v1_test_old", reason="Initial")
@@ -173,7 +166,7 @@ class TestModelRegistry:
             model_path=model_path,
             parquet_path=parquet_path,
             training_config={},
-            evaluation_metrics={}
+            evaluation_metrics={},
         )
 
         result = registry.validate_integrity("v1_test_old")
@@ -192,7 +185,7 @@ class TestModelRegistry:
             model_path=model_path,
             parquet_path=parquet_path,
             training_config={},
-            evaluation_metrics={}
+            evaluation_metrics={},
         )
 
         # Tamper with the model file
@@ -214,7 +207,7 @@ class TestModelRegistry:
                 model_path=model_path,
                 parquet_path=parquet_path,
                 training_config={},
-                evaluation_metrics={"ndcg@10": ndcg, "map": map_val, "precision@10": 0.50}
+                evaluation_metrics={"ndcg@10": ndcg, "map": map_val, "precision@10": 0.50},
             )
 
         comparison = registry.compare_versions("v1_test_new", "v1_test_old")
@@ -234,7 +227,7 @@ class TestModelRegistry:
                 model_path=model_path,
                 parquet_path=parquet_path,
                 training_config={},
-                evaluation_metrics={"ndcg@10": 0.50}
+                evaluation_metrics={"ndcg@10": 0.50},
             )
 
         versions = registry.list_versions()
@@ -253,6 +246,7 @@ class TestModelRegistry:
 # Structured Logging Tests
 # ================================================================
 
+
 class TestStructuredLogging:
     """Tests for JSON structured logging and request tracing."""
 
@@ -268,7 +262,7 @@ class TestStructuredLogging:
             lineno=1,
             msg="Test log message",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
 
         output = formatter.format(record)
@@ -289,7 +283,7 @@ class TestStructuredLogging:
             lineno=1,
             msg="GET /api/v1/planets",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
         record.request_id = "abc123"
         record.method = "GET"
@@ -315,7 +309,7 @@ class TestStructuredLogging:
 
     def test_configure_logging_json_mode(self):
         """JSON mode must attach JSONFormatter to root handler."""
-        from app.observability import configure_logging, JSONFormatter
+        from app.observability import JSONFormatter, configure_logging
 
         configure_logging(level="INFO", json_output=True)
         root = logging.getLogger()
@@ -329,6 +323,7 @@ class TestStructuredLogging:
 # API Endpoint Tests (Health, Metrics)
 # ================================================================
 
+
 class TestProductionEndpoints:
     """Tests for production observability endpoints."""
 
@@ -336,7 +331,9 @@ class TestProductionEndpoints:
     def client(self):
         """Create a test client for the FastAPI app."""
         from fastapi.testclient import TestClient
+
         from app.main import app
+
         return TestClient(app)
 
     def test_health_endpoint_returns_ok(self, client):
@@ -399,6 +396,7 @@ class TestProductionEndpoints:
 # ================================================================
 # Container & CI/CD Structure Tests
 # ================================================================
+
 
 class TestContainerReadiness:
     """Validate container and CI/CD configuration files exist and are well-formed."""

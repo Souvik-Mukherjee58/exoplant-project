@@ -1,0 +1,30 @@
+# ==============================================================================
+# Render Blueprint Specification for ExoSignal Backend Service
+# Docs: https://render.com/docs/blueprint-spec
+# ==============================================================================
+services:
+  - type: web
+    name: exosignal-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    region: oregon
+    healthCheckPath: /ready
+    envVars:
+      - key: EXOSIGNAL_ENV
+        value: production
+      - key: PORT
+        value: 8000
+      - key: LOG_LEVEL
+        value: info
+      - key: JSON_LOGS
+        value: "true"
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "120"
+      - key: WORKERS
+        value: "2"
+      - key: CORS_ORIGINS
+        # Update with your custom production frontend domain or wildcard
+        value: '["https://*.vercel.app", "https://*.netlify.app", "http://localhost:3000"]'
+

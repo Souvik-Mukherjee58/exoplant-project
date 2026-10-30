@@ -1,14 +1,14 @@
 """Test TreeSHAP explainability engine, mathematical exactness, and API endpoints."""
 
 import time
-import pytest
+
 import numpy as np
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.ml.explainability import SHAPExplainer, FEATURE_METADATA
+from app.ml.explainability import FEATURE_METADATA, SHAPExplainer
 from app.services.query_engine import CatalogQueryEngine
-
 
 client = TestClient(app)
 

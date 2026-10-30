@@ -1,7 +1,8 @@
 import logging
+from typing import List
+
 import numpy as np
 import pandas as pd
-from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +14,7 @@ class DataCleaning:
         # Mappings from NASA TAP pscomppars columns to standardized application schema
         self.tap_column_names = {
             "pl_name": "planet_name",
+            "hostname": "hostname",
             "pl_rade": "planet_radius",
             "pl_bmasse": "planet_mass",
             "pl_orbper": "orbital_period",
@@ -105,9 +107,7 @@ class DataCleaning:
             rad = pd.to_numeric(df["stellar_radius"], errors="coerce")
             teff = pd.to_numeric(df["stellar_effective_temperature"], errors="coerce")
             sb_lum = np.where(
-                rad.notna() & (rad > 0) & teff.notna() & (teff > 0),
-                (rad ** 2) * ((teff / 5780.0) ** 4),
-                np.nan
+                rad.notna() & (rad > 0) & teff.notna() & (teff > 0), (rad**2) * ((teff / 5780.0) ** 4), np.nan
             )
             df["stellar_luminosity"] = df["stellar_luminosity"].fillna(pd.Series(sb_lum, index=df.index))
 
@@ -116,11 +116,18 @@ class DataCleaning:
             dist = pd.to_numeric(df["distance"], errors="coerce")
             df["distance_ly"] = np.where(dist.notna() & (dist >= 0), dist * 3.26156, np.nan)
 
-        # Derive stellar host name from planet_name if not provided
-        if "stellar_name" not in df.columns or df["stellar_name"].isna().all():
-            if "planet_name" in df.columns:
+        # Derive stellar host name / hostname from planet_name if not provided
+        if "hostname" not in df.columns or df["hostname"].isna().all():
+            if "stellar_name" in df.columns and not df["stellar_name"].isna().all():
+                df["hostname"] = df["stellar_name"]
+            elif "planet_name" in df.columns:
                 # E.g. "TOI-700 d" -> "TOI-700", "Kepler-6 b" -> "Kepler-6"
-                df["stellar_name"] = df["planet_name"].astype(str).str.replace(r"\s+[a-z]$", "", regex=True)
+                df["hostname"] = df["planet_name"].astype(str).str.replace(r"\s+[a-z]$", "", regex=True)
+
+        if "stellar_name" not in df.columns or df["stellar_name"].isna().all():
+            df["stellar_name"] = df.get(
+                "hostname", df["planet_name"].astype(str).str.replace(r"\s+[a-z]$", "", regex=True)
+            )
 
         return df
 
@@ -145,7 +152,10 @@ class DataCleaning:
 
         # Clamp corrupt equilibrium temperature (> 10,000 K or <= 0)
         if "equilibrium_temperature" in df.columns:
-            df.loc[(df["equilibrium_temperature"] <= 0) | (df["equilibrium_temperature"] > 10000.0), "equilibrium_temperature"] = np.nan
+            df.loc[
+                (df["equilibrium_temperature"] <= 0) | (df["equilibrium_temperature"] > 10000.0),
+                "equilibrium_temperature",
+            ] = np.nan
 
         # Clamp corrupt orbital period (<= 0)
         if "orbital_period" in df.columns:
@@ -179,9 +189,7 @@ class DataCleaning:
         else:
             logger.warning("tran_flag missing from data; deriving is_transiting from discovery_method == 'Transit'")
             if "discovery_method" in df.columns:
-                df["is_transiting"] = (
-                    df["discovery_method"].fillna("").astype(str).str.strip().str.lower() == "transit"
-                )
+                df["is_transiting"] = df["discovery_method"].fillna("").astype(str).str.strip().str.lower() == "transit"
             else:
                 df["is_transiting"] = False
 
@@ -198,9 +206,7 @@ class DataCleaning:
         has_srad = df["stellar_radius"].notna()
         has_mag = df["j_magnitude"].notna() | df["k_magnitude"].notna()
 
-        df["eligible_for_transmission"] = (
-            is_transiting & has_radius & has_teq & has_srad & has_mag
-        ).astype(bool)
+        df["eligible_for_transmission"] = (is_transiting & has_radius & has_teq & has_srad & has_mag).astype(bool)
 
         # Compute exclusion reason string column
         reasons = []
@@ -234,11 +240,22 @@ class DataCleaning:
         df = self.standardize_column_names(df)
 
         numeric_columns = [
-            "planet_radius", "planet_mass", "orbital_period", "semi_major_axis",
-            "equilibrium_temperature", "eccentricity", "discovery_year",
-            "stellar_effective_temperature", "stellar_radius", "stellar_mass",
-            "stellar_metallicity", "st_lum_log10", "stellar_luminosity",
-            "distance", "j_magnitude", "k_magnitude"
+            "planet_radius",
+            "planet_mass",
+            "orbital_period",
+            "semi_major_axis",
+            "equilibrium_temperature",
+            "eccentricity",
+            "discovery_year",
+            "stellar_effective_temperature",
+            "stellar_radius",
+            "stellar_mass",
+            "stellar_metallicity",
+            "st_lum_log10",
+            "stellar_luminosity",
+            "distance",
+            "j_magnitude",
+            "k_magnitude",
         ]
         df = self.sanitize_numeric(df, numeric_columns)
         df = self.handle_astrophysical_units(df)
@@ -246,4 +263,3 @@ class DataCleaning:
         df = self.compute_transmission_eligibility(df)
 
         return df
-

@@ -9,9 +9,8 @@ import argparse
 import datetime
 import hashlib
 import json
-import os
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -19,15 +18,13 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
 from app.config import settings
-from app.services.data_ingestion import DataIngestion
-from app.services.data_cleaning import DataCleaning
-from app.services.feature_engineering import FeatureEngineering
 from app.ml.anomaly_detection import AnomalyDetector
-from app.ml.evaluation import RankingBenchmarkSuite, split_temporal_dataset
+from app.ml.evaluation import RankingBenchmarkSuite
 from app.ml.ground_truth import generate_ground_truth_labels
 from app.ml.ltr_model import ExoSignalLTRModel
 from app.scoring.priority_scorer import TargetPriorityScorer
-
+from app.services.data_cleaning import DataCleaning
+from app.services.feature_engineering import FeatureEngineering
 
 ARTIFACTS_ROOT = Path("artifacts")
 
@@ -42,9 +39,7 @@ def compute_sha256(filepath: Path) -> str:
 
 
 def build_artifacts(
-    version: Optional[str] = None,
-    raw_path: Optional[str] = None,
-    artifacts_dir: Optional[Path] = None
+    version: Optional[str] = None, raw_path: Optional[str] = None, artifacts_dir: Optional[Path] = None
 ) -> Path:
     """
     Execute offline build pipeline to generate immutable versioned artifacts:
@@ -64,10 +59,10 @@ def build_artifacts(
 
     version_dir = artifacts_dir / version
     version_dir.mkdir(parents=True, exist_ok=True)
-    print(f"\n========================================================")
+    print("\n========================================================")
     print(f"Building ExoSignal Artifacts: {version}")
     print(f"Destination: {version_dir.resolve()}")
-    print(f"========================================================\n")
+    print("========================================================\n")
 
     # 2. Locate and load raw data
     raw_file = Path(raw_path) if raw_path else Path(settings.RAW_DATA_DIR) / "nasa_exoplanet_archive.csv"
@@ -84,22 +79,19 @@ def build_artifacts(
     print(f"      Loaded {len(raw_df)} rows. SHA256: {raw_hash[:16]}...")
 
     # 3. Data cleaning and standardization
-    print(f"[2/7] Cleaning, normalizing, and deduplicating...")
+    print("[2/7] Cleaning, normalizing, and deduplicating...")
     cleaner = DataCleaning()
     cleaned_df = cleaner.clean(raw_df)
     print(f"      Cleaned catalog contains {len(cleaned_df)} unique verified planets.")
 
     # 4. Feature engineering (Kopparapu HZ, Schulze-Makuch ESI, Infrared Accessibility)
-    print(f"[3/7] Computing published physical metrics (Kopparapu HZ & Schulze-Makuch ESI)...")
+    print("[3/7] Computing published physical metrics (Kopparapu HZ & Schulze-Makuch ESI)...")
     fe = FeatureEngineering()
     featured_df = fe.transform(cleaned_df)
 
     # 5. ML Anomaly Detection (LOF in-sample & Isolation Forest)
-    print(f"[4/7] Fitting anomaly detection ensemble...")
-    detector = AnomalyDetector(
-        contamination=settings.ANOMALY_CONTAMINATION,
-        random_state=settings.RANDOM_STATE
-    )
+    print("[4/7] Fitting anomaly detection ensemble...")
+    detector = AnomalyDetector(contamination=settings.ANOMALY_CONTAMINATION, random_state=settings.RANDOM_STATE)
     detector.fit(featured_df)
     anom_df = detector.predict_anomaly_scores(featured_df)
     model_path = version_dir / "model.joblib"
@@ -107,58 +99,98 @@ def build_artifacts(
     print(f"      Saved fitted anomaly model: {model_path.name}")
 
     # 6. Target Priority Scoring (Heuristic Baseline)
-    print(f"[5/8] Evaluating heuristic target prioritization...")
+    print("[5/8] Evaluating heuristic target prioritization...")
     scorer = TargetPriorityScorer()
     scored_df = scorer.score(anom_df)
 
     # 7. Supervised LightGBM Ranking Models (Model A & Model B)
-    print(f"[6/8] Fitting Supervised LightGBM Ranking Models (Model A & Model B)...")
-    eligible_df = scored_df[scored_df["eligible_for_transmission"]].copy() if "eligible_for_transmission" in scored_df.columns else scored_df
+    # 7. Supervised Production Model (Regularized Logistic Regression Variant A) & Reference Ablations
+    print("[6/8] Fitting Production Model (Regularized Logistic Regression Variant A)...")
+    eligible_df = (
+        scored_df[scored_df["eligible_for_transmission"]].copy()
+        if "eligible_for_transmission" in scored_df.columns
+        else scored_df
+    )
     gt_df = generate_ground_truth_labels(eligible_df)
-    train_split, val_split, test_split = split_temporal_dataset(gt_df)
 
-    # Model A: All features (including proxy interaction features)
-    ltr_model_a = ExoSignalLTRModel(feature_variant="A", random_state=settings.RANDOM_STATE)
-    ltr_model_a.fit(train_split, val_split)
-    ltr_model_a_path = version_dir / "ltr_model_a.joblib"
-    ltr_model_a.save(str(ltr_model_a_path))
-    # Also save as default ltr_model.joblib for system compatibility
-    ltr_model_path = version_dir / "ltr_model.joblib"
-    ltr_model_a.save(str(ltr_model_path))
+    # Compute Out-Of-Fold predictions grouped by hostname so labelled planets are never scored by models trained on them
+    n_pos = int(gt_df["ground_truth_binary"].sum()) if "ground_truth_binary" in gt_df.columns else 0
+    if n_pos == 0:
+        print("\n" + "=" * 80)
+        print(" [PIPELINE WARNING] MODEL FITTING PAUSED: 0 VERIFIED TRANSMISSION TARGETS ".center(80, "="))
+        print("=" * 80)
+        print(" All rows in jwst_transmission_targets.csv are currently unverified (verified=False).")
+        print(" Supervised ranking models require confirmed ground-truth positive labels.")
+        print(" Please review reports/jwst_reference_verification.csv and set verified=True")
+        print(" for confirmed transmission spectroscopy targets to resume training.")
+        print("=" * 80 + "\n")
+        oof_preds = {}
+        prod_model = ExoSignalLTRModel(model_type="logistic", feature_variant="A", random_state=settings.RANDOM_STATE)
+        ltr_model_a = prod_model
+        ltr_model_b = ExoSignalLTRModel(model_type="logistic", feature_variant="B", random_state=settings.RANDOM_STATE)
+    else:
+        print("      Computing Out-Of-Fold predictions across host star groups...")
+        from app.ml.ltr_model import compute_out_of_fold_predictions
 
-    # Model B: Raw features only (proxy leakage features removed)
-    ltr_model_b = ExoSignalLTRModel(feature_variant="B", random_state=settings.RANDOM_STATE)
-    ltr_model_b.fit(train_split, val_split)
-    ltr_model_b_path = version_dir / "ltr_model_b.joblib"
-    ltr_model_b.save(str(ltr_model_b_path))
+        oof_preds = compute_out_of_fold_predictions(
+            eligible_df, feature_variant="A", random_state=settings.RANDOM_STATE
+        )
+
+        # Production Model: Regularized Logistic Regression (Variant A) selected by 25-fold CV
+        prod_model = ExoSignalLTRModel(model_type="logistic", feature_variant="A", random_state=settings.RANDOM_STATE)
+        prod_model.fit(gt_df)
+        ltr_model_path = version_dir / "ltr_model.joblib"
+        prod_model.save(str(ltr_model_path))
+
+        # Reference Ablations: Variant A and Variant B models retained for benchmark reproducibility
+        ltr_model_a = ExoSignalLTRModel(model_type="logistic", feature_variant="A", random_state=settings.RANDOM_STATE)
+        ltr_model_a.fit(gt_df)
+        ltr_model_a_path = version_dir / "ltr_model_a.joblib"
+        ltr_model_a.save(str(ltr_model_a_path))
+
+        ltr_model_b = ExoSignalLTRModel(model_type="logistic", feature_variant="B", random_state=settings.RANDOM_STATE)
+        ltr_model_b.fit(gt_df)
+        ltr_model_b_path = version_dir / "ltr_model_b.joblib"
+        ltr_model_b.save(str(ltr_model_b_path))
 
     # Save feature importance breakdowns
     feat_imp_path = version_dir / "ltr_feature_importance.json"
     with open(feat_imp_path, "w") as f:
-        json.dump(ltr_model_a.feature_importances, f, indent=2)
+        json.dump(prod_model.feature_importances, f, indent=2)
 
     feat_imp_b_path = version_dir / "ltr_feature_importance_b.json"
     with open(feat_imp_b_path, "w") as f:
         json.dump(ltr_model_b.feature_importances, f, indent=2)
 
-    # Score full catalog with LTR Model A and append rank delta (ranking eligible planets only)
-    scored_df = ltr_model_a.score_catalog(scored_df)
+    # Score full catalog with Production Model and append deterministic rankings (0 ties in top 50, OOF scores for labelled targets)
+    scored_df = prod_model.score_catalog(scored_df, oof_predictions=oof_preds)
     if "eligible_for_transmission" in scored_df.columns:
-        scored_df = pd.concat([
-            scored_df[scored_df["eligible_for_transmission"]].sort_values("target_priority_score", ascending=False),
-            scored_df[~scored_df["eligible_for_transmission"]].sort_values("target_priority_score", ascending=False)
-        ]).reset_index(drop=True)
-    print(f"      Saved fitted LTR Model A: {ltr_model_a_path.name}")
-    print(f"      Saved fitted LTR Model B: {ltr_model_b_path.name}")
-    print(f"      Top ranking feature (Model A): {ltr_model_a.feature_importances['top_features'][0]['feature']} ({ltr_model_a.feature_importances['top_features'][0]['gain_percentage']}%)")
-    print(f"      Top ranking feature (Model B): {ltr_model_b.feature_importances['top_features'][0]['feature']} ({ltr_model_b.feature_importances['top_features'][0]['gain_percentage']}%)")
+        scored_df = pd.concat(
+            [
+                scored_df[scored_df["eligible_for_transmission"]].sort_values("target_priority_score", ascending=False),
+                scored_df[~scored_df["eligible_for_transmission"]].sort_values(
+                    "target_priority_score", ascending=False
+                ),
+            ]
+        ).reset_index(drop=True)
+    print(f"      Saved Production Model: {ltr_model_path.name}")
+    print(f"      Saved Reference Variant A: {ltr_model_a_path.name}")
+    print(f"      Saved Reference Variant B: {ltr_model_b_path.name}")
+    print(
+        f"      Top ranking feature: {prod_model.feature_importances['top_features'][0]['feature']} ({prod_model.feature_importances['top_features'][0]['gain_percentage']}%)"
+    )
 
     # 8. Precompute 2D PCA feature projection
-    print(f"[7/8] Precomputing PCA feature projections...")
+    print("[7/8] Precomputing PCA feature projections...")
     pca_features = [
-        "planet_radius", "planet_mass", "equilibrium_temperature",
-        "orbital_period", "semi_major_axis", "eccentricity",
-        "earth_similarity", "observational_accessibility"
+        "planet_radius",
+        "planet_mass",
+        "equilibrium_temperature",
+        "orbital_period",
+        "semi_major_axis",
+        "eccentricity",
+        "earth_similarity",
+        "observational_accessibility",
     ]
     available_pca_cols = [c for c in pca_features if c in scored_df.columns]
 
@@ -167,7 +199,11 @@ def build_artifacts(
         top_sample = scored_df.head(200)
         anom_sample = scored_df.nlargest(150, "anomaly_score")
         rand_sample = scored_df.sample(n=150, random_state=42)
-        pca_sample_df = pd.concat([top_sample, anom_sample, rand_sample]).drop_duplicates(subset=["planet_name"]).reset_index(drop=True)
+        pca_sample_df = (
+            pd.concat([top_sample, anom_sample, rand_sample])
+            .drop_duplicates(subset=["planet_name"])
+            .reset_index(drop=True)
+        )
     else:
         pca_sample_df = scored_df.reset_index(drop=True)
 
@@ -190,18 +226,17 @@ def build_artifacts(
         "target_priority_score": [round(float(v), 1) for v in pca_sample_df["target_priority_score"]],
         "hz_status": pca_sample_df["hz_status"].tolist(),
         "explained_variance": [round(float(v), 4) for v in pca.explained_variance_ratio_],
-        "feature_names": available_pca_cols
+        "feature_names": available_pca_cols,
     }
     with open(version_dir / "precomputed_pca.json", "w") as f:
         json.dump(precomputed_pca, f, indent=2)
 
     # 8. Precompute system statistics & empirical score histogram
-    print(f"[7/8] Precomputing population statistics and saving artifacts...")
+    print("[7/8] Precomputing population statistics and saving artifacts...")
     scores = scored_df["priority_score"].dropna()
     counts, bin_edges = np.histogram(scores, bins=[0, 20, 40, 60, 80, 100])
     priority_histogram = [
-        {"range": f"{int(bin_edges[i])}-{int(bin_edges[i+1])}", "count": int(counts[i])}
-        for i in range(len(counts))
+        {"range": f"{int(bin_edges[i])}-{int(bin_edges[i + 1])}", "count": int(counts[i])} for i in range(len(counts))
     ]
 
     precomputed_stats = {
@@ -211,21 +246,21 @@ def build_artifacts(
             "max": round(float(scored_df["priority_score"].max()), 1),
             "mean": round(float(scored_df["priority_score"].mean()), 1),
             "median": round(float(scored_df["priority_score"].median()), 1),
-            "std": round(float(scored_df["priority_score"].std()), 1)
+            "std": round(float(scored_df["priority_score"].std()), 1),
         },
         "heuristic_score_distribution": {
             "min": round(float(scored_df["target_priority_score"].min()), 1),
             "max": round(float(scored_df["target_priority_score"].max()), 1),
             "mean": round(float(scored_df["target_priority_score"].mean()), 1),
             "median": round(float(scored_df["target_priority_score"].median()), 1),
-            "std": round(float(scored_df["target_priority_score"].std()), 1)
+            "std": round(float(scored_df["target_priority_score"].std()), 1),
         },
         "priority_histogram": priority_histogram,
         "anomaly_distribution": {
             "min": round(float(scored_df["anomaly_score"].min()), 3),
             "max": round(float(scored_df["anomaly_score"].max()), 3),
             "mean": round(float(scored_df["anomaly_score"].mean()), 3),
-            "median": round(float(scored_df["anomaly_score"].median()), 3)
+            "median": round(float(scored_df["anomaly_score"].median()), 3),
         },
         "hz_distribution": scored_df["hz_status"].value_counts().to_dict(),
         "discovery_method_distribution": scored_df["discovery_method"].value_counts().to_dict(),
@@ -234,60 +269,70 @@ def build_artifacts(
         json.dump(precomputed_stats, f, indent=2)
 
     # 9. Execute ML Ranking Evaluation Benchmark
-    print(f"[8/8] Running ML Ranking Evaluation Benchmark against ground truth...")
+    print("[8/8] Running ML Ranking Evaluation Benchmark against ground truth...")
     bench_suite = RankingBenchmarkSuite()
-    eval_input_df = scored_df[scored_df["eligible_for_transmission"]].copy() if "eligible_for_transmission" in scored_df.columns else scored_df
+    eval_input_df = (
+        scored_df[scored_df["eligible_for_transmission"]].copy()
+        if "eligible_for_transmission" in scored_df.columns
+        else scored_df
+    )
     bench_report = bench_suite.run_benchmark(eval_input_df, eval_split="test")
     json_bench, md_bench = bench_suite.save_report(bench_report, version_dir)
     # Also save copy in root artifacts directory for quick access
     bench_suite.save_report(bench_report, artifacts_dir)
-    print(f"      Benchmark evaluated {bench_report['models_evaluated']} models. Test set: {bench_report['test_set_size']} planets.")
+    print(
+        f"      Benchmark evaluated {bench_report['models_evaluated']} models across {bench_report['primary_protocol']['total_folds']} StratifiedGroupKFold splits."
+    )
+    print(f"      Saved reports: {version_dir / 'EVALUATION.md'} and {version_dir / 'evaluation.json'}")
 
     # Save immutable Parquet catalog
     parquet_path = version_dir / "planets.parquet"
     scored_df.to_parquet(parquet_path, index=False)
 
     # Also keep a legacy CSV in processed dir for backward compatibility
-    legacy_processed_path = Path(settings.PROCESSED_DATA_DIR) / "processed_exoplanets.csv"
-    legacy_processed_path.parent.mkdir(parents=True, exist_ok=True)
-    scored_df.to_csv(legacy_processed_path, index=False)
+    if artifacts_dir == ARTIFACTS_ROOT:
+        legacy_processed_path = Path(settings.PROCESSED_DATA_DIR) / "processed_exoplanets.csv"
+        legacy_processed_path.parent.mkdir(parents=True, exist_ok=True)
+        scored_df.to_csv(legacy_processed_path, index=False)
 
     # Build manifest
     manifest = {
         "artifact_version": version,
         "build_timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "raw_data": {
-            "file": raw_file.name,
-            "sha256": raw_hash,
-            "raw_rows": len(raw_df)
-        },
+        "raw_data": {"file": raw_file.name, "sha256": raw_hash, "raw_rows": len(raw_df)},
         "catalog": {
             "total_planets": len(scored_df),
             "parquet_file": parquet_path.name,
-            "parquet_size_bytes": parquet_path.stat().st_size
+            "parquet_size_bytes": parquet_path.stat().st_size,
         },
         "models": {
             "anomaly_detector": model_path.name,
             "anomaly_algorithm": "IsolationForest + LocalOutlierFactor (in-sample)",
+            "selected_production_model": ltr_model_path.name,
+            "production_algorithm": prod_model.training_metadata["algorithm"],
+            "production_hyperparameters": prod_model.hyperparameters,
             "ltr_model_a": ltr_model_a_path.name,
             "ltr_model_b": ltr_model_b_path.name,
-            "ltr_algorithm": "LightGBM Supervised Classifier Ranking",
-            "ltr_top_features_a": ltr_model_a.feature_importances["top_features"][:5],
-            "ltr_top_features_b": ltr_model_b.feature_importances["top_features"][:5]
+            "variant_models_note": "ltr_model_a.joblib and ltr_model_b.joblib are retained as reference benchmarks for Variant A vs Variant B feature ablation.",
+            "top_features": prod_model.feature_importances["top_features"][:5],
+            "score_diversity": bench_report.get("score_diversity", {}),
+            "calibration": bench_report.get("calibration", {}),
         },
         "benchmark": {
             "evaluation_split": bench_report["evaluation_split"],
             "primary_metric": bench_report["primary_metric"],
-            "leaderboard": bench_report["leaderboard"]
+            "leaderboard": bench_report["leaderboard"],
         },
         "scoring_weights": scorer.scoring_config,
-        "hz_counts": scored_df["hz_status"].value_counts().to_dict()
+        "hz_counts": scored_df["hz_status"].value_counts().to_dict(),
     }
     with open(version_dir / "manifest.json", "w") as f:
         json.dump(manifest, f, indent=2)
 
     # Also write a copy of ltr_feature_importance to root artifacts dir
     with open(artifacts_dir / "ltr_feature_importance.json", "w") as f:
+        json.dump(prod_model.feature_importances, f, indent=2)
+    with open(artifacts_dir / "ltr_feature_importance_a.json", "w") as f:
         json.dump(ltr_model_a.feature_importances, f, indent=2)
     with open(artifacts_dir / "ltr_feature_importance_b.json", "w") as f:
         json.dump(ltr_model_b.feature_importances, f, indent=2)
@@ -297,16 +342,19 @@ def build_artifacts(
         f.write(version)
 
     # 10. Auto-register in Model Registry
-    print(f"\n[Registry] Registering artifact version in model registry...")
+    print("\n[Registry] Registering artifact version in model registry...")
     try:
         from app.ml.model_registry import ModelRegistry
+
         registry = ModelRegistry(artifacts_dir=str(artifacts_dir))
 
-        # Extract Model A metrics from benchmark
-        gbdt_entry = next(
-            (m for m in bench_report["leaderboard"]
-             if "Model A" in m["model_name"] or "GBDT" in m["model_name"] or "Supervised" in m["model_name"]),
-            {}
+        # Extract selected production model metrics from benchmark leaderboard
+        selected_model_name = bench_report.get("model_selection", {}).get(
+            "selected_model", "Logistic Regression (Variant A)"
+        )
+        prod_entry = next(
+            (m for m in bench_report["leaderboard"] if m["model_name"] == selected_model_name),
+            bench_report["leaderboard"][0] if bench_report["leaderboard"] else {},
         )
 
         registry.register_version(
@@ -314,29 +362,29 @@ def build_artifacts(
             model_path=str(ltr_model_path),
             parquet_path=str(parquet_path),
             training_config={
-                "algorithm": "LightGBM Supervised Classifier Ranking",
-                "n_features": len(ltr_model_a.feature_importances.get("top_features", [])),
-                "top_features": [f["feature"] for f in ltr_model_a.feature_importances.get("top_features", [])[:5]],
+                "algorithm": prod_model.training_metadata["algorithm"],
+                "model_type": prod_model.model_type,
+                "hyperparameters": prod_model.hyperparameters,
+                "n_features": len(prod_model.feature_importances.get("top_features", [])),
+                "top_features": [f["feature"] for f in prod_model.feature_importances.get("top_features", [])[:5]],
                 "random_state": settings.RANDOM_STATE,
-                "temporal_split": {
-                    "train": f"<= 2017 ({len(train_split)} planets)",
-                    "val": f"2018-2021 ({len(val_split)} planets)",
-                    "test": f">= 2022 ({len(test_split)} planets)"
-                }
+                "evaluation_protocol": bench_report["evaluation_split"],
+                "score_diversity": bench_report.get("score_diversity", {}),
+                "calibration": bench_report.get("calibration", {}),
             },
             evaluation_metrics={
-                "ndcg@10": gbdt_entry.get("ndcg@10"),
-                "map": gbdt_entry.get("map"),
-                "precision@10": gbdt_entry.get("precision@10"),
-                "pr_auc": gbdt_entry.get("pr_auc"),
-                "eval_split": bench_report["evaluation_split"]
+                "mean_ap": prod_entry.get("mean_ap"),
+                "mean_ap_ci95": prod_entry.get("ap_ci95"),
+                "mean_recall@50": prod_entry.get("mean_recall@50"),
+                "mean_ndcg@25": prod_entry.get("mean_ndcg@25"),
+                "eval_split": bench_report["evaluation_split"],
             },
             dataset_stats={
                 "total_planets": len(scored_df),
                 "raw_rows": len(raw_df),
-                "raw_sha256": raw_hash[:16] + "..."
+                "raw_sha256": raw_hash[:16] + "...",
             },
-            notes=f"Auto-registered by pipeline build on {datetime.datetime.now(datetime.timezone.utc).isoformat()}"
+            notes=f"Auto-registered by pipeline build on {datetime.datetime.now(datetime.timezone.utc).isoformat()} - Selected {selected_model_name} (production model)",
         )
 
         registry.promote(version, reason="Pipeline auto-promotion after successful build")
@@ -344,7 +392,7 @@ def build_artifacts(
     except Exception as e:
         print(f"      [WARNING] Registry registration failed (non-fatal): {e}")
 
-    print(f"\nBuild complete!")
+    print("\nBuild complete!")
     print(f"Artifact Version: {version}")
     print(f"Planets in Parquet: {len(scored_df)}")
     print(f"Active version pointer set in {artifacts_dir / 'active_version.txt'}")
@@ -370,9 +418,9 @@ def inspect_artifacts(version: Optional[str] = None, artifacts_dir: Optional[Pat
     with open(manifest_file, "r") as f:
         manifest = json.load(f)
 
-    print(f"\n========================================================")
+    print("\n========================================================")
     print(f"ExoSignal Artifact Manifest: {version}")
-    print(f"========================================================")
+    print("========================================================")
     print(json.dumps(manifest, indent=2))
 
 
@@ -398,11 +446,13 @@ def inspect_ltr(version: Optional[str] = None, artifacts_dir: Optional[Path] = N
     with open(feat_file, "r") as f:
         feat_data = json.load(f)
 
-    print(f"\n========================================================")
+    print("\n========================================================")
     print(f"ExoSignal Learning-to-Rank Feature Importance ({version})")
-    print(f"========================================================")
+    print("========================================================")
     for f in feat_data.get("top_features", []):
-        print(f"Feature: {f['feature']:<26} | Gain: {f['gain']:<9.1f} | Attribution: {f['gain_percentage']:>5.2f}% | Splits: {f['split_count']}")
+        print(
+            f"Feature: {f['feature']:<26} | Gain: {f['gain']:<9.1f} | Attribution: {f['gain_percentage']:>5.2f}% | Splits: {f['split_count']}"
+        )
 
 
 def main():
@@ -428,8 +478,9 @@ def main():
 
     # Model Registry CLI
     reg_parser = subparsers.add_parser("registry", help="Model registry management")
-    reg_parser.add_argument("action", choices=["list", "validate", "compare", "rollback"],
-                            help="Registry action to perform")
+    reg_parser.add_argument(
+        "action", choices=["list", "validate", "compare", "rollback"], help="Registry action to perform"
+    )
     reg_parser.add_argument("--version", type=str, help="Version tag for validate action")
     reg_parser.add_argument("--version-a", type=str, help="First version for compare")
     reg_parser.add_argument("--version-b", type=str, help="Second version for compare")
@@ -439,35 +490,47 @@ def main():
     args = parser.parse_args()
 
     if args.command == "build":
-        build_artifacts(
-            version=args.version,
-            raw_path=args.raw_path,
-            artifacts_dir=Path(args.artifacts_dir)
-        )
+        build_artifacts(version=args.version, raw_path=args.raw_path, artifacts_dir=Path(args.artifacts_dir))
     elif args.command == "inspect":
-        inspect_artifacts(
-            version=args.version,
-            artifacts_dir=Path(args.artifacts_dir)
-        )
+        inspect_artifacts(version=args.version, artifacts_dir=Path(args.artifacts_dir))
     elif args.command == "evaluate":
         from app.services.data_processor import get_data_processor
+
         processor = get_data_processor()
         df = processor.get_processed_data()
         suite = RankingBenchmarkSuite()
         report = suite.run_benchmark(df, eval_split=args.split)
         suite.save_report(report, Path(args.artifacts_dir))
-        print(f"\n========================================================")
-        print(f"ExoSignal ML Ranking Leaderboard ({report['evaluation_split'].upper()} Split)")
-        print(f"========================================================")
+        print("\n========================================================")
+        print("ExoSignal Primary Protocol: StratifiedGroupKFold (25 Folds, Host-Grouped)")
+        print("========================================================")
         for m in report["leaderboard"]:
-            print(f"Model: {m['model_name']:<24} | P@10: {m['precision@10']:.4f} | NDCG@10: {m['ndcg@10']:.4f} | MAP: {m['map']:.4f} | PR-AUC: {m['pr_auc']:.4f}")
+            p_tsm = m["paired_vs_tsm_ap"]["statement"]
+            print(
+                f"Model: {m['model_name']:<38} | AP: {m['ap']:.4f} ± {m['ap_std']:.4f} | NDCG@25: {m['ndcg@25']:.4f} | P@10: {m['precision@10']:.4f} | vs TSM: {p_tsm}"
+            )
+
+        print("\n========================================================")
+        print(f"Secondary Protocol: Leave-One-Host-Out (LOHO, {report['secondary_protocol']['hosts_evaluated']} Hosts)")
+        print("========================================================")
+        for m in report["secondary_protocol"]["models"]:
+            print(
+                f"Model: {m['model_name']:<38} | Median Rank: {m['median_rank']:>5.1f} | Top 1%: {m['pct_in_top_1_pct']:>5.1f}% | Top 5%: {m['pct_in_top_5_pct']:>5.1f}% | Top 10%: {m['pct_in_top_10_pct']:>5.1f}%"
+            )
+
+        print("\n========================================================")
+        print(f"Sanity Check: {report['temporal_sanity_check']['protocol_name'].upper()}")
+        print(f"Notice: {report['temporal_sanity_check']['caveat']}")
+        print("========================================================")
+        for m in report["temporal_sanity_check"]["leaderboard"]:
+            print(
+                f"Model: {m['model_name']:<38} | P@10: {m['precision@10']:.4f} | NDCG@10: {m['ndcg@10']:.4f} | MAP: {m['map']:.4f} | PR-AUC: {m['pr_auc']:.4f}"
+            )
     elif args.command == "ltr":
-        inspect_ltr(
-            version=args.version,
-            artifacts_dir=Path(args.artifacts_dir)
-        )
+        inspect_ltr(version=args.version, artifacts_dir=Path(args.artifacts_dir))
     elif args.command == "registry":
         from app.ml.model_registry import ModelRegistry
+
         registry = ModelRegistry(artifacts_dir=args.artifacts_dir)
 
         if args.action == "list":
@@ -478,8 +541,8 @@ def main():
                 print(f"\n{'Version':<20} {'Status':<14} {'NDCG@10':<10} {'MAP':<10} {'Registered':<22}")
                 print("-" * 80)
                 for v in versions:
-                    ndcg = f"{v['ndcg_at_10']:.4f}" if v['ndcg_at_10'] else "N/A"
-                    m = f"{v['map']:.4f}" if v['map'] else "N/A"
+                    ndcg = f"{v['ndcg_at_10']:.4f}" if v["ndcg_at_10"] else "N/A"
+                    m = f"{v['map']:.4f}" if v["map"] else "N/A"
                     print(f"{v['version']:<20} {v['status']:<14} {ndcg:<10} {m:<10} {v['registered_at']:<22}")
 
         elif args.action == "validate":

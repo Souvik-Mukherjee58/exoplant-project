@@ -1,16 +1,24 @@
-import React, { useState, useMemo } from 'react'
-import { Link } from 'react-router-dom'
-import { usePlanets } from '../hooks/usePlanets'
-import { useFavorites } from '../context/FavoritesContext'
-import { formatRadius, formatPeriod, formatTemperature, formatAnomaly, formatPriority, getHZColor } from '../utils/formatters'
-import SectionDivider from '../components/SectionDivider'
-import TreeSHAPWaterfall from '../components/TreeSHAPWaterfall'
+import React, { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { usePlanets } from '../hooks/usePlanets';
+import { useFavorites } from '../context/FavoritesContext';
+import {
+  formatRadius,
+  formatPeriod,
+  formatTemperature,
+  formatAnomaly,
+  formatPriority,
+  getHZColor,
+  getIneligibleTooltip,
+} from '../utils/formatters';
+import SectionDivider from '../components/SectionDivider';
+import TreeSHAPWaterfall from '../components/TreeSHAPWaterfall';
+import { PriorityScoreDisplay } from '../components/PriorityBadge';
 
+const HZ_OPTIONS = ['All', 'Inside HZ', 'Near HZ', 'Outside HZ'];
+const ITEMS_PER_PAGE = 24;
 
-const HZ_OPTIONS = ['All', 'Inside HZ', 'Near HZ', 'Outside HZ']
-const ITEMS_PER_PAGE = 24
-
-const normalizeStr = (s) => (s || '').toLowerCase().replace(/[-\s_]+/g, '')
+const normalizeStr = (s) => (s || '').toLowerCase().replace(/[-\s_]+/g, '');
 
 const Explorer = () => {
   const [filters, setFilters] = useState({
@@ -20,50 +28,50 @@ const Explorer = () => {
     hzStatus: 'All',
     sortBy: 'priority',
     sortOrder: 'desc',
-    terrestrialOnly: false
-  })
-  const [viewMode, setViewMode] = useState('grid') // 'grid' | 'table' | 'shap'
-  const [currentPage, setCurrentPage] = useState(1)
-  const [inspectingPlanet, setInspectingPlanet] = useState(null)
-  const [shapTarget, setShapTarget] = useState('Kepler-452 b')
-  const [shapSearchInput, setShapSearchInput] = useState('')
-  const { toggleFavorite, isFavorite } = useFavorites()
+    terrestrialOnly: false,
+  });
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table' | 'shap'
+  const [currentPage, setCurrentPage] = useState(1);
+  const [inspectingPlanet, setInspectingPlanet] = useState(null);
+  const [shapTarget, setShapTarget] = useState('Kepler-452 b');
+  const [shapSearchInput, setShapSearchInput] = useState('');
+  const { toggleFavorite, isFavorite } = useFavorites();
 
   const queryParams = useMemo(() => {
-    const params = { limit: 1000 }
+    const params = { limit: 1000 };
     if (filters.name && filters.name.trim()) {
-      params.q = filters.name.trim()
+      params.q = filters.name.trim();
     }
     if (filters.hzStatus && filters.hzStatus !== 'All') {
-      params.hz_status = filters.hzStatus
+      params.hz_status = filters.hzStatus;
     }
-    const minP = Number(filters.minPriority)
-    const maxP = Number(filters.maxPriority)
+    const minP = Number(filters.minPriority);
+    const maxP = Number(filters.maxPriority);
     if (!isNaN(minP) && !isNaN(maxP) && minP <= maxP) {
-      params.min_priority = minP
-      params.max_priority = maxP
+      params.min_priority = minP;
+      params.max_priority = maxP;
     }
-    return params
-  }, [filters.name, filters.hzStatus, filters.minPriority, filters.maxPriority])
+    return params;
+  }, [filters.name, filters.hzStatus, filters.minPriority, filters.maxPriority]);
 
-  const { planets, loading, error, refetch } = usePlanets(queryParams)
+  const { planets, loading, error, refetch } = usePlanets(queryParams);
 
   const handleFilterChange = (e) => {
-    const { name, value, type, checked } = e.target
-    setFilters(prev => ({
+    const { name, value, type, checked } = e.target;
+    setFilters((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }))
-    setCurrentPage(1)
-  }
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+    setCurrentPage(1);
+  };
 
   const handleQuickPreset = (preset) => {
     if (preset === 'hz') {
-      setFilters(prev => ({ ...prev, hzStatus: 'Inside HZ', minPriority: 60 }))
+      setFilters((prev) => ({ ...prev, hzStatus: 'Inside HZ', minPriority: 60 }));
     } else if (preset === 'superEarth') {
-      setFilters(prev => ({ ...prev, terrestrialOnly: true }))
+      setFilters((prev) => ({ ...prev, terrestrialOnly: true }));
     } else if (preset === 'top') {
-      setFilters(prev => ({ ...prev, minPriority: 80, hzStatus: 'All' }))
+      setFilters((prev) => ({ ...prev, minPriority: 80, hzStatus: 'All' }));
     } else if (preset === 'reset') {
       setFilters({
         name: '',
@@ -72,45 +80,52 @@ const Explorer = () => {
         hzStatus: 'All',
         sortBy: 'priority',
         sortOrder: 'desc',
-        terrestrialOnly: false
-      })
+        terrestrialOnly: false,
+      });
     }
-    setCurrentPage(1)
-  }
+    setCurrentPage(1);
+  };
 
   const filteredAndSortedPlanets = useMemo(() => {
     return [...planets]
-      .filter(p => {
-        const query = filters.name.trim()
-        const nameMatch = !query || 
+      .filter((p) => {
+        const query = filters.name.trim();
+        const nameMatch =
+          !query ||
           p.planet_name?.toLowerCase().includes(query.toLowerCase()) ||
-          normalizeStr(p.planet_name).includes(normalizeStr(query))
-        const hzMatch = filters.hzStatus === 'All' || p.hz_status === filters.hzStatus
-        const pScore = p.priority_score ?? p.ml_priority_score ?? p.target_priority_score ?? 0
-        const priorityMatch = pScore >= filters.minPriority && pScore <= filters.maxPriority
-        const terrestrialMatch = !filters.terrestrialOnly || (p.planet_radius && p.planet_radius <= 1.8)
-        return nameMatch && hzMatch && priorityMatch && terrestrialMatch
+          normalizeStr(p.planet_name).includes(normalizeStr(query));
+        const hzMatch = filters.hzStatus === 'All' || p.hz_status === filters.hzStatus;
+        const pScore = p.priority_score;
+        const priorityMatch =
+          pScore != null
+            ? pScore >= filters.minPriority && pScore <= filters.maxPriority
+            : Number(filters.minPriority) === 0;
+        const terrestrialMatch =
+          !filters.terrestrialOnly || (p.planet_radius && p.planet_radius <= 1.8);
+        return nameMatch && hzMatch && priorityMatch && terrestrialMatch;
       })
       .sort((a, b) => {
-        const valA = filters.sortBy === 'priority' 
-          ? (a.priority_score ?? a.ml_priority_score ?? a.target_priority_score ?? 0)
-          : (a.anomaly_score ?? 0)
-        const valB = filters.sortBy === 'priority' 
-          ? (b.priority_score ?? b.ml_priority_score ?? b.target_priority_score ?? 0)
-          : (b.anomaly_score ?? 0)
-        return filters.sortOrder === 'asc' ? valA - valB : valB - valA
-      })
-  }, [planets, filters])
+        const valA =
+          filters.sortBy === 'priority'
+            ? (a.priority_score ?? (filters.sortOrder === 'asc' ? Infinity : -Infinity))
+            : (a.anomaly_score ?? 0);
+        const valB =
+          filters.sortBy === 'priority'
+            ? (b.priority_score ?? (filters.sortOrder === 'asc' ? Infinity : -Infinity))
+            : (b.anomaly_score ?? 0);
+        return filters.sortOrder === 'asc' ? valA - valB : valB - valA;
+      });
+  }, [planets, filters]);
 
-  const totalPages = Math.ceil(filteredAndSortedPlanets.length / ITEMS_PER_PAGE)
+  const totalPages = Math.ceil(filteredAndSortedPlanets.length / ITEMS_PER_PAGE);
   const paginatedPlanets = filteredAndSortedPlanets.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
-  )
+  );
 
   const activeShapPlanet = useMemo(() => {
-    return planets.find(p => normalizeStr(p.planet_name) === normalizeStr(shapTarget)) || null
-  }, [planets, shapTarget])
+    return planets.find((p) => normalizeStr(p.planet_name) === normalizeStr(shapTarget)) || null;
+  }, [planets, shapTarget]);
 
   return (
     <div className="space-y-8">
@@ -120,11 +135,11 @@ const Explorer = () => {
           <div className="text-xs font-mono text-exosignal-cyan uppercase tracking-wider font-bold mb-1">
             Astronomical Catalog Explorer
           </div>
-          <h1 className="text-3xl font-black text-white font-display">
-            Exoplanet Target Database
-          </h1>
+          <h1 className="text-3xl font-black text-white font-display">Exoplanet Target Database</h1>
           <p className="text-sm text-exosignal-text-secondary mt-1 max-w-2xl">
-            Columnar zero-copy queries over NASA archive parameters. Filter by planetary radius, habitable zone alignment, transit probability, or inspect exact TreeSHAP waterfall attributions.
+            Columnar Parquet queries over NASA archive parameters. Filter by planetary radius,
+            habitable zone alignment, transit probability, or inspect exact TreeSHAP waterfall
+            attributions.
           </p>
         </div>
 
@@ -152,9 +167,9 @@ const Explorer = () => {
           </button>
           <button
             onClick={() => {
-              setViewMode('shap')
+              setViewMode('shap');
               if (filters.name && filteredAndSortedPlanets.length > 0) {
-                setShapTarget(filteredAndSortedPlanets[0].planet_name)
+                setShapTarget(filteredAndSortedPlanets[0].planet_name);
               }
             }}
             className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all ${
@@ -173,7 +188,7 @@ const Explorer = () => {
         <SectionDivider
           number="01"
           title="Catalog Search & Columnar Filters"
-          subtitle="Real-time multi-attribute query engine with parameter pushdown"
+          subtitle="Multi-attribute query engine with parameter pushdown"
           badge="QUERY FILTERS"
           accent="cyan"
         />
@@ -181,7 +196,9 @@ const Explorer = () => {
         <div className="divided-compartment p-6 space-y-4">
           {/* Quick Filter Presets */}
           <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-exosignal-cyan/15">
-            <span className="text-xs font-mono text-exosignal-text-muted uppercase">Quick Presets:</span>
+            <span className="text-xs font-mono text-exosignal-text-muted uppercase">
+              Quick Presets:
+            </span>
             <button
               onClick={() => handleQuickPreset('hz')}
               className="px-2.5 py-1 rounded-full text-xs font-mono bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 transition-colors"
@@ -202,8 +219,8 @@ const Explorer = () => {
             </button>
             <button
               onClick={() => {
-                setFilters(prev => ({ ...prev, name: 'Kepler-452 b' }))
-                setInspectingPlanet('Kepler-452 b')
+                setFilters((prev) => ({ ...prev, name: 'Kepler-452 b' }));
+                setInspectingPlanet('Kepler-452 b');
               }}
               className="px-2.5 py-1 rounded-full text-xs font-mono bg-purple-500/15 text-purple-300 border border-purple-500/30 hover:bg-purple-500/25 transition-colors"
             >
@@ -232,8 +249,8 @@ const Explorer = () => {
                   onChange={handleFilterChange}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && filters.name.trim()) {
-                      const match = filteredAndSortedPlanets[0]?.planet_name || filters.name.trim()
-                      setInspectingPlanet(match)
+                      const match = filteredAndSortedPlanets[0]?.planet_name || filters.name.trim();
+                      setInspectingPlanet(match);
                     }
                   }}
                   placeholder="e.g. kepler 452 b, TOI-700, TRAPPIST..."
@@ -243,8 +260,8 @@ const Explorer = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      const match = filteredAndSortedPlanets[0]?.planet_name || filters.name.trim()
-                      setInspectingPlanet(match)
+                      const match = filteredAndSortedPlanets[0]?.planet_name || filters.name.trim();
+                      setInspectingPlanet(match);
                     }}
                     className="absolute right-1.5 top-1.5 bottom-1.5 px-2.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 text-[11px] font-mono flex items-center space-x-1 transition-colors"
                     title="Inspect SHAP Waterfall for this target"
@@ -257,15 +274,19 @@ const Explorer = () => {
 
             {/* HZ Status */}
             <div>
-              <label className="block text-xs font-mono text-exosignal-text-muted mb-1">Habitable Zone Status</label>
+              <label className="block text-xs font-mono text-exosignal-text-muted mb-1">
+                Habitable Zone Status
+              </label>
               <select
                 name="hzStatus"
                 value={filters.hzStatus}
                 onChange={handleFilterChange}
                 className="w-full bg-space-void/90 border border-exosignal-cyan/30 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-exosignal-cyan"
               >
-                {HZ_OPTIONS.map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
+                {HZ_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
                 ))}
               </select>
             </div>
@@ -289,7 +310,9 @@ const Explorer = () => {
 
             {/* Sort Field */}
             <div>
-              <label className="block text-xs font-mono text-exosignal-text-muted mb-1">Sort Field</label>
+              <label className="block text-xs font-mono text-exosignal-text-muted mb-1">
+                Sort Field
+              </label>
               <div className="flex space-x-1">
                 <select
                   name="sortBy"
@@ -302,7 +325,12 @@ const Explorer = () => {
                 </select>
                 <button
                   type="button"
-                  onClick={() => setFilters(prev => ({ ...prev, sortOrder: prev.sortOrder === 'asc' ? 'desc' : 'asc' }))}
+                  onClick={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      sortOrder: prev.sortOrder === 'asc' ? 'desc' : 'asc',
+                    }))
+                  }
                   className="px-3 bg-space-void/90 border border-exosignal-cyan/30 rounded-xl text-exosignal-cyan font-mono hover:bg-space-card"
                   title="Toggle Sort Direction"
                 >
@@ -318,21 +346,37 @@ const Explorer = () => {
       <div className="space-y-4">
         <SectionDivider
           number="02"
-          title={viewMode === 'shap' ? "TreeSHAP Model Interpretability Subfeature" : "Catalog Targets & Observational Yield"}
-          subtitle={viewMode === 'shap' ? "Search any exoplanet to inspect exact local LightGBM feature contributions" : "Real-time paginated results with physical parameter profiles and ML priority scores"}
-          badge={viewMode === 'shap' ? `SHAP INSPECTOR: ${shapTarget}` : `${filteredAndSortedPlanets.length} MATCHING TARGETS`}
-          accent={viewMode === 'shap' ? "purple" : "cyan"}
+          title={
+            viewMode === 'shap'
+              ? 'TreeSHAP Model Interpretability Subfeature'
+              : 'Catalog Targets & Observational Yield'
+          }
+          subtitle={
+            viewMode === 'shap'
+              ? 'Search any exoplanet to inspect exact local feature contributions'
+              : 'Paginated results with physical parameter profiles and ML priority scores'
+          }
+          badge={
+            viewMode === 'shap'
+              ? `SHAP INSPECTOR: ${shapTarget}`
+              : `${filteredAndSortedPlanets.length} MATCHING TARGETS`
+          }
+          accent={viewMode === 'shap' ? 'purple' : 'cyan'}
         />
 
         {loading ? (
           <div className="py-20 flex flex-col items-center justify-center space-y-3">
             <div className="w-10 h-10 rounded-full border-4 border-exosignal-cyan/20 border-t-exosignal-cyan animate-spin"></div>
-            <p className="text-xs font-mono text-exosignal-text-muted">Querying DuckDB In-Memory Parquet Database...</p>
+            <p className="text-xs font-mono text-exosignal-text-muted">
+              Querying DuckDB In-Memory Parquet Database...
+            </p>
           </div>
         ) : error ? (
           <div className="glass-panel p-8 text-center text-rose-400 font-mono text-xs space-y-3">
             <p>Failed to query catalog: {error}</p>
-            <button onClick={() => refetch()} className="btn-secondary-glass text-xs">Retry Query</button>
+            <button onClick={() => refetch()} className="btn-secondary-glass text-xs">
+              Retry Query
+            </button>
           </div>
         ) : viewMode === 'shap' ? (
           /* ─── SHAP WATERFALL INSPECTOR SUBFEATURE ─── */
@@ -347,30 +391,36 @@ const Explorer = () => {
                     TreeSHAP Waterfall Feature Attribution Inspector
                   </h3>
                   <p className="text-xs text-exosignal-text-secondary font-mono mt-1">
-                    Search any exoplanet (e.g. "kepler 452 b", "TRAPPIST-1 e") to inspect its exact LightGBM attribution waterfall and ranking drivers.
+                    Search any exoplanet (e.g. "kepler 452 b", "TRAPPIST-1 e") to inspect its exact
+                    SHAP attribution waterfall and ranking drivers.
                   </p>
                 </div>
 
                 {/* Quick Benchmark Chips */}
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-[10px] font-mono text-exosignal-text-muted uppercase mr-1">Benchmarks:</span>
-                  {['Kepler-452 b', 'TRAPPIST-1 e', 'TOI-700 d', 'K2-18 b', 'WASP-96 b'].map((name) => (
-                    <button
-                      key={name}
-                      type="button"
-                      onClick={() => {
-                        setShapTarget(name)
-                        setShapSearchInput(name)
-                      }}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-mono font-semibold transition-all ${
-                        shapTarget.toLowerCase().replace(/[-\s_]/g, '') === name.toLowerCase().replace(/[-\s_]/g, '')
-                          ? 'bg-purple-500 text-white shadow-[0_0_12px_rgba(168,85,247,0.5)]'
-                          : 'bg-space-void/80 text-purple-300 border border-purple-500/30 hover:border-purple-400'
-                      }`}
-                    >
-                      {name}
-                    </button>
-                  ))}
+                  <span className="text-[10px] font-mono text-exosignal-text-muted uppercase mr-1">
+                    Benchmarks:
+                  </span>
+                  {['Kepler-452 b', 'TRAPPIST-1 e', 'TOI-700 d', 'K2-18 b', 'WASP-96 b'].map(
+                    (name) => (
+                      <button
+                        key={name}
+                        type="button"
+                        onClick={() => {
+                          setShapTarget(name);
+                          setShapSearchInput(name);
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-mono font-semibold transition-all ${
+                          shapTarget.toLowerCase().replace(/[-\s_]/g, '') ===
+                          name.toLowerCase().replace(/[-\s_]/g, '')
+                            ? 'bg-purple-500 text-white shadow-[0_0_12px_rgba(168,85,247,0.5)]'
+                            : 'bg-space-void/80 text-purple-300 border border-purple-500/30 hover:border-purple-400'
+                        }`}
+                      >
+                        {name}
+                      </button>
+                    )
+                  )}
                 </div>
               </div>
 
@@ -384,25 +434,25 @@ const Explorer = () => {
                     type="text"
                     value={shapSearchInput}
                     onChange={(e) => {
-                      setShapSearchInput(e.target.value)
+                      setShapSearchInput(e.target.value);
                       if (e.target.value.trim().length >= 2) {
-                        const matched = planets.find(p => 
+                        const matched = planets.find((p) =>
                           normalizeStr(p.planet_name).includes(normalizeStr(e.target.value))
-                        )
+                        );
                         if (matched) {
-                          setShapTarget(matched.planet_name)
+                          setShapTarget(matched.planet_name);
                         }
                       }
                     }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && shapSearchInput.trim()) {
-                        const matched = planets.find(p => 
+                        const matched = planets.find((p) =>
                           normalizeStr(p.planet_name).includes(normalizeStr(shapSearchInput))
-                        )
+                        );
                         if (matched) {
-                          setShapTarget(matched.planet_name)
+                          setShapTarget(matched.planet_name);
                         } else {
-                          setShapTarget(shapSearchInput.trim())
+                          setShapTarget(shapSearchInput.trim());
                         }
                       }
                     }}
@@ -415,13 +465,15 @@ const Explorer = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      const matched = planets.find(p => 
-                        normalizeStr(p.planet_name).includes(normalizeStr(shapSearchInput || filters.name))
-                      )
+                      const matched = planets.find((p) =>
+                        normalizeStr(p.planet_name).includes(
+                          normalizeStr(shapSearchInput || filters.name)
+                        )
+                      );
                       if (matched) {
-                        setShapTarget(matched.planet_name)
+                        setShapTarget(matched.planet_name);
                       } else if (shapSearchInput.trim()) {
-                        setShapTarget(shapSearchInput.trim())
+                        setShapTarget(shapSearchInput.trim());
                       }
                     }}
                     className="w-full py-2.5 px-4 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/50 font-mono text-xs font-bold transition-all shadow-sm"
@@ -435,19 +487,27 @@ const Explorer = () => {
               {activeShapPlanet && (
                 <div className="flex flex-wrap items-center justify-between gap-3 bg-space-void/90 p-4 rounded-xl border border-purple-500/20 font-mono text-xs">
                   <div className="flex items-center space-x-3">
-                    <span className="text-white font-bold text-sm">{activeShapPlanet.planet_name}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      activeShapPlanet.hz_status === 'Inside HZ' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700/40 text-slate-300'
-                    }`}>
+                    <span className="text-white font-bold text-sm">
+                      {activeShapPlanet.planet_name}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        activeShapPlanet.hz_status === 'Inside HZ'
+                          ? 'bg-emerald-500/20 text-emerald-400'
+                          : 'bg-slate-700/40 text-slate-300'
+                      }`}
+                    >
                       {activeShapPlanet.hz_status || 'Outside HZ'}
                     </span>
                     <span className="text-exosignal-text-muted">
-                      Radius: {formatRadius(activeShapPlanet.planet_radius)} • Period: {formatPeriod(activeShapPlanet.orbital_period)}
+                      Radius: {formatRadius(activeShapPlanet.planet_radius)} • Period:{' '}
+                      {formatPeriod(activeShapPlanet.orbital_period)}
                     </span>
                   </div>
                   <div className="flex items-center space-x-3">
                     <span className="text-purple-400 font-bold">
-                      Score: {formatPriority(activeShapPlanet.priority_score ?? activeShapPlanet.ml_priority_score ?? activeShapPlanet.target_priority_score)}/100
+                      Score: <PriorityScoreDisplay planet={activeShapPlanet} />
+                      /100
                     </span>
                     {activeShapPlanet.priority_rank && (
                       <span className="text-amber-400 font-bold">
@@ -474,7 +534,7 @@ const Explorer = () => {
           /* ─── CARD GRID VIEW ─── */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {paginatedPlanets.map((planet) => {
-              const isFav = isFavorite(planet.planet_name)
+              const isFav = isFavorite(planet.planet_name);
               return (
                 <div
                   key={planet.planet_name}
@@ -482,13 +542,15 @@ const Explorer = () => {
                 >
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                        planet.hz_status === 'Inside HZ'
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                          : planet.hz_status === 'Near HZ'
-                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                          : 'bg-slate-700/30 text-slate-400 border border-slate-600/30'
-                      }`}>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                          planet.hz_status === 'Inside HZ'
+                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                            : planet.hz_status === 'Near HZ'
+                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                              : 'bg-slate-700/30 text-slate-400 border border-slate-600/30'
+                        }`}
+                      >
                         {planet.hz_status || 'Outside HZ'}
                       </span>
                       <button
@@ -508,26 +570,38 @@ const Explorer = () => {
                     </Link>
 
                     <div className="text-[11px] font-mono text-exosignal-text-muted mb-3 truncate">
-                      Host: {planet.hostname || planet.stellar_name || planet.planet_name?.replace(/\s+[a-z]$/i, '') || '—'}
+                      Host:{' '}
+                      {planet.hostname ||
+                        planet.stellar_name ||
+                        planet.planet_name?.replace(/\s+[a-z]$/i, '') ||
+                        '—'}
                     </div>
 
                     {/* Physical Parameters Pill Grid */}
                     <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-space-void/60 p-2.5 rounded-xl border border-exosignal-cyan/10 mb-4">
                       <div>
                         <span className="text-[10px] text-exosignal-text-muted block">Radius</span>
-                        <span className="text-white font-semibold">{formatRadius(planet.planet_radius)}</span>
+                        <span className="text-white font-semibold">
+                          {formatRadius(planet.planet_radius)}
+                        </span>
                       </div>
                       <div>
                         <span className="text-[10px] text-exosignal-text-muted block">Period</span>
-                        <span className="text-white font-semibold">{formatPeriod(planet.orbital_period)}</span>
+                        <span className="text-white font-semibold">
+                          {formatPeriod(planet.orbital_period)}
+                        </span>
                       </div>
                       <div>
                         <span className="text-[10px] text-exosignal-text-muted block">Temp</span>
-                        <span className="text-white font-semibold">{formatTemperature(planet.equilibrium_temperature)}</span>
+                        <span className="text-white font-semibold">
+                          {formatTemperature(planet.equilibrium_temperature)}
+                        </span>
                       </div>
                       <div>
                         <span className="text-[10px] text-exosignal-text-muted block">Anomaly</span>
-                        <span className="text-amber-400 font-semibold">{formatAnomaly(planet.anomaly_score)}</span>
+                        <span className="text-amber-400 font-semibold">
+                          {formatAnomaly(planet.anomaly_score)}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -538,14 +612,17 @@ const Explorer = () => {
                       <span className="text-exosignal-text-muted">
                         Priority Score {planet.priority_rank ? `(#${planet.priority_rank})` : ''}
                       </span>
-                      <span className="text-exosignal-cyan font-bold text-sm">
-                        {formatPriority(planet.priority_score ?? planet.ml_priority_score ?? planet.target_priority_score)}
-                      </span>
+                      <PriorityScoreDisplay
+                        planet={planet}
+                        className="text-exosignal-cyan font-bold text-sm"
+                      />
                     </div>
                     <div className="w-full bg-space-void rounded-full h-1.5 overflow-hidden">
                       <div
                         className="bg-gradient-to-r from-exosignal-cyan to-exosignal-purple h-full rounded-full"
-                        style={{ width: `${Math.min(Math.max(planet.priority_score ?? planet.ml_priority_score ?? planet.target_priority_score ?? 0, 5), 100)}%` }}
+                        style={{
+                          width: `${planet.priority_score != null ? Math.min(Math.max(planet.priority_score, 5), 100) : 0}%`,
+                        }}
                       ></div>
                     </div>
 
@@ -574,7 +651,7 @@ const Explorer = () => {
                     </div>
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         ) : (
@@ -597,7 +674,10 @@ const Explorer = () => {
                 </thead>
                 <tbody className="divide-y divide-exosignal-cyan/10">
                   {paginatedPlanets.map((planet) => (
-                    <tr key={planet.planet_name} className="hover:bg-space-card-hover transition-colors">
+                    <tr
+                      key={planet.planet_name}
+                      className="hover:bg-space-card-hover transition-colors"
+                    >
                       <td className="py-3 px-4 font-mono font-bold text-amber-400">
                         {planet.priority_rank ? `#${planet.priority_rank}` : '—'}
                       </td>
@@ -609,23 +689,33 @@ const Explorer = () => {
                           {planet.planet_name}
                         </Link>
                       </td>
-                      <td className="py-3 px-4 text-exosignal-text-secondary">{formatRadius(planet.planet_radius)}</td>
-                      <td className="py-3 px-4 text-exosignal-text-secondary">{formatPeriod(planet.orbital_period)}</td>
-                      <td className="py-3 px-4 text-exosignal-text-secondary">{formatTemperature(planet.equilibrium_temperature)}</td>
+                      <td className="py-3 px-4 text-exosignal-text-secondary">
+                        {formatRadius(planet.planet_radius)}
+                      </td>
+                      <td className="py-3 px-4 text-exosignal-text-secondary">
+                        {formatPeriod(planet.orbital_period)}
+                      </td>
+                      <td className="py-3 px-4 text-exosignal-text-secondary">
+                        {formatTemperature(planet.equilibrium_temperature)}
+                      </td>
                       <td className="py-3 px-4">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          planet.hz_status === 'Inside HZ'
-                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                            : planet.hz_status === 'Near HZ'
-                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                            : 'bg-slate-700/30 text-slate-400 border border-slate-600/30'
-                        }`}>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            planet.hz_status === 'Inside HZ'
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                              : planet.hz_status === 'Near HZ'
+                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                                : 'bg-slate-700/30 text-slate-400 border border-slate-600/30'
+                          }`}
+                        >
                           {planet.hz_status || 'Outside HZ'}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-amber-400 font-semibold">{formatAnomaly(planet.anomaly_score)}</td>
+                      <td className="py-3 px-4 text-amber-400 font-semibold">
+                        {formatAnomaly(planet.anomaly_score)}
+                      </td>
                       <td className="py-3 px-4 text-exosignal-cyan font-bold text-sm">
-                        {formatPriority(planet.priority_score ?? planet.ml_priority_score ?? planet.target_priority_score)}
+                        <PriorityScoreDisplay planet={planet} />
                       </td>
                       <td className="py-3 px-4 text-right space-x-2">
                         <button
@@ -655,18 +745,19 @@ const Explorer = () => {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-xs pt-4">
             <div className="text-exosignal-text-muted">
               Page <span className="text-white font-bold">{currentPage}</span> of{' '}
-              <span className="text-white font-bold">{totalPages}</span> ({filteredAndSortedPlanets.length} total targets)
+              <span className="text-white font-bold">{totalPages}</span> (
+              {filteredAndSortedPlanets.length} total targets)
             </div>
             <div className="flex items-center space-x-2">
               <button
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
                 className="px-3 py-1.5 rounded-lg bg-space-void border border-exosignal-cyan/30 text-white disabled:opacity-40 hover:bg-space-card"
               >
                 ← Previous
               </button>
               <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                 disabled={currentPage >= totalPages}
                 className="px-3 py-1.5 rounded-lg bg-space-void border border-exosignal-cyan/30 text-white disabled:opacity-40 hover:bg-space-card"
               >
@@ -689,7 +780,7 @@ const Explorer = () => {
                     TreeSHAP Waterfall — {inspectingPlanet}
                   </h3>
                   <p className="text-xs font-mono text-exosignal-text-muted">
-                    Exact local feature attributions via LightGBM C++ TreeSHAP engine
+                    Exact local feature attributions via SHAP attribution engine
                   </p>
                 </div>
               </div>
@@ -715,7 +806,7 @@ const Explorer = () => {
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default Explorer
+export default Explorer;

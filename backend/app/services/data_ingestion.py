@@ -1,11 +1,11 @@
 """Data ingestion service for Exoplanet data."""
 
-import pandas as pd
-import os
 import json
 from pathlib import Path
-import requests
 from typing import Optional
+
+import pandas as pd
+import requests
 
 from app.config import settings
 
@@ -18,7 +18,7 @@ class DataIngestion:
         self.processed_dir = Path(processed_dir or settings.PROCESSED_DATA_DIR)
         self.exoplanet_archive_url = (
             "https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query="
-            "select+pl_name,pl_rade,pl_bmasse,pl_orbper,pl_orbsmax,pl_eqt,pl_orbeccen,"
+            "select+pl_name,hostname,pl_rade,pl_bmasse,pl_orbper,pl_orbsmax,pl_eqt,pl_orbeccen,"
             "st_teff,st_rad,st_mass,st_met,st_lum,sy_dist,sy_jmag,sy_kmag,"
             "discoverymethod,disc_year,tran_flag+from+pscomppars&format=csv"
         )
@@ -48,16 +48,12 @@ class DataIngestion:
         Returns:
             DataFrame if successful, None if download fails
         """
-        import hashlib
         import datetime
+        import hashlib
         from io import StringIO
 
         try:
-            response = requests.get(
-                self.exoplanet_archive_url,
-                timeout=timeout,
-                headers={"Accept": "text/csv"}
-            )
+            response = requests.get(self.exoplanet_archive_url, timeout=timeout, headers={"Accept": "text/csv"})
             response.raise_for_status()
 
             df = pd.read_csv(StringIO(response.text))
@@ -78,7 +74,7 @@ class DataIngestion:
                 "download_date": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "sha256": sha256,
                 "row_count": len(df),
-                "file": cache_path.name
+                "file": cache_path.name,
             }
             with open(self.raw_dir / "manifest.json", "w") as f:
                 json.dump(manifest, f, indent=2)

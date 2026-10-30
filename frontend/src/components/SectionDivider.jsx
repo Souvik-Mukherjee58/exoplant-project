@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'react';
 
 /**
  * SectionDivider - Cosmic dividing line with glowing accent badge and metadata
@@ -12,7 +12,7 @@ const SectionDivider = ({
   icon,
   accent = 'cyan', // 'cyan' | 'purple' | 'emerald' | 'amber'
   align = 'left',
-  className = ''
+  className = '',
 }) => {
   const accentClasses = {
     cyan: {
@@ -21,7 +21,7 @@ const SectionDivider = ({
       text: 'text-exosignal-cyan',
       border: 'border-exosignal-cyan/30',
       bgBadge: 'bg-exosignal-cyan/10 text-exosignal-cyan border-exosignal-cyan/30',
-      dot: 'bg-exosignal-cyan shadow-[0_0_8px_#38bdf8]'
+      dot: 'bg-exosignal-cyan shadow-[0_0_8px_#38bdf8]',
     },
     purple: {
       lineLeft: 'from-transparent via-exosignal-purple/25 to-exosignal-purple/60',
@@ -29,7 +29,7 @@ const SectionDivider = ({
       text: 'text-exosignal-purple',
       border: 'border-exosignal-purple/30',
       bgBadge: 'bg-exosignal-purple/10 text-purple-300 border-purple-500/30',
-      dot: 'bg-exosignal-purple shadow-[0_0_8px_#a855f7]'
+      dot: 'bg-exosignal-purple shadow-[0_0_8px_#a855f7]',
     },
     emerald: {
       lineLeft: 'from-transparent via-emerald-400/25 to-emerald-400/60',
@@ -37,7 +37,7 @@ const SectionDivider = ({
       text: 'text-emerald-400',
       border: 'border-emerald-400/30',
       bgBadge: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
-      dot: 'bg-emerald-400 shadow-[0_0_8px_#10b981]'
+      dot: 'bg-emerald-400 shadow-[0_0_8px_#10b981]',
     },
     amber: {
       lineLeft: 'from-transparent via-amber-400/25 to-amber-400/60',
@@ -45,22 +45,24 @@ const SectionDivider = ({
       text: 'text-amber-400',
       border: 'border-amber-400/30',
       bgBadge: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
-      dot: 'bg-amber-400 shadow-[0_0_8px_#f59e0b]'
-    }
-  }
+      dot: 'bg-amber-400 shadow-[0_0_8px_#f59e0b]',
+    },
+  };
 
-  const currentTheme = accentClasses[accent] || accentClasses.cyan
+  const currentTheme = accentClasses[accent] || accentClasses.cyan;
 
   return (
     <div className={`relative pt-6 pb-2 ${className}`}>
       {/* Top Luminous Dividing Border */}
       <div className="relative flex items-center justify-between mb-4">
         <div className={`h-[1px] flex-1 bg-gradient-to-r ${currentTheme.lineLeft}`}></div>
-        
+
         {/* Center/Anchor Chapter Badge */}
         <div className="mx-4 flex items-center space-x-2">
           {number && (
-            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-widest border ${currentTheme.bgBadge}`}>
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-widest border ${currentTheme.bgBadge}`}
+            >
               Section {number}
             </span>
           )}
@@ -94,7 +96,7 @@ const SectionDivider = ({
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default SectionDivider
+export default SectionDivider;

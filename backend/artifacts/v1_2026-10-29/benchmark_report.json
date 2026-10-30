@@ -1,0 +1,2854 @@
+{
+  "evaluation_split": "test",
+  "n_positives": 32,
+  "n_eligible": 4643,
+  "n_positive_hosts": 24,
+  "train_set_size": 2791,
+  "val_set_size": 914,
+  "test_set_size": 938,
+  "eval_set_size": 4643,
+  "eval_positive_rate": 0.0069,
+  "primary_metric": "ap",
+  "primary_metric_justification": "Average Precision (AP / PR-AUC) measures the full precision-recall tradeoff across the candidate pool, properly accounting for severe target imbalance (32 positives among 4,643 eligible planets).",
+  "selected_production_model": {
+    "model_name": "Logistic Regression (Variant A - All Features)",
+    "algorithm": "Regularized Logistic Regression (Balanced L2, Standardized Log-Transformed Features)",
+    "mean_ap": 0.4597,
+    "mean_ap_std": 0.2476,
+    "ap_ci95": [
+      0.3599,
+      0.5687
+    ],
+    "mean_recall50": 0.7459,
+    "mean_ndcg25": 0.6017,
+    "linear_shap_supported": true,
+    "score_diversity": {
+      "total_candidates": 4643,
+      "distinct_scores_total": 4643,
+      "distinct_scores_percentage": 100.0,
+      "top_50_distinct_scores": 50,
+      "top_50_ties_count": 0,
+      "top_50_tie_percentage": 0.0,
+      "tie_breaking_policy": "Deterministic multi-key tie-breaker: 1. Raw continuous score descending; 2. TSM descending; 3. Distance ascending; 4. Planet name ascending."
+    },
+    "calibration": {
+      "reliability_bins": [
+        {
+          "bin_range": "[0.00, 0.20]",
+          "planet_count": 4131,
+          "mean_priority_score": 0.0092,
+          "empirical_positive_rate": 0.0
+        },
+        {
+          "bin_range": "[0.20, 0.40]",
+          "planet_count": 159,
+          "mean_priority_score": 0.2895,
+          "empirical_positive_rate": 0.0063
+        },
+        {
+          "bin_range": "[0.40, 0.60]",
+          "planet_count": 103,
+          "mean_priority_score": 0.4934,
+          "empirical_positive_rate": 0.0
+        },
+        {
+          "bin_range": "[0.60, 0.80]",
+          "planet_count": 103,
+          "mean_priority_score": 0.6929,
+          "empirical_positive_rate": 0.0097
+        },
+        {
+          "bin_range": "[0.80, 1.00]",
+          "planet_count": 147,
+          "mean_priority_score": 0.9195,
+          "empirical_positive_rate": 0.2041
+        }
+      ],
+      "calibration_nature": "monotonic_ranking_score",
+      "calibration_statement": "Scores represent prioritized ranking scores designed for spectroscopic telescope follow-up, NOT uncalibrated posterior probabilities. Because balanced class weighting (class_weight='balanced') was applied to address severe 0.69% positive prevalence, output scores strictly optimize target ordering."
+    }
+  },
+  "models_evaluated": 9,
+  "leaderboard": [
+    {
+      "model_name": "Logistic Regression (Variant A - All Features)",
+      "precision@5": 0.416,
+      "precision@5_std": 0.2587,
+      "precision@5_ci95": [
+        0.312,
+        0.5122
+      ],
+      "precision@5_display": "0.4160 \u00b1 0.2587 [0.3120, 0.5122]",
+      "precision@10": 0.32,
+      "precision@10_std": 0.2227,
+      "precision@10_ci95": [
+        0.236,
+        0.408
+      ],
+      "precision@10_display": "0.3200 \u00b1 0.2227 [0.2360, 0.4080]",
+      "precision@20": 0.21,
+      "precision@20_std": 0.1442,
+      "precision@20_ci95": [
+        0.152,
+        0.268
+      ],
+      "precision@20_display": "0.2100 \u00b1 0.1442 [0.1520, 0.2680]",
+      "precision@25": 0.1776,
+      "precision@25_std": 0.1137,
+      "precision@25_ci95": [
+        0.1328,
+        0.224
+      ],
+      "precision@25_display": "0.1776 \u00b1 0.1137 [0.1328, 0.2240]",
+      "recall@10": 0.4996,
+      "recall@10_std": 0.2524,
+      "recall@10_ci95": [
+        0.403,
+        0.612
+      ],
+      "recall@10_display": "0.4996 \u00b1 0.2524 [0.4030, 0.6120]",
+      "recall@25": 0.6708,
+      "recall@25_std": 0.2573,
+      "recall@25_ci95": [
+        0.5716,
+        0.7708
+      ],
+      "recall@25_display": "0.6708 \u00b1 0.2573 [0.5716, 0.7708]",
+      "recall@50": 0.7459,
+      "recall@50_std": 0.2428,
+      "recall@50_ci95": [
+        0.6437,
+        0.8357
+      ],
+      "recall@50_display": "0.7459 \u00b1 0.2428 [0.6437, 0.8357]",
+      "recall@100": 0.859,
+      "recall@100_std": 0.2042,
+      "recall@100_ci95": [
+        0.7642,
+        0.927
+      ],
+      "recall@100_display": "0.8590 \u00b1 0.2042 [0.7642, 0.9270]",
+      "ndcg@10": 0.5337,
+      "ndcg@10_std": 0.2634,
+      "ndcg@10_ci95": [
+        0.4255,
+        0.6485
+      ],
+      "ndcg@10_display": "0.5337 \u00b1 0.2634 [0.4255, 0.6485]",
+      "ndcg@25": 0.6017,
+      "ndcg@25_std": 0.2491,
+      "ndcg@25_ci95": [
+        0.4998,
+        0.707
+      ],
+      "ndcg@25_display": "0.6017 \u00b1 0.2491 [0.4998, 0.7070]",
+      "ap": 0.4597,
+      "ap_std": 0.2476,
+      "ap_ci95": [
+        0.3599,
+        0.5687
+      ],
+      "ap_display": "0.4597 \u00b1 0.2476 [0.3599, 0.5687]",
+      "map": 0.4597,
+      "map_std": 0.2476,
+      "map_ci95": [
+        0.3599,
+        0.5687
+      ],
+      "map_display": "0.4597 \u00b1 0.2476 [0.3599, 0.5687]",
+      "pr_auc": 0.4597,
+      "pr_auc_std": 0.2476,
+      "pr_auc_ci95": [
+        0.3599,
+        0.5687
+      ],
+      "pr_auc_display": "0.4597 \u00b1 0.2476 [0.3599, 0.5687]",
+      "paired_vs_tsm_ap": {
+        "diff_mean": 0.235,
+        "diff_std": 0.2316,
+        "ci_95": [
+          0.1443,
+          0.3275
+        ],
+        "ci_includes_zero": false,
+        "is_significant": true,
+        "statement": "statistically significant improvement"
+      },
+      "paired_vs_tsm_ndcg25": {
+        "diff_mean": 0.2115,
+        "diff_std": 0.257,
+        "ci_95": [
+          0.1117,
+          0.3125
+        ],
+        "ci_includes_zero": false,
+        "is_significant": true,
+        "statement": "statistically significant improvement"
+      },
+      "paired_vs_tsm_p10": {
+        "diff_mean": 0.096,
+        "diff_std": 0.22,
+        "ci_95": [
+          0.016,
+          0.184
+        ],
+        "ci_includes_zero": false,
+        "is_significant": true,
+        "statement": "statistically significant improvement"
+      },
+      "paired_vs_tsm_p25": {
+        "diff_mean": 0.0592,
+        "diff_std": 0.0974,
+        "ci_95": [
+          0.024,
+          0.0976
+        ],
+        "ci_includes_zero": false,
+        "is_significant": true,
+        "statement": "statistically significant improvement"
+      }
+    },
+    {
+      "model_name": "Logistic Regression (Variant B - Raw Features Only)",
+      "precision@5": 0.392,
+      "precision@5_std": 0.2741,
+      "precision@5_ci95": [
+        0.288,
+        0.504
+      ],
+      "precision@5_display": "0.3920 \u00b1 0.2741 [0.2880, 0.5040]",
+      "precision@10": 0.292,
+      "precision@10_std": 0.1958,
+      "precision@10_ci95": [
+        0.22,
+        0.372
+      ],
+      "precision@10_display": "0.2920 \u00b1 0.1958 [0.2200, 0.3720]",
+      "precision@20": 0.188,
+      "precision@20_std": 0.1259,
+      "precision@20_ci95": [
+        0.14,
+        0.238
+      ],
+      "precision@20_display": "0.1880 \u00b1 0.1259 [0.1400, 0.2380]",
+      "precision@25": 0.16,
+      "precision@25_std": 0.1037,
+      "precision@25_ci95": [
+        0.1184,
+        0.2016
+      ],
+      "precision@25_display": "0.1600 \u00b1 0.1037 [0.1184, 0.2016]",
+      "recall@10": 0.468,
+      "recall@10_std": 0.2367,
+      "recall@10_ci95": [
+        0.3775,
+        0.5694
+      ],
+      "recall@10_display": "0.4680 \u00b1 0.2367 [0.3775, 0.5694]",
+      "recall@25": 0.6212,
+      "recall@25_std": 0.2671,
+      "recall@25_ci95": [
+        0.5164,
+        0.7313
+      ],
+      "recall@25_display": "0.6212 \u00b1 0.2671 [0.5164, 0.7313]",
+      "recall@50": 0.71,
+      "recall@50_std": 0.2587,
+      "recall@50_ci95": [
+        0.6057,
+        0.8106
+      ],
+      "recall@50_display": "0.7100 \u00b1 0.2587 [0.6057, 0.8106]",
+      "recall@100": 0.8299,
+      "recall@100_std": 0.2188,
+      "recall@100_ci95": [
+        0.7332,
+        0.9074
+      ],
+      "recall@100_display": "0.8299 \u00b1 0.2188 [0.7332, 0.9074]",
+      "ndcg@10": 0.457,
+      "ndcg@10_std": 0.2072,
+      "ndcg@10_ci95": [
+        0.3729,
+        0.5406
+      ],
+      "ndcg@10_display": "0.4570 \u00b1 0.2072 [0.3729, 0.5406]",
+      "ndcg@25": 0.5167,
+      "ndcg@25_std": 0.203,
+      "ndcg@25_ci95": [
+        0.4309,
+        0.5914
+      ],
+      "ndcg@25_display": "0.5167 \u00b1 0.2030 [0.4309, 0.5914]",
+      "ap": 0.37,
+      "ap_std": 0.1794,
+      "ap_ci95": [
+        0.2986,
+        0.4437
+      ],
+      "ap_display": "0.3700 \u00b1 0.1794 [0.2986, 0.4437]",
+      "map": 0.37,
+      "map_std": 0.1794,
+      "map_ci95": [
+        0.2986,
+        0.4437
+      ],
+      "map_display": "0.3700 \u00b1 0.1794 [0.2986, 0.4437]",
+      "pr_auc": 0.37,
+      "pr_auc_std": 0.1794,
+      "pr_auc_ci95": [
+        0.2986,
+        0.4437
+      ],
+      "pr_auc_display": "0.3700 \u00b1 0.1794 [0.2986, 0.4437]",
+      "paired_vs_tsm_ap": {
+        "diff_mean": 0.1453,
+        "diff_std": 0.2062,
+        "ci_95": [
+          0.0684,
+          0.2231
+        ],
+        "ci_includes_zero": false,
+        "is_significant": true,
+        "statement": "statistically significant improvement"
+      },
+      "paired_vs_tsm_ndcg25": {
+        "diff_mean": 0.1264,
+        "diff_std": 0.2522,
+        "ci_95": [
+          0.0316,
+          0.224
+        ],
+        "ci_includes_zero": false,
+        "is_significant": true,
+        "statement": "statistically significant improvement"
+      },
+      "paired_vs_tsm_p10": {
+        "diff_mean": 0.068,
+        "diff_std": 0.2167,
+        "ci_95": [
+          -0.008,
+          0.1521
+        ],
+        "ci_includes_zero": true,
+        "is_significant": false,
+        "statement": "no significant difference"
+      },
+      "paired_vs_tsm_p25": {
+        "diff_mean": 0.0416,
+        "diff_std": 0.095,
+        "ci_95": [
+          0.0064,
+          0.0784
+        ],
+        "ci_includes_zero": false,
+        "is_significant": true,
+        "statement": "statistically significant improvement"
+      }
+    },
+    {
+      "model_name": "Model A (LightGBM - All Features)",
+      "precision@5": 0.216,
+      "precision@5_std": 0.1782,
+      "precision@5_ci95": [
+        0.152,
+        0.288
+      ],
+      "precision@5_display": "0.2160 \u00b1 0.1782 [0.1520, 0.2880]",
+      "precision@10": 0.224,
+      "precision@10_std": 0.1656,
+      "precision@10_ci95": [
+        0.164,
+        0.292
+      ],
+      "precision@10_display": "0.2240 \u00b1 0.1656 [0.1640, 0.2920]",
+      "precision@20": 0.168,
+      "precision@20_std": 0.1287,
+      "precision@20_ci95": [
+        0.12,
+        0.222
+      ],
+      "precision@20_display": "0.1680 \u00b1 0.1287 [0.1200, 0.2220]",
+      "precision@25": 0.1472,
+      "precision@25_std": 0.1078,
+      "precision@25_ci95": [
+        0.1072,
+        0.1904
+      ],
+      "precision@25_display": "0.1472 \u00b1 0.1078 [0.1072, 0.1904]",
+      "recall@10": 0.3537,
+      "recall@10_std": 0.2244,
+      "recall@10_ci95": [
+        0.27,
+        0.4468
+      ],
+      "recall@10_display": "0.3537 \u00b1 0.2244 [0.2700, 0.4468]",
+      "recall@25": 0.5564,
+      "recall@25_std": 0.2569,
+      "recall@25_ci95": [
+        0.4521,
+        0.6557
+      ],
+      "recall@25_display": "0.5564 \u00b1 0.2569 [0.4521, 0.6557]",
+      "recall@50": 0.7634,
+      "recall@50_std": 0.2253,
+      "recall@50_ci95": [
+        0.6737,
+        0.8512
+      ],
+      "recall@50_display": "0.7634 \u00b1 0.2253 [0.6737, 0.8512]",
+      "recall@100": 0.8467,
+      "recall@100_std": 0.1864,
+      "recall@100_ci95": [
+        0.7708,
+        0.9162
+      ],
+      "recall@100_display": "0.8467 \u00b1 0.1864 [0.7708, 0.9162]",
+      "ndcg@10": 0.3127,
+      "ndcg@10_std": 0.2145,
+      "ndcg@10_ci95": [
+        0.2341,
+        0.4039
+      ],
+      "ndcg@10_display": "0.3127 \u00b1 0.2145 [0.2341, 0.4039]",
+      "ndcg@25": 0.3988,
+      "ndcg@25_std": 0.2133,
+      "ndcg@25_ci95": [
+        0.319,
+        0.4877
+      ],
+      "ndcg@25_display": "0.3988 \u00b1 0.2133 [0.3190, 0.4877]",
+      "ap": 0.2673,
+      "ap_std": 0.1986,
+      "ap_ci95": [
+        0.195,
+        0.3539
+      ],
+      "ap_display": "0.2673 \u00b1 0.1986 [0.1950, 0.3539]",
+      "map": 0.2673,
+      "map_std": 0.1986,
+      "map_ci95": [
+        0.195,
+        0.3539
+      ],
+      "map_display": "0.2673 \u00b1 0.1986 [0.1950, 0.3539]",
+      "pr_auc": 0.2673,
+      "pr_auc_std": 0.1986,
+      "pr_auc_ci95": [
+        0.195,
+        0.3539
+      ],
+      "pr_auc_display": "0.2673 \u00b1 0.1986 [0.1950, 0.3539]",
+      "paired_vs_tsm_ap": {
+        "diff_mean": 0.0426,
+        "diff_std": 0.21,
+        "ci_95": [
+          -0.0396,
+          0.1291
+        ],
+        "ci_includes_zero": true,
+        "is_significant": false,
+        "statement": "no significant difference"
+      },
+      "paired_vs_tsm_ndcg25": {
+        "diff_mean": 0.0086,
+        "diff_std": 0.2516,
+        "ci_95": [
+          -0.0887,
+          0.1078
+        ],
+        "ci_includes_zero": true,
+        "is_significant": false,
+        "statement": "no significant difference"
+      },
+      "paired_vs_tsm_p10": {
+        "diff_mean": 0.0,
+        "diff_std": 0.1811,
+        "ci_95": [
+          -0.064,
+          0.0681
+        ],
+        "ci_includes_zero": true,
+        "is_significant": false,
+        "statement": "no significant difference"
+      },
+      "paired_vs_tsm_p25": {
+        "diff_mean": 0.0288,
+        "diff_std": 0.1058,
+        "ci_95": [
+          -0.008,
+          0.0704
+        ],
+        "ci_includes_zero": true,
+        "is_significant": false,
+        "statement": "no significant difference"
+      }
+    },
+    {
+      "model_name": "Distance-Only Baseline",
+      "precision@5": 0.224,
+      "precision@5_std": 0.1986,
+      "precision@5_ci95": [
+        0.144,
+        0.304
+      ],
+      "precision@5_display": "0.2240 \u00b1 0.1986 [0.1440, 0.3040]",
+      "precision@10": 0.248,
+      "precision@10_std": 0.2193,
+      "precision@10_ci95": [
+        0.164,
+        0.3401
+      ],
+      "precision@10_display": "0.2480 \u00b1 0.2193 [0.1640, 0.3401]",
+      "precision@20": 0.182,
+      "precision@20_std": 0.1503,
+      "precision@20_ci95": [
+        0.126,
+        0.246
+      ],
+      "precision@20_display": "0.1820 \u00b1 0.1503 [0.1260, 0.2460]",
+      "precision@25": 0.1472,
+      "precision@25_std": 0.1228,
+      "precision@25_ci95": [
+        0.1024,
+        0.1984
+      ],
+      "precision@25_display": "0.1472 \u00b1 0.1228 [0.1024, 0.1984]",
+      "recall@10": 0.3999,
+      "recall@10_std": 0.2659,
+      "recall@10_ci95": [
+        0.3028,
+        0.5051
+      ],
+      "recall@10_display": "0.3999 \u00b1 0.2659 [0.3028, 0.5051]",
+      "recall@25": 0.5484,
+      "recall@25_std": 0.2438,
+      "recall@25_ci95": [
+        0.453,
+        0.6411
+      ],
+      "recall@25_display": "0.5484 \u00b1 0.2438 [0.4530, 0.6411]",
+      "recall@50": 0.6148,
+      "recall@50_std": 0.225,
+      "recall@50_ci95": [
+        0.522,
+        0.7032
+      ],
+      "recall@50_display": "0.6148 \u00b1 0.2250 [0.5220, 0.7032]",
+      "recall@100": 0.7095,
+      "recall@100_std": 0.2188,
+      "recall@100_ci95": [
+        0.6153,
+        0.7881
+      ],
+      "recall@100_display": "0.7095 \u00b1 0.2188 [0.6153, 0.7881]",
+      "ndcg@10": 0.3038,
+      "ndcg@10_std": 0.1787,
+      "ndcg@10_ci95": [
+        0.2379,
+        0.376
+      ],
+      "ndcg@10_display": "0.3038 \u00b1 0.1787 [0.2379, 0.3760]",
+      "ndcg@25": 0.3701,
+      "ndcg@25_std": 0.1742,
+      "ndcg@25_ci95": [
+        0.3013,
+        0.4429
+      ],
+      "ndcg@25_display": "0.3701 \u00b1 0.1742 [0.3013, 0.4429]",
+      "ap": 0.2555,
+      "ap_std": 0.1811,
+      "ap_ci95": [
+        0.1874,
+        0.3314
+      ],
+      "ap_display": "0.2555 \u00b1 0.1811 [0.1874, 0.3314]",
+      "map": 0.2555,
+      "map_std": 0.1811,
+      "map_ci95": [
+        0.1874,
+        0.3314
+      ],
+      "map_display": "0.2555 \u00b1 0.1811 [0.1874, 0.3314]",
+      "pr_auc": 0.2555,
+      "pr_auc_std": 0.1811,
+      "pr_auc_ci95": [
+        0.1874,
+        0.3314
+      ],
+      "pr_auc_display": "0.2555 \u00b1 0.1811 [0.1874, 0.3314]",
+      "paired_vs_tsm_ap": {
+        "diff_mean": 0.0308,
+        "diff_std": 0.2585,
+        "ci_95": [
+          -0.0704,
+          0.1339
+        ],
+        "ci_includes_zero": true,
+        "is_significant": false,
+        "statement": "no significant difference"
+      },
+      "paired_vs_tsm_ndcg25": {
+        "diff_mean": -0.0201,
+        "diff_std": 0.2699,
+        "ci_95": [
+          -0.1243,
+          0.0853
+        ],
+        "ci_includes_zero": true,
+        "is_significant": false,
+        "statement": "no significant difference"
+      },
+      "paired_vs_tsm_p10": {
+        "diff_mean": 0.024,
+        "diff_std": 0.2405,
+        "ci_95": [
+          -0.068,
+          0.12
+        ],
+        "ci_includes_zero": true,
+        "is_significant": false,
+        "statement": "no significant difference"
+      },
+      "paired_vs_tsm_p25": {
+        "diff_mean": 0.0288,
+        "diff_std": 0.1173,
+        "ci_95": [
+          -0.0144,
+          0.0752
+        ],
+        "ci_includes_zero": true,
+        "is_significant": false,
+        "statement": "no significant difference"
+      }
+    },
+    {
+      "model_name": "TSM-Only Baseline",
+      "precision@5": 0.264,
+      "precision@5_std": 0.1764,
+      "precision@5_ci95": [
+        0.2,
+        0.336
+      ],
+      "precision@5_display": "0.2640 \u00b1 0.1764 [0.2000, 0.3360]",
+      "precision@10": 0.224,
+      "precision@10_std": 0.1176,
+      "precision@10_ci95": [
+        0.176,
+        0.268
+      ],
+      "precision@10_display": "0.2240 \u00b1 0.1176 [0.1760, 0.2680]",
+      "precision@20": 0.146,
+      "precision@20_std": 0.0692,
+      "precision@20_ci95": [
+        0.12,
+        0.174
+      ],
+      "precision@20_display": "0.1460 \u00b1 0.0692 [0.1200, 0.1740]",
+      "precision@25": 0.1184,
+      "precision@25_std": 0.056,
+      "precision@25_ci95": [
+        0.096,
+        0.1408
+      ],
+      "precision@25_display": "0.1184 \u00b1 0.0560 [0.0960, 0.1408]",
+      "recall@10": 0.4213,
+      "recall@10_std": 0.2398,
+      "recall@10_ci95": [
+        0.325,
+        0.5169
+      ],
+      "recall@10_display": "0.4213 \u00b1 0.2398 [0.3250, 0.5169]",
+      "recall@25": 0.5439,
+      "recall@25_std": 0.2278,
+      "recall@25_ci95": [
+        0.4584,
+        0.6284
+      ],
+      "recall@25_display": "0.5439 \u00b1 0.2278 [0.4584, 0.6284]",
+      "recall@50": 0.5479,
+      "recall@50_std": 0.2226,
+      "recall@50_ci95": [
+        0.4631,
+        0.6325
+      ],
+      "recall@50_display": "0.5479 \u00b1 0.2226 [0.4631, 0.6325]",
+      "recall@100": 0.6622,
+      "recall@100_std": 0.2212,
+      "recall@100_ci95": [
+        0.5733,
+        0.747
+      ],
+      "recall@100_display": "0.6622 \u00b1 0.2212 [0.5733, 0.7470]",
+      "ndcg@10": 0.3409,
+      "ndcg@10_std": 0.1829,
+      "ndcg@10_ci95": [
+        0.2686,
+        0.4148
+      ],
+      "ndcg@10_display": "0.3409 \u00b1 0.1829 [0.2686, 0.4148]",
+      "ndcg@25": 0.3902,
+      "ndcg@25_std": 0.1653,
+      "ndcg@25_ci95": [
+        0.331,
+        0.4548
+      ],
+      "ndcg@25_display": "0.3902 \u00b1 0.1653 [0.3310, 0.4548]",
+      "ap": 0.2247,
+      "ap_std": 0.1355,
+      "ap_ci95": [
+        0.1756,
+        0.2804
+      ],
+      "ap_display": "0.2247 \u00b1 0.1355 [0.1756, 0.2804]",
+      "map": 0.2247,
+      "map_std": 0.1355,
+      "map_ci95": [
+        0.1756,
+        0.2804
+      ],
+      "map_display": "0.2247 \u00b1 0.1355 [0.1756, 0.2804]",
+      "pr_auc": 0.2247,
+      "pr_auc_std": 0.1355,
+      "pr_auc_ci95": [
+        0.1756,
+        0.2804
+      ],
+      "pr_auc_display": "0.2247 \u00b1 0.1355 [0.1756, 0.2804]",
+      "paired_vs_tsm_ap": {
+        "diff_mean": 0.0,
+        "diff_std": 0.0,
+        "ci_95": [
+          0.0,
+          0.0
+        ],
+        "ci_includes_zero": true,
+        "is_significant": false,
+        "statement": "no significant difference"
+      },
+      "paired_vs_tsm_ndcg25": {
+        "diff_mean": 0.0,
+        "diff_std": 0.0,
+        "ci_95": [
+          0.0,
+          0.0
+        ],
+        "ci_includes_zero": true,
+        "is_significant": false,
+        "statement": "no significant difference"
+      },
+      "paired_vs_tsm_p10": {
+        "diff_mean": 0.0,
+        "diff_std": 0.0,
+        "ci_95": [
+          0.0,
+          0.0
+        ],
+        "ci_includes_zero": true,
+        "is_significant": false,
+        "statement": "no significant difference"
+      },
+      "paired_vs_tsm_p25": {
+        "diff_mean": 0.0,
+        "diff_std": 0.0,
+        "ci_95": [
+          0.0,
+          0.0
+        ],
+        "ci_includes_zero": true,
+        "is_significant": false,
+        "statement": "no significant difference"
+      }
+    },
+    {
+      "model_name": "Heuristic Composite (ExoSignal)",
+      "precision@5": 0.232,
+      "precision@5_std": 0.3082,
+      "precision@5_ci95": [
+        0.12,
+        0.352
+      ],
+      "precision@5_display": "0.2320 \u00b1 0.3082 [0.1200, 0.3520]",
+      "precision@10": 0.164,
+      "precision@10_std": 0.1852,
+      "precision@10_ci95": [
+        0.096,
+        0.24
+      ],
+      "precision@10_display": "0.1640 \u00b1 0.1852 [0.0960, 0.2400]",
+      "precision@20": 0.154,
+      "precision@20_std": 0.1216,
+      "precision@20_ci95": [
+        0.106,
+        0.206
+      ],
+      "precision@20_display": "0.1540 \u00b1 0.1216 [0.1060, 0.2060]",
+      "precision@25": 0.1408,
+      "precision@25_std": 0.1068,
+      "precision@25_ci95": [
+        0.1008,
+        0.1856
+      ],
+      "precision@25_display": "0.1408 \u00b1 0.1068 [0.1008, 0.1856]",
+      "recall@10": 0.1985,
+      "recall@10_std": 0.1824,
+      "recall@10_ci95": [
+        0.1319,
+        0.2737
+      ],
+      "recall@10_display": "0.1985 \u00b1 0.1824 [0.1319, 0.2737]",
+      "recall@25": 0.5386,
+      "recall@25_std": 0.2348,
+      "recall@25_ci95": [
+        0.4391,
+        0.6314
+      ],
+      "recall@25_display": "0.5386 \u00b1 0.2348 [0.4391, 0.6314]",
+      "recall@50": 0.552,
+      "recall@50_std": 0.2427,
+      "recall@50_ci95": [
+        0.4476,
+        0.6451
+      ],
+      "recall@50_display": "0.5520 \u00b1 0.2427 [0.4476, 0.6451]",
+      "recall@100": 0.6327,
+      "recall@100_std": 0.222,
+      "recall@100_ci95": [
+        0.5436,
+        0.7181
+      ],
+      "recall@100_display": "0.6327 \u00b1 0.2220 [0.5436, 0.7181]",
+      "ndcg@10": 0.2303,
+      "ndcg@10_std": 0.2323,
+      "ndcg@10_ci95": [
+        0.1464,
+        0.3225
+      ],
+      "ndcg@10_display": "0.2303 \u00b1 0.2323 [0.1464, 0.3225]",
+      "ndcg@25": 0.3559,
+      "ndcg@25_std": 0.2192,
+      "ndcg@25_ci95": [
+        0.2745,
+        0.4418
+      ],
+      "ndcg@25_display": "0.3559 \u00b1 0.2192 [0.2745, 0.4418]",
+      "ap": 0.2011,
+      "ap_std": 0.1828,
+      "ap_ci95": [
+        0.1356,
+        0.2724
+      ],
+      "ap_display": "0.2011 \u00b1 0.1828 [0.1356, 0.2724]",
+      "map": 0.2011,
+      "map_std": 0.1828,
+      "map_ci95": [
+        0.1356,
+        0.2724
+      ],
+      "map_display": "0.2011 \u00b1 0.1828 [0.1356, 0.2724]",
+      "pr_auc": 0.2011,
+      "pr_auc_std": 0.1828,
+      "pr_auc_ci95": [
+        0.1356,
+        0.2724
+      ],
+      "pr_auc_display": "0.2011 \u00b1 0.1828 [0.1356, 0.2724]",
+      "paired_vs_tsm_ap": {
+        "diff_mean": -0.0236,
+        "diff_std": 0.2666,
+        "ci_95": [
+          -0.1231,
+          0.0814
+        ],
+        "ci_includes_zero": true,
+        "is_significant": false,
+        "statement": "no significant difference"
+      },
+      "paired_vs_tsm_ndcg25": {
+        "diff_mean": -0.0344,
+        "diff_std": 0.3216,
+        "ci_95": [
+          -0.1566,
+          0.091
+        ],
+        "ci_includes_zero": true,
+        "is_significant": false,
+        "statement": "no significant difference"
+      },
+      "paired_vs_tsm_p10": {
+        "diff_mean": -0.06,
+        "diff_std": 0.2263,
+        "ci_95": [
+          -0.144,
+          0.032
+        ],
+        "ci_includes_zero": true,
+        "is_significant": false,
+        "statement": "no significant difference"
+      },
+      "paired_vs_tsm_p25": {
+        "diff_mean": 0.0224,
+        "diff_std": 0.1019,
+        "ci_95": [
+          -0.016,
+          0.0624
+        ],
+        "ci_includes_zero": true,
+        "is_significant": false,
+        "statement": "no significant difference"
+      }
+    },
+    {
+      "model_name": "ESM-Only Baseline",
+      "precision@5": 0.264,
+      "precision@5_std": 0.2095,
+      "precision@5_ci95": [
+        0.176,
+        0.352
+      ],
+      "precision@5_display": "0.2640 \u00b1 0.2095 [0.1760, 0.3520]",
+      "precision@10": 0.16,
+      "precision@10_std": 0.1265,
+      "precision@10_ci95": [
+        0.1159,
+        0.212
+      ],
+      "precision@10_display": "0.1600 \u00b1 0.1265 [0.1159, 0.2120]",
+      "precision@20": 0.082,
+      "precision@20_std": 0.0631,
+      "precision@20_ci95": [
+        0.06,
+        0.108
+      ],
+      "precision@20_display": "0.0820 \u00b1 0.0631 [0.0600, 0.1080]",
+      "precision@25": 0.0704,
+      "precision@25_std": 0.047,
+      "precision@25_ci95": [
+        0.0528,
+        0.0896
+      ],
+      "precision@25_display": "0.0704 \u00b1 0.0470 [0.0528, 0.0896]",
+      "recall@10": 0.27,
+      "recall@10_std": 0.2062,
+      "recall@10_ci95": [
+        0.1944,
+        0.3516
+      ],
+      "recall@10_display": "0.2700 \u00b1 0.2062 [0.1944, 0.3516]",
+      "recall@25": 0.348,
+      "recall@25_std": 0.2676,
+      "recall@25_ci95": [
+        0.2468,
+        0.4521
+      ],
+      "recall@25_display": "0.3480 \u00b1 0.2676 [0.2468, 0.4521]",
+      "recall@50": 0.4123,
+      "recall@50_std": 0.2569,
+      "recall@50_ci95": [
+        0.3133,
+        0.5056
+      ],
+      "recall@50_display": "0.4123 \u00b1 0.2569 [0.3133, 0.5056]",
+      "recall@100": 0.5848,
+      "recall@100_std": 0.2437,
+      "recall@100_ci95": [
+        0.4859,
+        0.6787
+      ],
+      "recall@100_display": "0.5848 \u00b1 0.2437 [0.4859, 0.6787]",
+      "ndcg@10": 0.2847,
+      "ndcg@10_std": 0.211,
+      "ndcg@10_ci95": [
+        0.2059,
+        0.3671
+      ],
+      "ndcg@10_display": "0.2847 \u00b1 0.2110 [0.2059, 0.3671]",
+      "ndcg@25": 0.3034,
+      "ndcg@25_std": 0.2102,
+      "ndcg@25_ci95": [
+        0.2255,
+        0.3862
+      ],
+      "ndcg@25_display": "0.3034 \u00b1 0.2102 [0.2255, 0.3862]",
+      "ap": 0.1955,
+      "ap_std": 0.173,
+      "ap_ci95": [
+        0.1308,
+        0.2651
+      ],
+      "ap_display": "0.1955 \u00b1 0.1730 [0.1308, 0.2651]",
+      "map": 0.1955,
+      "map_std": 0.173,
+      "map_ci95": [
+        0.1308,
+        0.2651
+      ],
+      "map_display": "0.1955 \u00b1 0.1730 [0.1308, 0.2651]",
+      "pr_auc": 0.1955,
+      "pr_auc_std": 0.173,
+      "pr_auc_ci95": [
+        0.1308,
+        0.2651
+      ],
+      "pr_auc_display": "0.1955 \u00b1 0.1730 [0.1308, 0.2651]",
+      "paired_vs_tsm_ap": {
+        "diff_mean": -0.0292,
+        "diff_std": 0.1974,
+        "ci_95": [
+          -0.1021,
+          0.0487
+        ],
+        "ci_includes_zero": true,
+        "is_significant": false,
+        "statement": "no significant difference"
+      },
+      "paired_vs_tsm_ndcg25": {
+        "diff_mean": -0.0868,
+        "diff_std": 0.2358,
+        "ci_95": [
+          -0.1734,
+          0.0087
+        ],
+        "ci_includes_zero": true,
+        "is_significant": false,
+        "statement": "no significant difference"
+      },
+      "paired_vs_tsm_p10": {
+        "diff_mean": -0.064,
+        "diff_std": 0.1054,
+        "ci_95": [
+          -0.108,
+          -0.024
+        ],
+        "ci_includes_zero": false,
+        "is_significant": true,
+        "statement": "statistically significant underperformance"
+      },
+      "paired_vs_tsm_p25": {
+        "diff_mean": -0.048,
+        "diff_std": 0.0518,
+        "ci_95": [
+          -0.0688,
+          -0.0272
+        ],
+        "ci_includes_zero": false,
+        "is_significant": true,
+        "statement": "statistically significant underperformance"
+      }
+    },
+    {
+      "model_name": "Model B (LightGBM - Raw Features Only)",
+      "precision@5": 0.136,
+      "precision@5_std": 0.1353,
+      "precision@5_ci95": [
+        0.0878,
+        0.192
+      ],
+      "precision@5_display": "0.1360 \u00b1 0.1353 [0.0878, 0.1920]",
+      "precision@10": 0.152,
+      "precision@10_std": 0.11,
+      "precision@10_ci95": [
+        0.1119,
+        0.196
+      ],
+      "precision@10_display": "0.1520 \u00b1 0.1100 [0.1119, 0.1960]",
+      "precision@20": 0.132,
+      "precision@20_std": 0.0937,
+      "precision@20_ci95": [
+        0.096,
+        0.17
+      ],
+      "precision@20_display": "0.1320 \u00b1 0.0937 [0.0960, 0.1700]",
+      "precision@25": 0.1232,
+      "precision@25_std": 0.0838,
+      "precision@25_ci95": [
+        0.0912,
+        0.1584
+      ],
+      "precision@25_display": "0.1232 \u00b1 0.0838 [0.0912, 0.1584]",
+      "recall@10": 0.279,
+      "recall@10_std": 0.2227,
+      "recall@10_ci95": [
+        0.1965,
+        0.374
+      ],
+      "recall@10_display": "0.2790 \u00b1 0.2227 [0.1965, 0.3740]",
+      "recall@25": 0.5254,
+      "recall@25_std": 0.2592,
+      "recall@25_ci95": [
+        0.4291,
+        0.6309
+      ],
+      "recall@25_display": "0.5254 \u00b1 0.2592 [0.4291, 0.6309]",
+      "recall@50": 0.6771,
+      "recall@50_std": 0.2755,
+      "recall@50_ci95": [
+        0.5672,
+        0.7801
+      ],
+      "recall@50_display": "0.6771 \u00b1 0.2755 [0.5672, 0.7801]",
+      "recall@100": 0.7833,
+      "recall@100_std": 0.2381,
+      "recall@100_ci95": [
+        0.6938,
+        0.8705
+      ],
+      "recall@100_display": "0.7833 \u00b1 0.2381 [0.6938, 0.8705]",
+      "ndcg@10": 0.2237,
+      "ndcg@10_std": 0.157,
+      "ndcg@10_ci95": [
+        0.164,
+        0.2891
+      ],
+      "ndcg@10_display": "0.2237 \u00b1 0.1570 [0.1640, 0.2891]",
+      "ndcg@25": 0.3243,
+      "ndcg@25_std": 0.1454,
+      "ndcg@25_ci95": [
+        0.2662,
+        0.3867
+      ],
+      "ndcg@25_display": "0.3243 \u00b1 0.1454 [0.2662, 0.3867]",
+      "ap": 0.1912,
+      "ap_std": 0.1109,
+      "ap_ci95": [
+        0.1486,
+        0.2391
+      ],
+      "ap_display": "0.1912 \u00b1 0.1109 [0.1486, 0.2391]",
+      "map": 0.1912,
+      "map_std": 0.1109,
+      "map_ci95": [
+        0.1486,
+        0.2391
+      ],
+      "map_display": "0.1912 \u00b1 0.1109 [0.1486, 0.2391]",
+      "pr_auc": 0.1912,
+      "pr_auc_std": 0.1109,
+      "pr_auc_ci95": [
+        0.1486,
+        0.2391
+      ],
+      "pr_auc_display": "0.1912 \u00b1 0.1109 [0.1486, 0.2391]",
+      "paired_vs_tsm_ap": {
+        "diff_mean": -0.0335,
+        "diff_std": 0.1551,
+        "ci_95": [
+          -0.0938,
+          0.0255
+        ],
+        "ci_includes_zero": true,
+        "is_significant": false,
+        "statement": "no significant difference"
+      },
+      "paired_vs_tsm_ndcg25": {
+        "diff_mean": -0.0659,
+        "diff_std": 0.2133,
+        "ci_95": [
+          -0.151,
+          0.0152
+        ],
+        "ci_includes_zero": true,
+        "is_significant": false,
+        "statement": "no significant difference"
+      },
+      "paired_vs_tsm_p10": {
+        "diff_mean": -0.072,
+        "diff_std": 0.1429,
+        "ci_95": [
+          -0.124,
+          -0.016
+        ],
+        "ci_includes_zero": false,
+        "is_significant": true,
+        "statement": "statistically significant underperformance"
+      },
+      "paired_vs_tsm_p25": {
+        "diff_mean": 0.0048,
+        "diff_std": 0.0834,
+        "ci_95": [
+          -0.0272,
+          0.0384
+        ],
+        "ci_includes_zero": true,
+        "is_significant": false,
+        "statement": "no significant difference"
+      }
+    },
+    {
+      "model_name": "Random Baseline",
+      "precision@5": 0.0,
+      "precision@5_std": 0.0,
+      "precision@5_ci95": [
+        0.0,
+        0.0
+      ],
+      "precision@5_display": "0.0000 \u00b1 0.0000 [0.0000, 0.0000]",
+      "precision@10": 0.0,
+      "precision@10_std": 0.0,
+      "precision@10_ci95": [
+        0.0,
+        0.0
+      ],
+      "precision@10_display": "0.0000 \u00b1 0.0000 [0.0000, 0.0000]",
+      "precision@20": 0.0,
+      "precision@20_std": 0.0,
+      "precision@20_ci95": [
+        0.0,
+        0.0
+      ],
+      "precision@20_display": "0.0000 \u00b1 0.0000 [0.0000, 0.0000]",
+      "precision@25": 0.0016,
+      "precision@25_std": 0.0078,
+      "precision@25_ci95": [
+        0.0,
+        0.0048
+      ],
+      "precision@25_display": "0.0016 \u00b1 0.0078 [0.0000, 0.0048]",
+      "recall@10": 0.0,
+      "recall@10_std": 0.0,
+      "recall@10_ci95": [
+        0.0,
+        0.0
+      ],
+      "recall@10_display": "0.0000 \u00b1 0.0000 [0.0000, 0.0000]",
+      "recall@25": 0.0057,
+      "recall@25_std": 0.028,
+      "recall@25_ci95": [
+        0.0,
+        0.0171
+      ],
+      "recall@25_display": "0.0057 \u00b1 0.0280 [0.0000, 0.0171]",
+      "recall@50": 0.0702,
+      "recall@50_std": 0.1992,
+      "recall@50_ci95": [
+        0.0128,
+        0.1636
+      ],
+      "recall@50_display": "0.0702 \u00b1 0.1992 [0.0128, 0.1636]",
+      "recall@100": 0.1084,
+      "recall@100_std": 0.2061,
+      "recall@100_ci95": [
+        0.0426,
+        0.2012
+      ],
+      "recall@100_display": "0.1084 \u00b1 0.2061 [0.0426, 0.2012]",
+      "ndcg@10": 0.0,
+      "ndcg@10_std": 0.0,
+      "ndcg@10_ci95": [
+        0.0,
+        0.0
+      ],
+      "ndcg@10_display": "0.0000 \u00b1 0.0000 [0.0000, 0.0000]",
+      "ndcg@25": 0.0025,
+      "ndcg@25_std": 0.0121,
+      "ndcg@25_ci95": [
+        0.0,
+        0.0074
+      ],
+      "ndcg@25_display": "0.0025 \u00b1 0.0121 [0.0000, 0.0074]",
+      "ap": 0.0104,
+      "ap_std": 0.0074,
+      "ap_ci95": [
+        0.0079,
+        0.0138
+      ],
+      "ap_display": "0.0104 \u00b1 0.0074 [0.0079, 0.0138]",
+      "map": 0.0104,
+      "map_std": 0.0074,
+      "map_ci95": [
+        0.0079,
+        0.0138
+      ],
+      "map_display": "0.0104 \u00b1 0.0074 [0.0079, 0.0138]",
+      "pr_auc": 0.0104,
+      "pr_auc_std": 0.0074,
+      "pr_auc_ci95": [
+        0.0079,
+        0.0138
+      ],
+      "pr_auc_display": "0.0104 \u00b1 0.0074 [0.0079, 0.0138]",
+      "paired_vs_tsm_ap": {
+        "diff_mean": -0.2143,
+        "diff_std": 0.1378,
+        "ci_95": [
+          -0.2712,
+          -0.1642
+        ],
+        "ci_includes_zero": false,
+        "is_significant": true,
+        "statement": "statistically significant underperformance"
+      },
+      "paired_vs_tsm_ndcg25": {
+        "diff_mean": -0.3878,
+        "diff_std": 0.1608,
+        "ci_95": [
+          -0.4494,
+          -0.3302
+        ],
+        "ci_includes_zero": false,
+        "is_significant": true,
+        "statement": "statistically significant underperformance"
+      },
+      "paired_vs_tsm_p10": {
+        "diff_mean": -0.224,
+        "diff_std": 0.1176,
+        "ci_95": [
+          -0.268,
+          -0.176
+        ],
+        "ci_includes_zero": false,
+        "is_significant": true,
+        "statement": "statistically significant underperformance"
+      },
+      "paired_vs_tsm_p25": {
+        "diff_mean": -0.1168,
+        "diff_std": 0.0542,
+        "ci_95": [
+          -0.1392,
+          -0.0944
+        ],
+        "ci_includes_zero": false,
+        "is_significant": true,
+        "statement": "statistically significant underperformance"
+      }
+    }
+  ],
+  "primary_protocol": {
+    "protocol_name": "Primary Protocol: StratifiedGroupKFold",
+    "k_folds": 5,
+    "seeds": [
+      42,
+      43,
+      44,
+      45,
+      46
+    ],
+    "total_folds": 25,
+    "grouping_column": "hostname",
+    "models_evaluated": 9,
+    "leaderboard": [
+      {
+        "model_name": "Logistic Regression (Variant A - All Features)",
+        "precision@5": 0.416,
+        "precision@5_std": 0.2587,
+        "precision@5_ci95": [
+          0.312,
+          0.5122
+        ],
+        "precision@5_display": "0.4160 \u00b1 0.2587 [0.3120, 0.5122]",
+        "precision@10": 0.32,
+        "precision@10_std": 0.2227,
+        "precision@10_ci95": [
+          0.236,
+          0.408
+        ],
+        "precision@10_display": "0.3200 \u00b1 0.2227 [0.2360, 0.4080]",
+        "precision@20": 0.21,
+        "precision@20_std": 0.1442,
+        "precision@20_ci95": [
+          0.152,
+          0.268
+        ],
+        "precision@20_display": "0.2100 \u00b1 0.1442 [0.1520, 0.2680]",
+        "precision@25": 0.1776,
+        "precision@25_std": 0.1137,
+        "precision@25_ci95": [
+          0.1328,
+          0.224
+        ],
+        "precision@25_display": "0.1776 \u00b1 0.1137 [0.1328, 0.2240]",
+        "recall@10": 0.4996,
+        "recall@10_std": 0.2524,
+        "recall@10_ci95": [
+          0.403,
+          0.612
+        ],
+        "recall@10_display": "0.4996 \u00b1 0.2524 [0.4030, 0.6120]",
+        "recall@25": 0.6708,
+        "recall@25_std": 0.2573,
+        "recall@25_ci95": [
+          0.5716,
+          0.7708
+        ],
+        "recall@25_display": "0.6708 \u00b1 0.2573 [0.5716, 0.7708]",
+        "recall@50": 0.7459,
+        "recall@50_std": 0.2428,
+        "recall@50_ci95": [
+          0.6437,
+          0.8357
+        ],
+        "recall@50_display": "0.7459 \u00b1 0.2428 [0.6437, 0.8357]",
+        "recall@100": 0.859,
+        "recall@100_std": 0.2042,
+        "recall@100_ci95": [
+          0.7642,
+          0.927
+        ],
+        "recall@100_display": "0.8590 \u00b1 0.2042 [0.7642, 0.9270]",
+        "ndcg@10": 0.5337,
+        "ndcg@10_std": 0.2634,
+        "ndcg@10_ci95": [
+          0.4255,
+          0.6485
+        ],
+        "ndcg@10_display": "0.5337 \u00b1 0.2634 [0.4255, 0.6485]",
+        "ndcg@25": 0.6017,
+        "ndcg@25_std": 0.2491,
+        "ndcg@25_ci95": [
+          0.4998,
+          0.707
+        ],
+        "ndcg@25_display": "0.6017 \u00b1 0.2491 [0.4998, 0.7070]",
+        "ap": 0.4597,
+        "ap_std": 0.2476,
+        "ap_ci95": [
+          0.3599,
+          0.5687
+        ],
+        "ap_display": "0.4597 \u00b1 0.2476 [0.3599, 0.5687]",
+        "map": 0.4597,
+        "map_std": 0.2476,
+        "map_ci95": [
+          0.3599,
+          0.5687
+        ],
+        "map_display": "0.4597 \u00b1 0.2476 [0.3599, 0.5687]",
+        "pr_auc": 0.4597,
+        "pr_auc_std": 0.2476,
+        "pr_auc_ci95": [
+          0.3599,
+          0.5687
+        ],
+        "pr_auc_display": "0.4597 \u00b1 0.2476 [0.3599, 0.5687]",
+        "paired_vs_tsm_ap": {
+          "diff_mean": 0.235,
+          "diff_std": 0.2316,
+          "ci_95": [
+            0.1443,
+            0.3275
+          ],
+          "ci_includes_zero": false,
+          "is_significant": true,
+          "statement": "statistically significant improvement"
+        },
+        "paired_vs_tsm_ndcg25": {
+          "diff_mean": 0.2115,
+          "diff_std": 0.257,
+          "ci_95": [
+            0.1117,
+            0.3125
+          ],
+          "ci_includes_zero": false,
+          "is_significant": true,
+          "statement": "statistically significant improvement"
+        },
+        "paired_vs_tsm_p10": {
+          "diff_mean": 0.096,
+          "diff_std": 0.22,
+          "ci_95": [
+            0.016,
+            0.184
+          ],
+          "ci_includes_zero": false,
+          "is_significant": true,
+          "statement": "statistically significant improvement"
+        },
+        "paired_vs_tsm_p25": {
+          "diff_mean": 0.0592,
+          "diff_std": 0.0974,
+          "ci_95": [
+            0.024,
+            0.0976
+          ],
+          "ci_includes_zero": false,
+          "is_significant": true,
+          "statement": "statistically significant improvement"
+        }
+      },
+      {
+        "model_name": "Logistic Regression (Variant B - Raw Features Only)",
+        "precision@5": 0.392,
+        "precision@5_std": 0.2741,
+        "precision@5_ci95": [
+          0.288,
+          0.504
+        ],
+        "precision@5_display": "0.3920 \u00b1 0.2741 [0.2880, 0.5040]",
+        "precision@10": 0.292,
+        "precision@10_std": 0.1958,
+        "precision@10_ci95": [
+          0.22,
+          0.372
+        ],
+        "precision@10_display": "0.2920 \u00b1 0.1958 [0.2200, 0.3720]",
+        "precision@20": 0.188,
+        "precision@20_std": 0.1259,
+        "precision@20_ci95": [
+          0.14,
+          0.238
+        ],
+        "precision@20_display": "0.1880 \u00b1 0.1259 [0.1400, 0.2380]",
+        "precision@25": 0.16,
+        "precision@25_std": 0.1037,
+        "precision@25_ci95": [
+          0.1184,
+          0.2016
+        ],
+        "precision@25_display": "0.1600 \u00b1 0.1037 [0.1184, 0.2016]",
+        "recall@10": 0.468,
+        "recall@10_std": 0.2367,
+        "recall@10_ci95": [
+          0.3775,
+          0.5694
+        ],
+        "recall@10_display": "0.4680 \u00b1 0.2367 [0.3775, 0.5694]",
+        "recall@25": 0.6212,
+        "recall@25_std": 0.2671,
+        "recall@25_ci95": [
+          0.5164,
+          0.7313
+        ],
+        "recall@25_display": "0.6212 \u00b1 0.2671 [0.5164, 0.7313]",
+        "recall@50": 0.71,
+        "recall@50_std": 0.2587,
+        "recall@50_ci95": [
+          0.6057,
+          0.8106
+        ],
+        "recall@50_display": "0.7100 \u00b1 0.2587 [0.6057, 0.8106]",
+        "recall@100": 0.8299,
+        "recall@100_std": 0.2188,
+        "recall@100_ci95": [
+          0.7332,
+          0.9074
+        ],
+        "recall@100_display": "0.8299 \u00b1 0.2188 [0.7332, 0.9074]",
+        "ndcg@10": 0.457,
+        "ndcg@10_std": 0.2072,
+        "ndcg@10_ci95": [
+          0.3729,
+          0.5406
+        ],
+        "ndcg@10_display": "0.4570 \u00b1 0.2072 [0.3729, 0.5406]",
+        "ndcg@25": 0.5167,
+        "ndcg@25_std": 0.203,
+        "ndcg@25_ci95": [
+          0.4309,
+          0.5914
+        ],
+        "ndcg@25_display": "0.5167 \u00b1 0.2030 [0.4309, 0.5914]",
+        "ap": 0.37,
+        "ap_std": 0.1794,
+        "ap_ci95": [
+          0.2986,
+          0.4437
+        ],
+        "ap_display": "0.3700 \u00b1 0.1794 [0.2986, 0.4437]",
+        "map": 0.37,
+        "map_std": 0.1794,
+        "map_ci95": [
+          0.2986,
+          0.4437
+        ],
+        "map_display": "0.3700 \u00b1 0.1794 [0.2986, 0.4437]",
+        "pr_auc": 0.37,
+        "pr_auc_std": 0.1794,
+        "pr_auc_ci95": [
+          0.2986,
+          0.4437
+        ],
+        "pr_auc_display": "0.3700 \u00b1 0.1794 [0.2986, 0.4437]",
+        "paired_vs_tsm_ap": {
+          "diff_mean": 0.1453,
+          "diff_std": 0.2062,
+          "ci_95": [
+            0.0684,
+            0.2231
+          ],
+          "ci_includes_zero": false,
+          "is_significant": true,
+          "statement": "statistically significant improvement"
+        },
+        "paired_vs_tsm_ndcg25": {
+          "diff_mean": 0.1264,
+          "diff_std": 0.2522,
+          "ci_95": [
+            0.0316,
+            0.224
+          ],
+          "ci_includes_zero": false,
+          "is_significant": true,
+          "statement": "statistically significant improvement"
+        },
+        "paired_vs_tsm_p10": {
+          "diff_mean": 0.068,
+          "diff_std": 0.2167,
+          "ci_95": [
+            -0.008,
+            0.1521
+          ],
+          "ci_includes_zero": true,
+          "is_significant": false,
+          "statement": "no significant difference"
+        },
+        "paired_vs_tsm_p25": {
+          "diff_mean": 0.0416,
+          "diff_std": 0.095,
+          "ci_95": [
+            0.0064,
+            0.0784
+          ],
+          "ci_includes_zero": false,
+          "is_significant": true,
+          "statement": "statistically significant improvement"
+        }
+      },
+      {
+        "model_name": "Model A (LightGBM - All Features)",
+        "precision@5": 0.216,
+        "precision@5_std": 0.1782,
+        "precision@5_ci95": [
+          0.152,
+          0.288
+        ],
+        "precision@5_display": "0.2160 \u00b1 0.1782 [0.1520, 0.2880]",
+        "precision@10": 0.224,
+        "precision@10_std": 0.1656,
+        "precision@10_ci95": [
+          0.164,
+          0.292
+        ],
+        "precision@10_display": "0.2240 \u00b1 0.1656 [0.1640, 0.2920]",
+        "precision@20": 0.168,
+        "precision@20_std": 0.1287,
+        "precision@20_ci95": [
+          0.12,
+          0.222
+        ],
+        "precision@20_display": "0.1680 \u00b1 0.1287 [0.1200, 0.2220]",
+        "precision@25": 0.1472,
+        "precision@25_std": 0.1078,
+        "precision@25_ci95": [
+          0.1072,
+          0.1904
+        ],
+        "precision@25_display": "0.1472 \u00b1 0.1078 [0.1072, 0.1904]",
+        "recall@10": 0.3537,
+        "recall@10_std": 0.2244,
+        "recall@10_ci95": [
+          0.27,
+          0.4468
+        ],
+        "recall@10_display": "0.3537 \u00b1 0.2244 [0.2700, 0.4468]",
+        "recall@25": 0.5564,
+        "recall@25_std": 0.2569,
+        "recall@25_ci95": [
+          0.4521,
+          0.6557
+        ],
+        "recall@25_display": "0.5564 \u00b1 0.2569 [0.4521, 0.6557]",
+        "recall@50": 0.7634,
+        "recall@50_std": 0.2253,
+        "recall@50_ci95": [
+          0.6737,
+          0.8512
+        ],
+        "recall@50_display": "0.7634 \u00b1 0.2253 [0.6737, 0.8512]",
+        "recall@100": 0.8467,
+        "recall@100_std": 0.1864,
+        "recall@100_ci95": [
+          0.7708,
+          0.9162
+        ],
+        "recall@100_display": "0.8467 \u00b1 0.1864 [0.7708, 0.9162]",
+        "ndcg@10": 0.3127,
+        "ndcg@10_std": 0.2145,
+        "ndcg@10_ci95": [
+          0.2341,
+          0.4039
+        ],
+        "ndcg@10_display": "0.3127 \u00b1 0.2145 [0.2341, 0.4039]",
+        "ndcg@25": 0.3988,
+        "ndcg@25_std": 0.2133,
+        "ndcg@25_ci95": [
+          0.319,
+          0.4877
+        ],
+        "ndcg@25_display": "0.3988 \u00b1 0.2133 [0.3190, 0.4877]",
+        "ap": 0.2673,
+        "ap_std": 0.1986,
+        "ap_ci95": [
+          0.195,
+          0.3539
+        ],
+        "ap_display": "0.2673 \u00b1 0.1986 [0.1950, 0.3539]",
+        "map": 0.2673,
+        "map_std": 0.1986,
+        "map_ci95": [
+          0.195,
+          0.3539
+        ],
+        "map_display": "0.2673 \u00b1 0.1986 [0.1950, 0.3539]",
+        "pr_auc": 0.2673,
+        "pr_auc_std": 0.1986,
+        "pr_auc_ci95": [
+          0.195,
+          0.3539
+        ],
+        "pr_auc_display": "0.2673 \u00b1 0.1986 [0.1950, 0.3539]",
+        "paired_vs_tsm_ap": {
+          "diff_mean": 0.0426,
+          "diff_std": 0.21,
+          "ci_95": [
+            -0.0396,
+            0.1291
+          ],
+          "ci_includes_zero": true,
+          "is_significant": false,
+          "statement": "no significant difference"
+        },
+        "paired_vs_tsm_ndcg25": {
+          "diff_mean": 0.0086,
+          "diff_std": 0.2516,
+          "ci_95": [
+            -0.0887,
+            0.1078
+          ],
+          "ci_includes_zero": true,
+          "is_significant": false,
+          "statement": "no significant difference"
+        },
+        "paired_vs_tsm_p10": {
+          "diff_mean": 0.0,
+          "diff_std": 0.1811,
+          "ci_95": [
+            -0.064,
+            0.0681
+          ],
+          "ci_includes_zero": true,
+          "is_significant": false,
+          "statement": "no significant difference"
+        },
+        "paired_vs_tsm_p25": {
+          "diff_mean": 0.0288,
+          "diff_std": 0.1058,
+          "ci_95": [
+            -0.008,
+            0.0704
+          ],
+          "ci_includes_zero": true,
+          "is_significant": false,
+          "statement": "no significant difference"
+        }
+      },
+      {
+        "model_name": "Distance-Only Baseline",
+        "precision@5": 0.224,
+        "precision@5_std": 0.1986,
+        "precision@5_ci95": [
+          0.144,
+          0.304
+        ],
+        "precision@5_display": "0.2240 \u00b1 0.1986 [0.1440, 0.3040]",
+        "precision@10": 0.248,
+        "precision@10_std": 0.2193,
+        "precision@10_ci95": [
+          0.164,
+          0.3401
+        ],
+        "precision@10_display": "0.2480 \u00b1 0.2193 [0.1640, 0.3401]",
+        "precision@20": 0.182,
+        "precision@20_std": 0.1503,
+        "precision@20_ci95": [
+          0.126,
+          0.246
+        ],
+        "precision@20_display": "0.1820 \u00b1 0.1503 [0.1260, 0.2460]",
+        "precision@25": 0.1472,
+        "precision@25_std": 0.1228,
+        "precision@25_ci95": [
+          0.1024,
+          0.1984
+        ],
+        "precision@25_display": "0.1472 \u00b1 0.1228 [0.1024, 0.1984]",
+        "recall@10": 0.3999,
+        "recall@10_std": 0.2659,
+        "recall@10_ci95": [
+          0.3028,
+          0.5051
+        ],
+        "recall@10_display": "0.3999 \u00b1 0.2659 [0.3028, 0.5051]",
+        "recall@25": 0.5484,
+        "recall@25_std": 0.2438,
+        "recall@25_ci95": [
+          0.453,
+          0.6411
+        ],
+        "recall@25_display": "0.5484 \u00b1 0.2438 [0.4530, 0.6411]",
+        "recall@50": 0.6148,
+        "recall@50_std": 0.225,
+        "recall@50_ci95": [
+          0.522,
+          0.7032
+        ],
+        "recall@50_display": "0.6148 \u00b1 0.2250 [0.5220, 0.7032]",
+        "recall@100": 0.7095,
+        "recall@100_std": 0.2188,
+        "recall@100_ci95": [
+          0.6153,
+          0.7881
+        ],
+        "recall@100_display": "0.7095 \u00b1 0.2188 [0.6153, 0.7881]",
+        "ndcg@10": 0.3038,
+        "ndcg@10_std": 0.1787,
+        "ndcg@10_ci95": [
+          0.2379,
+          0.376
+        ],
+        "ndcg@10_display": "0.3038 \u00b1 0.1787 [0.2379, 0.3760]",
+        "ndcg@25": 0.3701,
+        "ndcg@25_std": 0.1742,
+        "ndcg@25_ci95": [
+          0.3013,
+          0.4429
+        ],
+        "ndcg@25_display": "0.3701 \u00b1 0.1742 [0.3013, 0.4429]",
+        "ap": 0.2555,
+        "ap_std": 0.1811,
+        "ap_ci95": [
+          0.1874,
+          0.3314
+        ],
+        "ap_display": "0.2555 \u00b1 0.1811 [0.1874, 0.3314]",
+        "map": 0.2555,
+        "map_std": 0.1811,
+        "map_ci95": [
+          0.1874,
+          0.3314
+        ],
+        "map_display": "0.2555 \u00b1 0.1811 [0.1874, 0.3314]",
+        "pr_auc": 0.2555,
+        "pr_auc_std": 0.1811,
+        "pr_auc_ci95": [
+          0.1874,
+          0.3314
+        ],
+        "pr_auc_display": "0.2555 \u00b1 0.1811 [0.1874, 0.3314]",
+        "paired_vs_tsm_ap": {
+          "diff_mean": 0.0308,
+          "diff_std": 0.2585,
+          "ci_95": [
+            -0.0704,
+            0.1339
+          ],
+          "ci_includes_zero": true,
+          "is_significant": false,
+          "statement": "no significant difference"
+        },
+        "paired_vs_tsm_ndcg25": {
+          "diff_mean": -0.0201,
+          "diff_std": 0.2699,
+          "ci_95": [
+            -0.1243,
+            0.0853
+          ],
+          "ci_includes_zero": true,
+          "is_significant": false,
+          "statement": "no significant difference"
+        },
+        "paired_vs_tsm_p10": {
+          "diff_mean": 0.024,
+          "diff_std": 0.2405,
+          "ci_95": [
+            -0.068,
+            0.12
+          ],
+          "ci_includes_zero": true,
+          "is_significant": false,
+          "statement": "no significant difference"
+        },
+        "paired_vs_tsm_p25": {
+          "diff_mean": 0.0288,
+          "diff_std": 0.1173,
+          "ci_95": [
+            -0.0144,
+            0.0752
+          ],
+          "ci_includes_zero": true,
+          "is_significant": false,
+          "statement": "no significant difference"
+        }
+      },
+      {
+        "model_name": "TSM-Only Baseline",
+        "precision@5": 0.264,
+        "precision@5_std": 0.1764,
+        "precision@5_ci95": [
+          0.2,
+          0.336
+        ],
+        "precision@5_display": "0.2640 \u00b1 0.1764 [0.2000, 0.3360]",
+        "precision@10": 0.224,
+        "precision@10_std": 0.1176,
+        "precision@10_ci95": [
+          0.176,
+          0.268
+        ],
+        "precision@10_display": "0.2240 \u00b1 0.1176 [0.1760, 0.2680]",
+        "precision@20": 0.146,
+        "precision@20_std": 0.0692,
+        "precision@20_ci95": [
+          0.12,
+          0.174
+        ],
+        "precision@20_display": "0.1460 \u00b1 0.0692 [0.1200, 0.1740]",
+        "precision@25": 0.1184,
+        "precision@25_std": 0.056,
+        "precision@25_ci95": [
+          0.096,
+          0.1408
+        ],
+        "precision@25_display": "0.1184 \u00b1 0.0560 [0.0960, 0.1408]",
+        "recall@10": 0.4213,
+        "recall@10_std": 0.2398,
+        "recall@10_ci95": [
+          0.325,
+          0.5169
+        ],
+        "recall@10_display": "0.4213 \u00b1 0.2398 [0.3250, 0.5169]",
+        "recall@25": 0.5439,
+        "recall@25_std": 0.2278,
+        "recall@25_ci95": [
+          0.4584,
+          0.6284
+        ],
+        "recall@25_display": "0.5439 \u00b1 0.2278 [0.4584, 0.6284]",
+        "recall@50": 0.5479,
+        "recall@50_std": 0.2226,
+        "recall@50_ci95": [
+          0.4631,
+          0.6325
+        ],
+        "recall@50_display": "0.5479 \u00b1 0.2226 [0.4631, 0.6325]",
+        "recall@100": 0.6622,
+        "recall@100_std": 0.2212,
+        "recall@100_ci95": [
+          0.5733,
+          0.747
+        ],
+        "recall@100_display": "0.6622 \u00b1 0.2212 [0.5733, 0.7470]",
+        "ndcg@10": 0.3409,
+        "ndcg@10_std": 0.1829,
+        "ndcg@10_ci95": [
+          0.2686,
+          0.4148
+        ],
+        "ndcg@10_display": "0.3409 \u00b1 0.1829 [0.2686, 0.4148]",
+        "ndcg@25": 0.3902,
+        "ndcg@25_std": 0.1653,
+        "ndcg@25_ci95": [
+          0.331,
+          0.4548
+        ],
+        "ndcg@25_display": "0.3902 \u00b1 0.1653 [0.3310, 0.4548]",
+        "ap": 0.2247,
+        "ap_std": 0.1355,
+        "ap_ci95": [
+          0.1756,
+          0.2804
+        ],
+        "ap_display": "0.2247 \u00b1 0.1355 [0.1756, 0.2804]",
+        "map": 0.2247,
+        "map_std": 0.1355,
+        "map_ci95": [
+          0.1756,
+          0.2804
+        ],
+        "map_display": "0.2247 \u00b1 0.1355 [0.1756, 0.2804]",
+        "pr_auc": 0.2247,
+        "pr_auc_std": 0.1355,
+        "pr_auc_ci95": [
+          0.1756,
+          0.2804
+        ],
+        "pr_auc_display": "0.2247 \u00b1 0.1355 [0.1756, 0.2804]",
+        "paired_vs_tsm_ap": {
+          "diff_mean": 0.0,
+          "diff_std": 0.0,
+          "ci_95": [
+            0.0,
+            0.0
+          ],
+          "ci_includes_zero": true,
+          "is_significant": false,
+          "statement": "no significant difference"
+        },
+        "paired_vs_tsm_ndcg25": {
+          "diff_mean": 0.0,
+          "diff_std": 0.0,
+          "ci_95": [
+            0.0,
+            0.0
+          ],
+          "ci_includes_zero": true,
+          "is_significant": false,
+          "statement": "no significant difference"
+        },
+        "paired_vs_tsm_p10": {
+          "diff_mean": 0.0,
+          "diff_std": 0.0,
+          "ci_95": [
+            0.0,
+            0.0
+          ],
+          "ci_includes_zero": true,
+          "is_significant": false,
+          "statement": "no significant difference"
+        },
+        "paired_vs_tsm_p25": {
+          "diff_mean": 0.0,
+          "diff_std": 0.0,
+          "ci_95": [
+            0.0,
+            0.0
+          ],
+          "ci_includes_zero": true,
+          "is_significant": false,
+          "statement": "no significant difference"
+        }
+      },
+      {
+        "model_name": "Heuristic Composite (ExoSignal)",
+        "precision@5": 0.232,
+        "precision@5_std": 0.3082,
+        "precision@5_ci95": [
+          0.12,
+          0.352
+        ],
+        "precision@5_display": "0.2320 \u00b1 0.3082 [0.1200, 0.3520]",
+        "precision@10": 0.164,
+        "precision@10_std": 0.1852,
+        "precision@10_ci95": [
+          0.096,
+          0.24
+        ],
+        "precision@10_display": "0.1640 \u00b1 0.1852 [0.0960, 0.2400]",
+        "precision@20": 0.154,
+        "precision@20_std": 0.1216,
+        "precision@20_ci95": [
+          0.106,
+          0.206
+        ],
+        "precision@20_display": "0.1540 \u00b1 0.1216 [0.1060, 0.2060]",
+        "precision@25": 0.1408,
+        "precision@25_std": 0.1068,
+        "precision@25_ci95": [
+          0.1008,
+          0.1856
+        ],
+        "precision@25_display": "0.1408 \u00b1 0.1068 [0.1008, 0.1856]",
+        "recall@10": 0.1985,
+        "recall@10_std": 0.1824,
+        "recall@10_ci95": [
+          0.1319,
+          0.2737
+        ],
+        "recall@10_display": "0.1985 \u00b1 0.1824 [0.1319, 0.2737]",
+        "recall@25": 0.5386,
+        "recall@25_std": 0.2348,
+        "recall@25_ci95": [
+          0.4391,
+          0.6314
+        ],
+        "recall@25_display": "0.5386 \u00b1 0.2348 [0.4391, 0.6314]",
+        "recall@50": 0.552,
+        "recall@50_std": 0.2427,
+        "recall@50_ci95": [
+          0.4476,
+          0.6451
+        ],
+        "recall@50_display": "0.5520 \u00b1 0.2427 [0.4476, 0.6451]",
+        "recall@100": 0.6327,
+        "recall@100_std": 0.222,
+        "recall@100_ci95": [
+          0.5436,
+          0.7181
+        ],
+        "recall@100_display": "0.6327 \u00b1 0.2220 [0.5436, 0.7181]",
+        "ndcg@10": 0.2303,
+        "ndcg@10_std": 0.2323,
+        "ndcg@10_ci95": [
+          0.1464,
+          0.3225
+        ],
+        "ndcg@10_display": "0.2303 \u00b1 0.2323 [0.1464, 0.3225]",
+        "ndcg@25": 0.3559,
+        "ndcg@25_std": 0.2192,
+        "ndcg@25_ci95": [
+          0.2745,
+          0.4418
+        ],
+        "ndcg@25_display": "0.3559 \u00b1 0.2192 [0.2745, 0.4418]",
+        "ap": 0.2011,
+        "ap_std": 0.1828,
+        "ap_ci95": [
+          0.1356,
+          0.2724
+        ],
+        "ap_display": "0.2011 \u00b1 0.1828 [0.1356, 0.2724]",
+        "map": 0.2011,
+        "map_std": 0.1828,
+        "map_ci95": [
+          0.1356,
+          0.2724
+        ],
+        "map_display": "0.2011 \u00b1 0.1828 [0.1356, 0.2724]",
+        "pr_auc": 0.2011,
+        "pr_auc_std": 0.1828,
+        "pr_auc_ci95": [
+          0.1356,
+          0.2724
+        ],
+        "pr_auc_display": "0.2011 \u00b1 0.1828 [0.1356, 0.2724]",
+        "paired_vs_tsm_ap": {
+          "diff_mean": -0.0236,
+          "diff_std": 0.2666,
+          "ci_95": [
+            -0.1231,
+            0.0814
+          ],
+          "ci_includes_zero": true,
+          "is_significant": false,
+          "statement": "no significant difference"
+        },
+        "paired_vs_tsm_ndcg25": {
+          "diff_mean": -0.0344,
+          "diff_std": 0.3216,
+          "ci_95": [
+            -0.1566,
+            0.091
+          ],
+          "ci_includes_zero": true,
+          "is_significant": false,
+          "statement": "no significant difference"
+        },
+        "paired_vs_tsm_p10": {
+          "diff_mean": -0.06,
+          "diff_std": 0.2263,
+          "ci_95": [
+            -0.144,
+            0.032
+          ],
+          "ci_includes_zero": true,
+          "is_significant": false,
+          "statement": "no significant difference"
+        },
+        "paired_vs_tsm_p25": {
+          "diff_mean": 0.0224,
+          "diff_std": 0.1019,
+          "ci_95": [
+            -0.016,
+            0.0624
+          ],
+          "ci_includes_zero": true,
+          "is_significant": false,
+          "statement": "no significant difference"
+        }
+      },
+      {
+        "model_name": "ESM-Only Baseline",
+        "precision@5": 0.264,
+        "precision@5_std": 0.2095,
+        "precision@5_ci95": [
+          0.176,
+          0.352
+        ],
+        "precision@5_display": "0.2640 \u00b1 0.2095 [0.1760, 0.3520]",
+        "precision@10": 0.16,
+        "precision@10_std": 0.1265,
+        "precision@10_ci95": [
+          0.1159,
+          0.212
+        ],
+        "precision@10_display": "0.1600 \u00b1 0.1265 [0.1159, 0.2120]",
+        "precision@20": 0.082,
+        "precision@20_std": 0.0631,
+        "precision@20_ci95": [
+          0.06,
+          0.108
+        ],
+        "precision@20_display": "0.0820 \u00b1 0.0631 [0.0600, 0.1080]",
+        "precision@25": 0.0704,
+        "precision@25_std": 0.047,
+        "precision@25_ci95": [
+          0.0528,
+          0.0896
+        ],
+        "precision@25_display": "0.0704 \u00b1 0.0470 [0.0528, 0.0896]",
+        "recall@10": 0.27,
+        "recall@10_std": 0.2062,
+        "recall@10_ci95": [
+          0.1944,
+          0.3516
+        ],
+        "recall@10_display": "0.2700 \u00b1 0.2062 [0.1944, 0.3516]",
+        "recall@25": 0.348,
+        "recall@25_std": 0.2676,
+        "recall@25_ci95": [
+          0.2468,
+          0.4521
+        ],
+        "recall@25_display": "0.3480 \u00b1 0.2676 [0.2468, 0.4521]",
+        "recall@50": 0.4123,
+        "recall@50_std": 0.2569,
+        "recall@50_ci95": [
+          0.3133,
+          0.5056
+        ],
+        "recall@50_display": "0.4123 \u00b1 0.2569 [0.3133, 0.5056]",
+        "recall@100": 0.5848,
+        "recall@100_std": 0.2437,
+        "recall@100_ci95": [
+          0.4859,
+          0.6787
+        ],
+        "recall@100_display": "0.5848 \u00b1 0.2437 [0.4859, 0.6787]",
+        "ndcg@10": 0.2847,
+        "ndcg@10_std": 0.211,
+        "ndcg@10_ci95": [
+          0.2059,
+          0.3671
+        ],
+        "ndcg@10_display": "0.2847 \u00b1 0.2110 [0.2059, 0.3671]",
+        "ndcg@25": 0.3034,
+        "ndcg@25_std": 0.2102,
+        "ndcg@25_ci95": [
+          0.2255,
+          0.3862
+        ],
+        "ndcg@25_display": "0.3034 \u00b1 0.2102 [0.2255, 0.3862]",
+        "ap": 0.1955,
+        "ap_std": 0.173,
+        "ap_ci95": [
+          0.1308,
+          0.2651
+        ],
+        "ap_display": "0.1955 \u00b1 0.1730 [0.1308, 0.2651]",
+        "map": 0.1955,
+        "map_std": 0.173,
+        "map_ci95": [
+          0.1308,
+          0.2651
+        ],
+        "map_display": "0.1955 \u00b1 0.1730 [0.1308, 0.2651]",
+        "pr_auc": 0.1955,
+        "pr_auc_std": 0.173,
+        "pr_auc_ci95": [
+          0.1308,
+          0.2651
+        ],
+        "pr_auc_display": "0.1955 \u00b1 0.1730 [0.1308, 0.2651]",
+        "paired_vs_tsm_ap": {
+          "diff_mean": -0.0292,
+          "diff_std": 0.1974,
+          "ci_95": [
+            -0.1021,
+            0.0487
+          ],
+          "ci_includes_zero": true,
+          "is_significant": false,
+          "statement": "no significant difference"
+        },
+        "paired_vs_tsm_ndcg25": {
+          "diff_mean": -0.0868,
+          "diff_std": 0.2358,
+          "ci_95": [
+            -0.1734,
+            0.0087
+          ],
+          "ci_includes_zero": true,
+          "is_significant": false,
+          "statement": "no significant difference"
+        },
+        "paired_vs_tsm_p10": {
+          "diff_mean": -0.064,
+          "diff_std": 0.1054,
+          "ci_95": [
+            -0.108,
+            -0.024
+          ],
+          "ci_includes_zero": false,
+          "is_significant": true,
+          "statement": "statistically significant underperformance"
+        },
+        "paired_vs_tsm_p25": {
+          "diff_mean": -0.048,
+          "diff_std": 0.0518,
+          "ci_95": [
+            -0.0688,
+            -0.0272
+          ],
+          "ci_includes_zero": false,
+          "is_significant": true,
+          "statement": "statistically significant underperformance"
+        }
+      },
+      {
+        "model_name": "Model B (LightGBM - Raw Features Only)",
+        "precision@5": 0.136,
+        "precision@5_std": 0.1353,
+        "precision@5_ci95": [
+          0.0878,
+          0.192
+        ],
+        "precision@5_display": "0.1360 \u00b1 0.1353 [0.0878, 0.1920]",
+        "precision@10": 0.152,
+        "precision@10_std": 0.11,
+        "precision@10_ci95": [
+          0.1119,
+          0.196
+        ],
+        "precision@10_display": "0.1520 \u00b1 0.1100 [0.1119, 0.1960]",
+        "precision@20": 0.132,
+        "precision@20_std": 0.0937,
+        "precision@20_ci95": [
+          0.096,
+          0.17
+        ],
+        "precision@20_display": "0.1320 \u00b1 0.0937 [0.0960, 0.1700]",
+        "precision@25": 0.1232,
+        "precision@25_std": 0.0838,
+        "precision@25_ci95": [
+          0.0912,
+          0.1584
+        ],
+        "precision@25_display": "0.1232 \u00b1 0.0838 [0.0912, 0.1584]",
+        "recall@10": 0.279,
+        "recall@10_std": 0.2227,
+        "recall@10_ci95": [
+          0.1965,
+          0.374
+        ],
+        "recall@10_display": "0.2790 \u00b1 0.2227 [0.1965, 0.3740]",
+        "recall@25": 0.5254,
+        "recall@25_std": 0.2592,
+        "recall@25_ci95": [
+          0.4291,
+          0.6309
+        ],
+        "recall@25_display": "0.5254 \u00b1 0.2592 [0.4291, 0.6309]",
+        "recall@50": 0.6771,
+        "recall@50_std": 0.2755,
+        "recall@50_ci95": [
+          0.5672,
+          0.7801
+        ],
+        "recall@50_display": "0.6771 \u00b1 0.2755 [0.5672, 0.7801]",
+        "recall@100": 0.7833,
+        "recall@100_std": 0.2381,
+        "recall@100_ci95": [
+          0.6938,
+          0.8705
+        ],
+        "recall@100_display": "0.7833 \u00b1 0.2381 [0.6938, 0.8705]",
+        "ndcg@10": 0.2237,
+        "ndcg@10_std": 0.157,
+        "ndcg@10_ci95": [
+          0.164,
+          0.2891
+        ],
+        "ndcg@10_display": "0.2237 \u00b1 0.1570 [0.1640, 0.2891]",
+        "ndcg@25": 0.3243,
+        "ndcg@25_std": 0.1454,
+        "ndcg@25_ci95": [
+          0.2662,
+          0.3867
+        ],
+        "ndcg@25_display": "0.3243 \u00b1 0.1454 [0.2662, 0.3867]",
+        "ap": 0.1912,
+        "ap_std": 0.1109,
+        "ap_ci95": [
+          0.1486,
+          0.2391
+        ],
+        "ap_display": "0.1912 \u00b1 0.1109 [0.1486, 0.2391]",
+        "map": 0.1912,
+        "map_std": 0.1109,
+        "map_ci95": [
+          0.1486,
+          0.2391
+        ],
+        "map_display": "0.1912 \u00b1 0.1109 [0.1486, 0.2391]",
+        "pr_auc": 0.1912,
+        "pr_auc_std": 0.1109,
+        "pr_auc_ci95": [
+          0.1486,
+          0.2391
+        ],
+        "pr_auc_display": "0.1912 \u00b1 0.1109 [0.1486, 0.2391]",
+        "paired_vs_tsm_ap": {
+          "diff_mean": -0.0335,
+          "diff_std": 0.1551,
+          "ci_95": [
+            -0.0938,
+            0.0255
+          ],
+          "ci_includes_zero": true,
+          "is_significant": false,
+          "statement": "no significant difference"
+        },
+        "paired_vs_tsm_ndcg25": {
+          "diff_mean": -0.0659,
+          "diff_std": 0.2133,
+          "ci_95": [
+            -0.151,
+            0.0152
+          ],
+          "ci_includes_zero": true,
+          "is_significant": false,
+          "statement": "no significant difference"
+        },
+        "paired_vs_tsm_p10": {
+          "diff_mean": -0.072,
+          "diff_std": 0.1429,
+          "ci_95": [
+            -0.124,
+            -0.016
+          ],
+          "ci_includes_zero": false,
+          "is_significant": true,
+          "statement": "statistically significant underperformance"
+        },
+        "paired_vs_tsm_p25": {
+          "diff_mean": 0.0048,
+          "diff_std": 0.0834,
+          "ci_95": [
+            -0.0272,
+            0.0384
+          ],
+          "ci_includes_zero": true,
+          "is_significant": false,
+          "statement": "no significant difference"
+        }
+      },
+      {
+        "model_name": "Random Baseline",
+        "precision@5": 0.0,
+        "precision@5_std": 0.0,
+        "precision@5_ci95": [
+          0.0,
+          0.0
+        ],
+        "precision@5_display": "0.0000 \u00b1 0.0000 [0.0000, 0.0000]",
+        "precision@10": 0.0,
+        "precision@10_std": 0.0,
+        "precision@10_ci95": [
+          0.0,
+          0.0
+        ],
+        "precision@10_display": "0.0000 \u00b1 0.0000 [0.0000, 0.0000]",
+        "precision@20": 0.0,
+        "precision@20_std": 0.0,
+        "precision@20_ci95": [
+          0.0,
+          0.0
+        ],
+        "precision@20_display": "0.0000 \u00b1 0.0000 [0.0000, 0.0000]",
+        "precision@25": 0.0016,
+        "precision@25_std": 0.0078,
+        "precision@25_ci95": [
+          0.0,
+          0.0048
+        ],
+        "precision@25_display": "0.0016 \u00b1 0.0078 [0.0000, 0.0048]",
+        "recall@10": 0.0,
+        "recall@10_std": 0.0,
+        "recall@10_ci95": [
+          0.0,
+          0.0
+        ],
+        "recall@10_display": "0.0000 \u00b1 0.0000 [0.0000, 0.0000]",
+        "recall@25": 0.0057,
+        "recall@25_std": 0.028,
+        "recall@25_ci95": [
+          0.0,
+          0.0171
+        ],
+        "recall@25_display": "0.0057 \u00b1 0.0280 [0.0000, 0.0171]",
+        "recall@50": 0.0702,
+        "recall@50_std": 0.1992,
+        "recall@50_ci95": [
+          0.0128,
+          0.1636
+        ],
+        "recall@50_display": "0.0702 \u00b1 0.1992 [0.0128, 0.1636]",
+        "recall@100": 0.1084,
+        "recall@100_std": 0.2061,
+        "recall@100_ci95": [
+          0.0426,
+          0.2012
+        ],
+        "recall@100_display": "0.1084 \u00b1 0.2061 [0.0426, 0.2012]",
+        "ndcg@10": 0.0,
+        "ndcg@10_std": 0.0,
+        "ndcg@10_ci95": [
+          0.0,
+          0.0
+        ],
+        "ndcg@10_display": "0.0000 \u00b1 0.0000 [0.0000, 0.0000]",
+        "ndcg@25": 0.0025,
+        "ndcg@25_std": 0.0121,
+        "ndcg@25_ci95": [
+          0.0,
+          0.0074
+        ],
+        "ndcg@25_display": "0.0025 \u00b1 0.0121 [0.0000, 0.0074]",
+        "ap": 0.0104,
+        "ap_std": 0.0074,
+        "ap_ci95": [
+          0.0079,
+          0.0138
+        ],
+        "ap_display": "0.0104 \u00b1 0.0074 [0.0079, 0.0138]",
+        "map": 0.0104,
+        "map_std": 0.0074,
+        "map_ci95": [
+          0.0079,
+          0.0138
+        ],
+        "map_display": "0.0104 \u00b1 0.0074 [0.0079, 0.0138]",
+        "pr_auc": 0.0104,
+        "pr_auc_std": 0.0074,
+        "pr_auc_ci95": [
+          0.0079,
+          0.0138
+        ],
+        "pr_auc_display": "0.0104 \u00b1 0.0074 [0.0079, 0.0138]",
+        "paired_vs_tsm_ap": {
+          "diff_mean": -0.2143,
+          "diff_std": 0.1378,
+          "ci_95": [
+            -0.2712,
+            -0.1642
+          ],
+          "ci_includes_zero": false,
+          "is_significant": true,
+          "statement": "statistically significant underperformance"
+        },
+        "paired_vs_tsm_ndcg25": {
+          "diff_mean": -0.3878,
+          "diff_std": 0.1608,
+          "ci_95": [
+            -0.4494,
+            -0.3302
+          ],
+          "ci_includes_zero": false,
+          "is_significant": true,
+          "statement": "statistically significant underperformance"
+        },
+        "paired_vs_tsm_p10": {
+          "diff_mean": -0.224,
+          "diff_std": 0.1176,
+          "ci_95": [
+            -0.268,
+            -0.176
+          ],
+          "ci_includes_zero": false,
+          "is_significant": true,
+          "statement": "statistically significant underperformance"
+        },
+        "paired_vs_tsm_p25": {
+          "diff_mean": -0.1168,
+          "diff_std": 0.0542,
+          "ci_95": [
+            -0.1392,
+            -0.0944
+          ],
+          "ci_includes_zero": false,
+          "is_significant": true,
+          "statement": "statistically significant underperformance"
+        }
+      }
+    ]
+  },
+  "secondary_protocol": {
+    "protocol_name": "Secondary Protocol: Leave-One-Host-Out",
+    "eligible_candidates_per_fold": 4643,
+    "hosts_evaluated": 24,
+    "top_1_pct_rank_cutoff": 47,
+    "top_5_pct_rank_cutoff": 233,
+    "top_10_pct_rank_cutoff": 465,
+    "models": [
+      {
+        "model_name": "Logistic Regression (Variant A - All Features)",
+        "held_out_positives_count": 32,
+        "median_rank": 41.5,
+        "mean_rank": 209.2,
+        "pct_in_top_1_pct": 56.25,
+        "pct_in_top_5_pct": 81.25,
+        "pct_in_top_10_pct": 84.38
+      },
+      {
+        "model_name": "Distance-Only Baseline",
+        "held_out_positives_count": 32,
+        "median_rank": 61.0,
+        "mean_rank": 376.4,
+        "pct_in_top_1_pct": 46.88,
+        "pct_in_top_5_pct": 62.5,
+        "pct_in_top_10_pct": 71.88
+      },
+      {
+        "model_name": "Model A (LightGBM - All Features)",
+        "held_out_positives_count": 32,
+        "median_rank": 61.0,
+        "mean_rank": 147.6,
+        "pct_in_top_1_pct": 43.75,
+        "pct_in_top_5_pct": 81.25,
+        "pct_in_top_10_pct": 90.62
+      },
+      {
+        "model_name": "Logistic Regression (Variant B - Raw Features Only)",
+        "held_out_positives_count": 32,
+        "median_rank": 62.0,
+        "mean_rank": 234.5,
+        "pct_in_top_1_pct": 43.75,
+        "pct_in_top_5_pct": 75.0,
+        "pct_in_top_10_pct": 84.38
+      },
+      {
+        "model_name": "Heuristic Composite (ExoSignal)",
+        "held_out_positives_count": 32,
+        "median_rank": 90.0,
+        "mean_rank": 683.7,
+        "pct_in_top_1_pct": 21.88,
+        "pct_in_top_5_pct": 56.25,
+        "pct_in_top_10_pct": 65.62
+      },
+      {
+        "model_name": "Model B (LightGBM - Raw Features Only)",
+        "held_out_positives_count": 32,
+        "median_rank": 102.5,
+        "mean_rank": 278.3,
+        "pct_in_top_1_pct": 15.62,
+        "pct_in_top_5_pct": 65.62,
+        "pct_in_top_10_pct": 78.12
+      },
+      {
+        "model_name": "TSM-Only Baseline",
+        "held_out_positives_count": 32,
+        "median_rank": 341.0,
+        "mean_rank": 609.4,
+        "pct_in_top_1_pct": 31.25,
+        "pct_in_top_5_pct": 46.88,
+        "pct_in_top_10_pct": 56.25
+      },
+      {
+        "model_name": "ESM-Only Baseline",
+        "held_out_positives_count": 32,
+        "median_rank": 574.0,
+        "mean_rank": 1216.0,
+        "pct_in_top_1_pct": 25.0,
+        "pct_in_top_5_pct": 34.38,
+        "pct_in_top_10_pct": 46.88
+      },
+      {
+        "model_name": "Random Baseline",
+        "held_out_positives_count": 32,
+        "median_rank": 2506.0,
+        "mean_rank": 2278.6,
+        "pct_in_top_1_pct": 0.0,
+        "pct_in_top_5_pct": 6.25,
+        "pct_in_top_10_pct": 12.5
+      }
+    ]
+  },
+  "temporal_sanity_check": {
+    "protocol_name": "forward-in-time sanity check (n_pos=1)",
+    "status": "sanity_check_only",
+    "caveat": "Strictly a forward-in-time sanity check (n_pos=1 in test split, LP 791-18 d). Never used for model selection or statistical inference.",
+    "train_set_size": 2791,
+    "val_set_size": 914,
+    "test_set_size": 938,
+    "n_positives_test": 1,
+    "leaderboard": [
+      {
+        "precision@5": 0.0,
+        "precision@10": 0.0,
+        "precision@20": 0.0,
+        "precision@25": 0.0,
+        "recall@10": 0.0,
+        "recall@25": 0.0,
+        "recall@50": 1.0,
+        "recall@100": 1.0,
+        "ndcg@10": 0.0,
+        "ndcg@25": 0.0,
+        "ap": 0.0294,
+        "map": 0.0294,
+        "pr_auc": 0.0294,
+        "model_name": "Heuristic Composite (ExoSignal)"
+      },
+      {
+        "precision@5": 0.0,
+        "precision@10": 0.0,
+        "precision@20": 0.0,
+        "precision@25": 0.0,
+        "recall@10": 0.0,
+        "recall@25": 0.0,
+        "recall@50": 1.0,
+        "recall@100": 1.0,
+        "ndcg@10": 0.0,
+        "ndcg@25": 0.0,
+        "ap": 0.0222,
+        "map": 0.0222,
+        "pr_auc": 0.0222,
+        "model_name": "Distance-Only Baseline"
+      },
+      {
+        "precision@5": 0.0,
+        "precision@10": 0.0,
+        "precision@20": 0.0,
+        "precision@25": 0.0,
+        "recall@10": 0.0,
+        "recall@25": 0.0,
+        "recall@50": 0.0,
+        "recall@100": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@25": 0.0,
+        "ap": 0.0094,
+        "map": 0.0094,
+        "pr_auc": 0.0094,
+        "model_name": "Logistic Regression (Variant A - All Features)"
+      },
+      {
+        "precision@5": 0.0,
+        "precision@10": 0.0,
+        "precision@20": 0.0,
+        "precision@25": 0.0,
+        "recall@10": 0.0,
+        "recall@25": 0.0,
+        "recall@50": 0.0,
+        "recall@100": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@25": 0.0,
+        "ap": 0.002,
+        "map": 0.002,
+        "pr_auc": 0.002,
+        "model_name": "Model A (LightGBM - All Features)"
+      },
+      {
+        "precision@5": 0.0,
+        "precision@10": 0.0,
+        "precision@20": 0.0,
+        "precision@25": 0.0,
+        "recall@10": 0.0,
+        "recall@25": 0.0,
+        "recall@50": 0.0,
+        "recall@100": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@25": 0.0,
+        "ap": 0.0017,
+        "map": 0.0017,
+        "pr_auc": 0.0017,
+        "model_name": "Random Baseline"
+      },
+      {
+        "precision@5": 0.0,
+        "precision@10": 0.0,
+        "precision@20": 0.0,
+        "precision@25": 0.0,
+        "recall@10": 0.0,
+        "recall@25": 0.0,
+        "recall@50": 0.0,
+        "recall@100": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@25": 0.0,
+        "ap": 0.0014,
+        "map": 0.0014,
+        "pr_auc": 0.0014,
+        "model_name": "TSM-Only Baseline"
+      },
+      {
+        "precision@5": 0.0,
+        "precision@10": 0.0,
+        "precision@20": 0.0,
+        "precision@25": 0.0,
+        "recall@10": 0.0,
+        "recall@25": 0.0,
+        "recall@50": 0.0,
+        "recall@100": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@25": 0.0,
+        "ap": 0.0013,
+        "map": 0.0013,
+        "pr_auc": 0.0013,
+        "model_name": "ESM-Only Baseline"
+      },
+      {
+        "precision@5": 0.0,
+        "precision@10": 0.0,
+        "precision@20": 0.0,
+        "precision@25": 0.0,
+        "recall@10": 0.0,
+        "recall@25": 0.0,
+        "recall@50": 0.0,
+        "recall@100": 0.0,
+        "ndcg@10": 0.0,
+        "ndcg@25": 0.0,
+        "ap": 0.0011,
+        "map": 0.0011,
+        "pr_auc": 0.0011,
+        "model_name": "Model B (LightGBM - Raw Features Only)"
+      }
+    ]
+  },
+  "score_diversity": {
+    "total_candidates": 4643,
+    "distinct_scores_total": 4643,
+    "distinct_scores_percentage": 100.0,
+    "top_50_distinct_scores": 50,
+    "top_50_ties_count": 0,
+    "top_50_tie_percentage": 0.0,
+    "tie_breaking_policy": "Deterministic multi-key tie-breaker: 1. Raw continuous score descending; 2. TSM descending; 3. Distance ascending; 4. Planet name ascending."
+  },
+  "calibration": {
+    "reliability_bins": [
+      {
+        "bin_range": "[0.00, 0.20]",
+        "planet_count": 4131,
+        "mean_priority_score": 0.0092,
+        "empirical_positive_rate": 0.0
+      },
+      {
+        "bin_range": "[0.20, 0.40]",
+        "planet_count": 159,
+        "mean_priority_score": 0.2895,
+        "empirical_positive_rate": 0.0063
+      },
+      {
+        "bin_range": "[0.40, 0.60]",
+        "planet_count": 103,
+        "mean_priority_score": 0.4934,
+        "empirical_positive_rate": 0.0
+      },
+      {
+        "bin_range": "[0.60, 0.80]",
+        "planet_count": 103,
+        "mean_priority_score": 0.6929,
+        "empirical_positive_rate": 0.0097
+      },
+      {
+        "bin_range": "[0.80, 1.00]",
+        "planet_count": 147,
+        "mean_priority_score": 0.9195,
+        "empirical_positive_rate": 0.2041
+      }
+    ],
+    "calibration_nature": "monotonic_ranking_score",
+    "calibration_statement": "Scores represent prioritized ranking scores designed for spectroscopic telescope follow-up, NOT uncalibrated posterior probabilities. Because balanced class weighting (class_weight='balanced') was applied to address severe 0.69% positive prevalence, output scores strictly optimize target ordering."
+  },
+  "limitations": [
+    "small n: only 32 positive JWST transmission spectroscopy targets currently confirmed in public approved programs.",
+    "label = human selection: targets reflect human TAC selection and telescope observing pressure rather than pure physical ground truth.",
+    "bias toward bright, well-studied targets: host stars in confirmed programs are systematically brighter (lower J/K magnitudes) and closer than average catalog stars."
+  ]
+}

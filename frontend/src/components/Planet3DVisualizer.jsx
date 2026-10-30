@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react'
+import React, { useRef, useEffect, useState } from 'react';
 
 /**
  * PLANETARY PRESETS with realistic astronomical parameters and color spectra
@@ -17,7 +17,7 @@ export const PLANET_PRESETS = {
     cloudColor: 'rgba(255, 255, 255, 0.65)',
     rings: false,
     banding: false,
-    glowHex: '#38bdf8'
+    glowHex: '#38bdf8',
   },
   toi700d: {
     name: 'TOI-700 d',
@@ -32,7 +32,7 @@ export const PLANET_PRESETS = {
     cloudColor: 'rgba(240, 253, 250, 0.7)',
     rings: false,
     banding: false,
-    glowHex: '#10b981'
+    glowHex: '#10b981',
   },
   k218b: {
     name: 'K2-18 b',
@@ -47,7 +47,7 @@ export const PLANET_PRESETS = {
     cloudColor: 'rgba(216, 180, 254, 0.55)',
     rings: false,
     banding: true,
-    glowHex: '#a855f7'
+    glowHex: '#a855f7',
   },
   lhs1140b: {
     name: 'LHS 1140 b',
@@ -62,7 +62,7 @@ export const PLANET_PRESETS = {
     cloudColor: 'rgba(254, 243, 199, 0.45)',
     rings: false,
     banding: false,
-    glowHex: '#f59e0b'
+    glowHex: '#f59e0b',
   },
   wasp96b: {
     name: 'WASP-96 b',
@@ -77,9 +77,9 @@ export const PLANET_PRESETS = {
     cloudColor: 'rgba(254, 215, 170, 0.65)',
     rings: true,
     banding: true,
-    glowHex: '#f97316'
-  }
-}
+    glowHex: '#f97316',
+  },
+};
 
 /**
  * Real procedural 3D exoplanet visualizer with rotating surface, clouds,
@@ -91,171 +91,175 @@ const Planet3DVisualizer = ({
   size = 360,
   showControls = true,
   interactive = true,
-  className = ''
+  className = '',
 }) => {
-  const canvasRef = useRef(null)
-  const [selectedKey, setSelectedKey] = useState(initialPlanet)
-  const [isRotating, setIsRotating] = useState(true)
-  const [rotationSpeed, setRotationSpeed] = useState(1)
-  const [isDragging, setIsDragging] = useState(false)
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
-  const rotationAngleRef = useRef(0)
-  const cloudAngleRef = useRef(0)
-  const transitAngleRef = useRef(0)
+  const canvasRef = useRef(null);
+  const [selectedKey, setSelectedKey] = useState(initialPlanet);
+  const [isRotating, setIsRotating] = useState(true);
+  const [rotationSpeed, setRotationSpeed] = useState(1);
+  const [isDragging, setIsDragging] = useState(false);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const rotationAngleRef = useRef(0);
+  const cloudAngleRef = useRef(0);
+  const transitAngleRef = useRef(0);
 
   useEffect(() => {
     if (initialPlanet) {
-      setSelectedKey(initialPlanet)
+      setSelectedKey(initialPlanet);
     }
-  }, [initialPlanet])
+  }, [initialPlanet]);
 
-  const planet = customPlanet || PLANET_PRESETS[selectedKey] || PLANET_PRESETS.trappist1e
+  const planet = customPlanet || PLANET_PRESETS[selectedKey] || PLANET_PRESETS.trappist1e;
 
   // Handle drag interaction
   const handleMouseDown = (e) => {
-    if (!interactive) return
-    setIsDragging(true)
-    setMousePos({ x: e.clientX, y: e.clientY })
-  }
+    if (!interactive) return;
+    setIsDragging(true);
+    setMousePos({ x: e.clientX, y: e.clientY });
+  };
 
   const handleMouseMove = (e) => {
-    if (!isDragging || !interactive) return
-    const dx = e.clientX - mousePos.x
-    rotationAngleRef.current += dx * 0.008
-    cloudAngleRef.current += dx * 0.01
-    setMousePos({ x: e.clientX, y: e.clientY })
-  }
+    if (!isDragging || !interactive) return;
+    const dx = e.clientX - mousePos.x;
+    rotationAngleRef.current += dx * 0.008;
+    cloudAngleRef.current += dx * 0.01;
+    setMousePos({ x: e.clientX, y: e.clientY });
+  };
 
   const handleMouseUp = () => {
-    setIsDragging(false)
-  }
+    setIsDragging(false);
+  };
 
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    let animationFrameId
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let animationFrameId;
 
     // Canvas coordinate centers
-    const width = size
-    const height = size
-    const dpr = window.devicePixelRatio || 1
-    canvas.width = width * dpr
-    canvas.height = height * dpr
-    ctx.scale(dpr, dpr)
+    const width = size;
+    const height = size;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    ctx.scale(dpr, dpr);
 
-    const centerX = width / 2
-    const centerY = height / 2
-    const radius = size * 0.36
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const radius = size * 0.36;
 
     // Pre-generate pseudo-random continent and cloud features for consistent rotation
-    const continents = []
-    const numContinents = planet.banding ? 12 : 8
+    const continents = [];
+    const numContinents = planet.banding ? 12 : 8;
     for (let i = 0; i < numContinents; i++) {
       continents.push({
         lat: -60 + (i * 120) / numContinents + Math.sin(i * 1.5) * 15,
         lon: (i * 360) / numContinents,
         sizeLat: planet.banding ? 8 : 22 + (i % 3) * 8,
         sizeLon: planet.banding ? 180 : 35 + (i % 4) * 12,
-        wobble: 1.5 + (i % 2) * 0.8
-      })
+        wobble: 1.5 + (i % 2) * 0.8,
+      });
     }
 
-    const clouds = []
+    const clouds = [];
     for (let i = 0; i < 14; i++) {
       clouds.push({
         lat: -70 + (i * 140) / 14 + Math.cos(i) * 10,
         lon: (i * 420) / 14,
         width: 40 + (i % 5) * 15,
-        height: 12 + (i % 3) * 6
-      })
+        height: 12 + (i % 3) * 6,
+      });
     }
 
     // Render loop
     const render = () => {
-      ctx.clearRect(0, 0, width, height)
+      ctx.clearRect(0, 0, width, height);
 
       if (isRotating && !isDragging) {
-        rotationAngleRef.current += 0.004 * rotationSpeed
-        cloudAngleRef.current += 0.0055 * rotationSpeed
-        transitAngleRef.current += 0.015 * rotationSpeed
+        rotationAngleRef.current += 0.004 * rotationSpeed;
+        cloudAngleRef.current += 0.0055 * rotationSpeed;
+        transitAngleRef.current += 0.015 * rotationSpeed;
       }
 
-      const rot = rotationAngleRef.current
-      const cloudRot = cloudAngleRef.current
-      const transitRot = transitAngleRef.current
+      const rot = rotationAngleRef.current;
+      const cloudRot = cloudAngleRef.current;
+      const transitRot = transitAngleRef.current;
 
       // ─── 1. ATMOSPHERIC RAYLEIGH SCATTERING GLOW (Outer Aura) ───
       const glowGrad = ctx.createRadialGradient(
-        centerX, centerY, radius * 0.9,
-        centerX, centerY, radius * 1.35
-      )
-      glowGrad.addColorStop(0, planet.atmosphereColor)
-      glowGrad.addColorStop(0.5, planet.atmosphereColor.replace(/[\d.]+\)$/, '0.15)'))
-      glowGrad.addColorStop(1, 'transparent')
+        centerX,
+        centerY,
+        radius * 0.9,
+        centerX,
+        centerY,
+        radius * 1.35
+      );
+      glowGrad.addColorStop(0, planet.atmosphereColor);
+      glowGrad.addColorStop(0.5, planet.atmosphereColor.replace(/[\d.]+\)$/, '0.15)'));
+      glowGrad.addColorStop(1, 'transparent');
 
-      ctx.save()
-      ctx.fillStyle = glowGrad
-      ctx.beginPath()
-      ctx.arc(centerX, centerY, radius * 1.35, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.restore()
+      ctx.save();
+      ctx.fillStyle = glowGrad;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius * 1.35, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
 
       // ─── 2. PLANETARY SPHERICAL BODY (Clipping path) ───
-      ctx.save()
-      ctx.beginPath()
-      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2)
-      ctx.clip()
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      ctx.clip();
 
       // 2a. Base Planetary Ocean/Crust Background
-      ctx.fillStyle = planet.baseColor
-      ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
+      ctx.fillStyle = planet.baseColor;
+      ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
 
       // 2b. Continents / Atmospheric Bands mapped to 3D Sphere
-      ctx.fillStyle = planet.landColor
+      ctx.fillStyle = planet.landColor;
       continents.forEach((cont) => {
         // Compute relative longitude with rotation
-        const currentLon = ((cont.lon + (rot * 180) / Math.PI) % 360) - 180
+        const currentLon = ((cont.lon + (rot * 180) / Math.PI) % 360) - 180;
         // Only draw when on visible side facing observer (-90 to +90 deg)
         if (currentLon > -100 && currentLon < 100) {
-          const latRad = (cont.lat * Math.PI) / 180
-          const lonRad = (currentLon * Math.PI) / 180
+          const latRad = (cont.lat * Math.PI) / 180;
+          const lonRad = (currentLon * Math.PI) / 180;
 
           // Orthographic projection math
-          const x = centerX + radius * Math.cos(latRad) * Math.sin(lonRad)
-          const y = centerY - radius * Math.sin(latRad)
-          const scale = Math.cos(lonRad) // Foreshortening towards sphere limb
+          const x = centerX + radius * Math.cos(latRad) * Math.sin(lonRad);
+          const y = centerY - radius * Math.sin(latRad);
+          const scale = Math.cos(lonRad); // Foreshortening towards sphere limb
 
           if (scale > 0) {
-            ctx.beginPath()
+            ctx.beginPath();
             ctx.ellipse(
               x,
               y,
-              Math.max(2, (cont.sizeLon * radius * 0.018 * scale)),
-              Math.max(2, (cont.sizeLat * radius * 0.018)),
+              Math.max(2, cont.sizeLon * radius * 0.018 * scale),
+              Math.max(2, cont.sizeLat * radius * 0.018),
               0,
               0,
               Math.PI * 2
-            )
-            ctx.fill()
+            );
+            ctx.fill();
           }
         }
-      })
+      });
 
       // 2c. Swirling Cloud Layer (Differentially rotating)
-      ctx.fillStyle = planet.cloudColor
+      ctx.fillStyle = planet.cloudColor;
       clouds.forEach((cloud) => {
-        const currentLon = ((cloud.lon + (cloudRot * 180) / Math.PI) % 360) - 180
+        const currentLon = ((cloud.lon + (cloudRot * 180) / Math.PI) % 360) - 180;
         if (currentLon > -95 && currentLon < 95) {
-          const latRad = (cloud.lat * Math.PI) / 180
-          const lonRad = (currentLon * Math.PI) / 180
+          const latRad = (cloud.lat * Math.PI) / 180;
+          const lonRad = (currentLon * Math.PI) / 180;
 
-          const x = centerX + radius * Math.cos(latRad) * Math.sin(lonRad)
-          const y = centerY - radius * Math.sin(latRad)
-          const scale = Math.cos(lonRad)
+          const x = centerX + radius * Math.cos(latRad) * Math.sin(lonRad);
+          const y = centerY - radius * Math.sin(latRad);
+          const scale = Math.cos(lonRad);
 
           if (scale > 0) {
-            ctx.beginPath()
+            ctx.beginPath();
             ctx.ellipse(
               x,
               y,
@@ -264,109 +268,125 @@ const Planet3DVisualizer = ({
               -0.15,
               0,
               Math.PI * 2
-            )
-            ctx.fill()
+            );
+            ctx.fill();
           }
         }
-      })
+      });
 
       // 2d. 3D Spherical Day/Night Terminator Shadow (Host Star Sunlight)
       // Light source comes from top-left (10 o'clock)
-      const lightX = centerX - radius * 0.4
-      const lightY = centerY - radius * 0.4
+      const lightX = centerX - radius * 0.4;
+      const lightY = centerY - radius * 0.4;
       const shadowGrad = ctx.createRadialGradient(
-        lightX, lightY, radius * 0.1,
-        centerX, centerY, radius * 1.05
-      )
-      shadowGrad.addColorStop(0, 'rgba(255, 255, 255, 0.18)') // Specular highlight
-      shadowGrad.addColorStop(0.5, 'rgba(0, 0, 0, 0.0)')       // Midtones
-      shadowGrad.addColorStop(0.75, 'rgba(2, 6, 23, 0.65)')    // Penumbra terminator
-      shadowGrad.addColorStop(1, 'rgba(1, 2, 8, 0.96)')        // Nightside umbra
+        lightX,
+        lightY,
+        radius * 0.1,
+        centerX,
+        centerY,
+        radius * 1.05
+      );
+      shadowGrad.addColorStop(0, 'rgba(255, 255, 255, 0.18)'); // Specular highlight
+      shadowGrad.addColorStop(0.5, 'rgba(0, 0, 0, 0.0)'); // Midtones
+      shadowGrad.addColorStop(0.75, 'rgba(2, 6, 23, 0.65)'); // Penumbra terminator
+      shadowGrad.addColorStop(1, 'rgba(1, 2, 8, 0.96)'); // Nightside umbra
 
-      ctx.fillStyle = shadowGrad
-      ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
+      ctx.fillStyle = shadowGrad;
+      ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
 
       // 2e. Atmospheric Edge Scattering (Fresnel Rim Glow inside limb)
       const rimGrad = ctx.createRadialGradient(
-        centerX, centerY, radius * 0.85,
-        centerX, centerY, radius
-      )
-      rimGrad.addColorStop(0, 'rgba(255, 255, 255, 0)')
-      rimGrad.addColorStop(0.7, planet.atmosphereColor.replace(/[\d.]+\)$/, '0.3)'))
-      rimGrad.addColorStop(1, planet.atmosphereColor)
+        centerX,
+        centerY,
+        radius * 0.85,
+        centerX,
+        centerY,
+        radius
+      );
+      rimGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
+      rimGrad.addColorStop(0.7, planet.atmosphereColor.replace(/[\d.]+\)$/, '0.3)'));
+      rimGrad.addColorStop(1, planet.atmosphereColor);
 
-      ctx.fillStyle = rimGrad
-      ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
+      ctx.fillStyle = rimGrad;
+      ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
 
-      ctx.restore() // End clipping
+      ctx.restore(); // End clipping
 
       // ─── 3. PLANETARY RINGS (Optional, e.g. for WASP-96 b) ───
       if (planet.rings) {
-        ctx.save()
-        ctx.translate(centerX, centerY)
-        ctx.rotate(-0.35) // Tilt 20 degrees
-        ctx.scale(1, 0.28) // Flatten into 3D ellipse perspective
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(-0.35); // Tilt 20 degrees
+        ctx.scale(1, 0.28); // Flatten into 3D ellipse perspective
 
-        const ringGrad = ctx.createRadialGradient(0, 0, radius * 1.25, 0, 0, radius * 1.9)
-        ringGrad.addColorStop(0, 'rgba(251, 191, 36, 0.0)')
-        ringGrad.addColorStop(0.3, 'rgba(251, 191, 36, 0.4)')
-        ringGrad.addColorStop(0.6, 'rgba(245, 158, 11, 0.15)')
-        ringGrad.addColorStop(0.85, 'rgba(217, 119, 6, 0.45)')
-        ringGrad.addColorStop(1, 'rgba(217, 119, 6, 0.0)')
+        const ringGrad = ctx.createRadialGradient(0, 0, radius * 1.25, 0, 0, radius * 1.9);
+        ringGrad.addColorStop(0, 'rgba(251, 191, 36, 0.0)');
+        ringGrad.addColorStop(0.3, 'rgba(251, 191, 36, 0.4)');
+        ringGrad.addColorStop(0.6, 'rgba(245, 158, 11, 0.15)');
+        ringGrad.addColorStop(0.85, 'rgba(217, 119, 6, 0.45)');
+        ringGrad.addColorStop(1, 'rgba(217, 119, 6, 0.0)');
 
-        ctx.strokeStyle = ringGrad
-        ctx.lineWidth = radius * 0.65
-        ctx.beginPath()
-        ctx.arc(0, 0, radius * 1.55, 0, Math.PI * 2)
-        ctx.stroke()
-        ctx.restore()
+        ctx.strokeStyle = ringGrad;
+        ctx.lineWidth = radius * 0.65;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 1.55, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
       }
 
       // ─── 4. TRANSIT SPECTROSCOPY ORBITAL PATH & PHOTOMETRIC BEACON ───
-      ctx.save()
-      const orbitA = radius * 1.45
-      const orbitB = radius * 0.45
+      ctx.save();
+      const orbitA = radius * 1.45;
+      const orbitB = radius * 0.45;
 
       // Orbital ellipse path line
-      ctx.beginPath()
-      ctx.ellipse(centerX, centerY, orbitA, orbitB, -0.22, 0, Math.PI * 2)
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)'
-      ctx.lineWidth = 1.2
-      ctx.setLineDash([4, 6])
-      ctx.stroke()
+      ctx.beginPath();
+      ctx.ellipse(centerX, centerY, orbitA, orbitB, -0.22, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)';
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([4, 6]);
+      ctx.stroke();
 
       // Orbital Transit Beacon (Telescope line of sight indicator)
-      const beaconX = centerX + orbitA * Math.cos(transitRot) * Math.cos(-0.22) - orbitB * Math.sin(transitRot) * Math.sin(-0.22)
-      const beaconY = centerY + orbitA * Math.cos(transitRot) * Math.sin(-0.22) + orbitB * Math.sin(transitRot) * Math.cos(-0.22)
+      const beaconX =
+        centerX +
+        orbitA * Math.cos(transitRot) * Math.cos(-0.22) -
+        orbitB * Math.sin(transitRot) * Math.sin(-0.22);
+      const beaconY =
+        centerY +
+        orbitA * Math.cos(transitRot) * Math.sin(-0.22) +
+        orbitB * Math.sin(transitRot) * Math.cos(-0.22);
 
       // Beacon glow
-      const bGlow = ctx.createRadialGradient(beaconX, beaconY, 1, beaconX, beaconY, 12)
-      bGlow.addColorStop(0, '#ffffff')
-      bGlow.addColorStop(0.4, planet.glowHex)
-      bGlow.addColorStop(1, 'transparent')
+      const bGlow = ctx.createRadialGradient(beaconX, beaconY, 1, beaconX, beaconY, 12);
+      bGlow.addColorStop(0, '#ffffff');
+      bGlow.addColorStop(0.4, planet.glowHex);
+      bGlow.addColorStop(1, 'transparent');
 
-      ctx.fillStyle = bGlow
-      ctx.beginPath()
-      ctx.arc(beaconX, beaconY, 12, 0, Math.PI * 2)
-      ctx.fill()
+      ctx.fillStyle = bGlow;
+      ctx.beginPath();
+      ctx.arc(beaconX, beaconY, 12, 0, Math.PI * 2);
+      ctx.fill();
 
       // Beacon center dot
-      ctx.fillStyle = '#ffffff'
-      ctx.beginPath()
-      ctx.arc(beaconX, beaconY, 2.5, 0, Math.PI * 2)
-      ctx.fill()
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(beaconX, beaconY, 2.5, 0, Math.PI * 2);
+      ctx.fill();
 
-      ctx.restore()
+      ctx.restore();
 
-      animationFrameId = requestAnimationFrame(render)
-    }
+      animationFrameId = requestAnimationFrame(render);
+    };
 
-    render()
+    render();
 
     return () => {
-      cancelAnimationFrame(animationFrameId)
-    }
-  }, [selectedKey, isRotating, rotationSpeed, isDragging, size])
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [selectedKey, isRotating, rotationSpeed, isDragging, size, customPlanet, planet]);
+
+  const isCompact = size < 280;
 
   return (
     <div className={`flex flex-col items-center select-none ${className}`}>
@@ -384,22 +404,26 @@ const Planet3DVisualizer = ({
           className="transition-transform duration-300 group-hover:scale-105"
         />
 
-        {/* Floating Planetary HUD Badge */}
-        <div className="absolute top-2 left-2 pointer-events-none bg-space-void/85 border border-exosignal-cyan/30 rounded-xl px-3 py-1.5 backdrop-blur-md font-mono text-[11px] shadow-lg">
-          <div className="text-exosignal-cyan font-bold tracking-wider uppercase flex items-center space-x-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-            <span>{planet.name}</span>
+        {/* Floating Planetary HUD Badge - only render on larger canvases to prevent label overlap */}
+        {!isCompact && (
+          <div className="absolute top-2 left-2 pointer-events-none bg-space-void/85 border border-exosignal-cyan/30 rounded-xl px-3 py-1.5 backdrop-blur-md font-mono text-[11px] shadow-lg max-w-[65%]">
+            <div className="text-exosignal-cyan font-bold tracking-wider uppercase flex items-center space-x-1.5 truncate">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0"></span>
+              <span className="truncate">{planet.name}</span>
+            </div>
+            <div className="text-[10px] text-exosignal-text-muted mt-0.5 truncate">
+              {planet.type}
+            </div>
           </div>
-          <div className="text-[10px] text-exosignal-text-muted mt-0.5">
-            {planet.type}
-          </div>
-        </div>
+        )}
 
-        {/* Orbiting Transit Telemetry Chip */}
-        <div className="absolute bottom-2 right-2 pointer-events-none bg-space-void/85 border border-exosignal-cyan/30 rounded-xl px-3 py-1.5 backdrop-blur-md font-mono text-[10px] text-right">
-          <span className="text-exosignal-text-muted block">Transit Depth</span>
-          <span className="text-emerald-400 font-bold text-xs">{planet.transitDepth}</span>
-        </div>
+        {/* Orbiting Transit Telemetry Chip - only render on larger canvases to prevent label overlap */}
+        {!isCompact && (
+          <div className="absolute bottom-2 right-2 pointer-events-none bg-space-void/85 border border-exosignal-cyan/30 rounded-xl px-3 py-1.5 backdrop-blur-md font-mono text-[10px] text-right">
+            <span className="text-exosignal-text-muted block">Transit Depth</span>
+            <span className="text-emerald-400 font-bold text-xs">{planet.transitDepth}</span>
+          </div>
+        )}
 
         {/* Mouse drag instruction hover hint */}
         <div className="absolute inset-x-0 bottom-6 text-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
@@ -452,7 +476,7 @@ const Planet3DVisualizer = ({
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default Planet3DVisualizer
+export default Planet3DVisualizer;

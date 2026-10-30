@@ -1,49 +1,55 @@
-import React, { useState, useEffect } from 'react'
-import { explainabilityApi } from '../services/api'
+import React, { useState, useEffect } from 'react';
+import { explainabilityApi } from '../services/api';
 
-export const TreeSHAPWaterfall = ({ planetName, targetPriorityScore, mlPriorityScore, mlRank, rankDelta }) => {
-  const [explanation, setExplanation] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [viewMode, setViewMode] = useState('summary') // 'summary' or 'full'
+export const TreeSHAPWaterfall = ({
+  planetName,
+  targetPriorityScore,
+  mlPriorityScore,
+  mlRank,
+  rankDelta,
+}) => {
+  const [explanation, setExplanation] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [viewMode, setViewMode] = useState('summary'); // 'summary' or 'full'
 
   useEffect(() => {
-    let isMounted = true
+    let isMounted = true;
     const fetchExplanation = async () => {
       try {
-        setLoading(true)
-        setError(null)
-        const data = await explainabilityApi.getPlanetExplanation(planetName)
+        setLoading(true);
+        setError(null);
+        const data = await explainabilityApi.getPlanetExplanation(planetName);
         if (isMounted) {
-          setExplanation(data)
-          setLoading(false)
+          setExplanation(data);
+          setLoading(false);
         }
       } catch (err) {
         if (isMounted) {
-          setError(err?.response?.data?.detail || 'Failed to compute TreeSHAP explanation')
-          setLoading(false)
+          setError(err?.response?.data?.detail || 'Failed to compute TreeSHAP explanation');
+          setLoading(false);
         }
       }
-    }
+    };
 
     if (planetName) {
-      fetchExplanation()
+      fetchExplanation();
     }
 
     return () => {
-      isMounted = false
-    }
-  }, [planetName])
+      isMounted = false;
+    };
+  }, [planetName]);
 
   if (loading) {
     return (
       <div className="bg-space-darker rounded-lg border border-exosignal-blue/20 p-8 text-center">
         <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-exosignal-accent"></div>
         <p className="mt-3 text-exosignal-text/70 text-sm">
-          Computing exact TreeSHAP feature attributions via LightGBM C++ engine...
+          Computing exact SHAP feature attributions...
         </p>
       </div>
-    )
+    );
   }
 
   if (error || !explanation) {
@@ -51,24 +57,27 @@ export const TreeSHAPWaterfall = ({ planetName, targetPriorityScore, mlPriorityS
       <div className="bg-space-darker rounded-lg border border-exosignal-blue/20 p-6 text-center text-exosignal-text/60">
         <p>Interpretability breakdown unavailable for this target: {error}</p>
       </div>
-    )
+    );
   }
 
   const {
     base_score,
-    ml_priority_score,
+    ml_priority_score = explanation.priority_score,
     score_delta_from_base,
     mathematical_invariants,
     top_positive_drivers,
     top_negative_barriers,
-    full_waterfall
-  } = explanation
+    full_waterfall,
+  } = explanation;
 
-  const displayedItems = viewMode === 'summary'
-    ? [...top_positive_drivers, ...top_negative_barriers].sort((a, b) => b.abs_importance - a.abs_importance)
-    : full_waterfall
+  const displayedItems =
+    viewMode === 'summary'
+      ? [...top_positive_drivers, ...top_negative_barriers].sort(
+          (a, b) => b.abs_importance - a.abs_importance
+        )
+      : full_waterfall;
 
-  const maxAbsImpact = Math.max(...full_waterfall.map(i => Math.abs(i.score_impact)), 1.0)
+  const maxAbsImpact = Math.max(...full_waterfall.map((i) => Math.abs(i.score_impact)), 1.0);
 
   return (
     <section className="bg-space-darker rounded-lg border border-exosignal-blue/30 p-8">
@@ -84,7 +93,8 @@ export const TreeSHAPWaterfall = ({ planetName, targetPriorityScore, mlPriorityS
             </span>
           </div>
           <p className="text-exosignal-text/70 text-sm mt-1">
-            Exact local feature attribution decomposing the ML model's decision into physical positive drivers and negative barriers.
+            Exact local feature attribution decomposing the ML model's decision into physical
+            positive drivers and negative barriers.
           </p>
         </div>
 
@@ -99,7 +109,9 @@ export const TreeSHAPWaterfall = ({ planetName, targetPriorityScore, mlPriorityS
           {rankDelta !== null && rankDelta !== undefined && (
             <div className="px-3 py-1.5 rounded-lg bg-space-dark border border-exosignal-blue/30 text-right">
               <span className="text-xs text-exosignal-text/60 block">Rank Shift vs Heuristic</span>
-              <span className={`text-base font-bold ${rankDelta > 0 ? 'text-emerald-400' : rankDelta < 0 ? 'text-rose-400' : 'text-gray-400'}`}>
+              <span
+                className={`text-base font-bold ${rankDelta > 0 ? 'text-emerald-400' : rankDelta < 0 ? 'text-rose-400' : 'text-gray-400'}`}
+              >
                 {rankDelta > 0 ? `▲ +${rankDelta}` : rankDelta < 0 ? `▼ ${rankDelta}` : '— 0'}
               </span>
             </div>
@@ -117,16 +129,23 @@ export const TreeSHAPWaterfall = ({ planetName, targetPriorityScore, mlPriorityS
 
         <div className="bg-space-dark rounded-lg p-4 border border-exosignal-blue/20">
           <p className="text-xs text-exosignal-text/60">Net Feature Shift</p>
-          <p className={`text-2xl font-bold mt-1 ${score_delta_from_base >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {score_delta_from_base >= 0 ? `+${score_delta_from_base.toFixed(1)}` : score_delta_from_base.toFixed(1)} pts
+          <p
+            className={`text-2xl font-bold mt-1 ${score_delta_from_base >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+          >
+            {score_delta_from_base >= 0
+              ? `+${score_delta_from_base.toFixed(1)}`
+              : score_delta_from_base.toFixed(1)}{' '}
+            pts
           </p>
           <p className="text-xs text-exosignal-text/50 mt-1">Sum of SHAP physical contributions</p>
         </div>
 
         <div className="bg-space-dark rounded-lg p-4 border border-exosignal-blue/30 bg-exosignal-blue/5">
           <p className="text-xs text-exosignal-accent font-semibold">Predicted ML Score</p>
-          <p className="text-2xl font-extrabold text-exosignal-accent mt-1">{ml_priority_score.toFixed(1)}</p>
-          <p className="text-xs text-exosignal-text/50 mt-1">Supervised Learning-to-Rank</p>
+          <p className="text-2xl font-extrabold text-exosignal-accent mt-1">
+            {ml_priority_score.toFixed(1)}
+          </p>
+          <p className="text-xs text-exosignal-text/50 mt-1">Supervised ML Ranker</p>
         </div>
 
         <div className="bg-space-dark rounded-lg p-4 border border-exosignal-blue/20">
@@ -143,7 +162,9 @@ export const TreeSHAPWaterfall = ({ planetName, targetPriorityScore, mlPriorityS
       {/* Toggle View Mode */}
       <div className="flex items-center justify-between mt-6 mb-4">
         <h3 className="text-base font-semibold text-exosignal-text">
-          {viewMode === 'summary' ? 'Key Physical Drivers & Barriers' : 'All 21 Model Feature Contributions'}
+          {viewMode === 'summary'
+            ? 'Key Physical Drivers & Barriers'
+            : 'All 21 Model Feature Contributions'}
         </h3>
         <div className="flex items-center bg-space-dark p-1 rounded-lg border border-exosignal-blue/20">
           <button
@@ -164,8 +185,11 @@ export const TreeSHAPWaterfall = ({ planetName, targetPriorityScore, mlPriorityS
       {/* Waterfall List */}
       <div className="space-y-3 mt-4">
         {displayedItems.map((item) => {
-          const isPos = item.direction === 'positive'
-          const barWidthPercent = Math.min(100, Math.round((Math.abs(item.score_impact) / maxAbsImpact) * 100))
+          const isPos = item.direction === 'positive';
+          const barWidthPercent = Math.min(
+            100,
+            Math.round((Math.abs(item.score_impact) / maxAbsImpact) * 100)
+          );
 
           return (
             <div
@@ -175,7 +199,9 @@ export const TreeSHAPWaterfall = ({ planetName, targetPriorityScore, mlPriorityS
               <div className="flex flex-col sm:flex-row sm:items-center justify-between text-sm gap-2">
                 <div className="flex-1 min-w-[200px]">
                   <span className="font-semibold text-exosignal-text">{item.display_name}</span>
-                  <span className="text-xs font-mono text-exosignal-accent ml-2">({item.raw_value})</span>
+                  <span className="text-xs font-mono text-exosignal-accent ml-2">
+                    ({item.raw_value})
+                  </span>
                   {item.description && (
                     <p className="text-xs text-exosignal-text/50 mt-0.5">{item.description}</p>
                   )}
@@ -183,9 +209,14 @@ export const TreeSHAPWaterfall = ({ planetName, targetPriorityScore, mlPriorityS
 
                 <div className="flex items-center gap-4 text-right">
                   <span className="text-xs font-mono text-exosignal-text/60">
-                    φ = {item.shap_value > 0 ? `+${item.shap_value.toFixed(3)}` : item.shap_value.toFixed(3)}
+                    φ ={' '}
+                    {item.shap_value > 0
+                      ? `+${item.shap_value.toFixed(3)}`
+                      : item.shap_value.toFixed(3)}
                   </span>
-                  <span className={`text-sm font-bold min-w-[70px] ${isPos ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  <span
+                    className={`text-sm font-bold min-w-[70px] ${isPos ? 'text-emerald-400' : 'text-rose-400'}`}
+                  >
                     {isPos ? `+${item.score_impact.toFixed(1)}` : item.score_impact.toFixed(1)} pts
                   </span>
                 </div>
@@ -212,7 +243,7 @@ export const TreeSHAPWaterfall = ({ planetName, targetPriorityScore, mlPriorityS
                 </div>
               </div>
             </div>
-          )
+          );
         })}
       </div>
 
@@ -231,7 +262,7 @@ export const TreeSHAPWaterfall = ({ planetName, targetPriorityScore, mlPriorityS
         <span>Feature scale factor derived from population margin calibration</span>
       </div>
     </section>
-  )
-}
+  );
+};
 
-export default TreeSHAPWaterfall
+export default TreeSHAPWaterfall;

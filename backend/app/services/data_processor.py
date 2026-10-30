@@ -1,18 +1,20 @@
 """Data processing pipeline with caching for ExoSignal."""
 
-import os
 import json
-import pandas as pd
-import numpy as np
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
+
+import numpy as np
+import pandas as pd
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 
 from app.config import settings
-from app.services.data_ingestion import DataIngestion
-from app.services.data_cleaning import DataCleaning
-from app.services.feature_engineering import FeatureEngineering
 from app.ml.anomaly_detection import AnomalyDetector
 from app.scoring.priority_scorer import TargetPriorityScorer
+from app.services.data_cleaning import DataCleaning
+from app.services.data_ingestion import DataIngestion
+from app.services.feature_engineering import FeatureEngineering
 
 
 class DataProcessor:
@@ -28,8 +30,7 @@ class DataProcessor:
         self.cleaner = DataCleaning()
         self.feature_eng = FeatureEngineering()
         self.anomaly_detector = AnomalyDetector(
-            contamination=settings.ANOMALY_CONTAMINATION,
-            random_state=settings.RANDOM_STATE
+            contamination=settings.ANOMALY_CONTAMINATION, random_state=settings.RANDOM_STATE
         )
         self.scorer = TargetPriorityScorer()
 
@@ -47,7 +48,7 @@ class DataProcessor:
             return False
 
         try:
-            with open(self.metadata_file, 'r') as f:
+            with open(self.metadata_file, "r") as f:
                 self._metadata = json.load(f)
 
             # Check if raw data has been modified since processing
@@ -70,7 +71,7 @@ class DataProcessor:
         df = pd.read_csv(self.processed_file)
         self._cached_df = df
 
-        with open(self.metadata_file, 'r') as f:
+        with open(self.metadata_file, "r") as f:
             self._metadata = json.load(f)
 
         return df
@@ -84,9 +85,9 @@ class DataProcessor:
             "num_planets": len(df),
             "columns": list(df.columns),
             "processed_at": pd.Timestamp.now().isoformat(),
-            "version": "1.0"
+            "version": "1.0",
         }
-        with open(self.metadata_file, 'w') as f:
+        with open(self.metadata_file, "w") as f:
             json.dump(metadata, f, indent=2)
 
         self._cached_df = df
@@ -120,14 +121,14 @@ class DataProcessor:
             eligible_mask = df["eligible_for_transmission"] == True
             df["heuristic_rank"] = np.nan
             df.loc[eligible_mask, "heuristic_rank"] = (
-                df.loc[eligible_mask, "target_priority_score"]
-                .rank(ascending=False, method="first")
-                .astype(int)
+                df.loc[eligible_mask, "target_priority_score"].rank(ascending=False, method="first").astype(int)
             )
-            df = pd.concat([
-                df[eligible_mask].sort_values("target_priority_score", ascending=False),
-                df[~eligible_mask].sort_values("target_priority_score", ascending=False)
-            ]).reset_index(drop=True)
+            df = pd.concat(
+                [
+                    df[eligible_mask].sort_values("target_priority_score", ascending=False),
+                    df[~eligible_mask].sort_values("target_priority_score", ascending=False),
+                ]
+            ).reset_index(drop=True)
         else:
             df = df.sort_values("target_priority_score", ascending=False).reset_index(drop=True)
 
@@ -138,7 +139,21 @@ class DataProcessor:
         return df
 
     def get_processed_data(self, force_refresh: bool = False, use_api: bool = False) -> pd.DataFrame:
-        """Get processed data, using cache if available and valid."""
+        """Get processed data, using memory cache if available."""
+        if self._cached_df is not None and not force_refresh:
+            return self._cached_df
+
+        try:
+            from app.services.query_engine import CatalogQueryEngine
+
+            engine = CatalogQueryEngine.get_instance()
+            if engine.conn is not None:
+                df = engine.conn.execute("SELECT * FROM planets").df()
+                self._cached_df = df
+                return df
+        except Exception:
+            pass
+
         if not force_refresh and self.is_cache_valid():
             print("Loading from cache...")
             return self.load_cached_data()
@@ -167,7 +182,11 @@ class DataProcessor:
         df = self.get_processed_data()
         if "eligible_for_transmission" in df.columns:
             df = df[df["eligible_for_transmission"] == True]
-        score_col = "priority_score" if "priority_score" in df.columns else ("ml_priority_score" if "ml_priority_score" in df.columns else "target_priority_score")
+        score_col = (
+            "priority_score"
+            if "priority_score" in df.columns
+            else ("ml_priority_score" if "ml_priority_score" in df.columns else "target_priority_score")
+        )
         df = df[df[score_col] >= min_priority]
         df = df.sort_values(score_col, ascending=False)
         result = df.head(limit)
@@ -181,7 +200,7 @@ class DataProcessor:
         scores = df["target_priority_score"].dropna()
         counts, bin_edges = np.histogram(scores, bins=[0, 20, 40, 60, 80, 100])
         priority_histogram = [
-            {"range": f"{int(bin_edges[i])}-{int(bin_edges[i+1])}", "count": int(counts[i])}
+            {"range": f"{int(bin_edges[i])}-{int(bin_edges[i + 1])}", "count": int(counts[i])}
             for i in range(len(counts))
         ]
 
@@ -192,14 +211,14 @@ class DataProcessor:
                 "max": float(df["target_priority_score"].max()),
                 "mean": float(df["target_priority_score"].mean()),
                 "median": float(df["target_priority_score"].median()),
-                "std": float(df["target_priority_score"].std())
+                "std": float(df["target_priority_score"].std()),
             },
             "priority_histogram": priority_histogram,
             "anomaly_distribution": {
                 "min": float(df["anomaly_score"].min()),
                 "max": float(df["anomaly_score"].max()),
                 "mean": float(df["anomaly_score"].mean()),
-                "median": float(df["anomaly_score"].median())
+                "median": float(df["anomaly_score"].median()),
             },
             "hz_distribution": df["hz_status"].value_counts().to_dict(),
             "discovery_method_distribution": df["discovery_method"].value_counts().to_dict(),
@@ -207,13 +226,27 @@ class DataProcessor:
 
     def get_anomaly_pca_data(self) -> Dict[str, Any]:
         """Get PCA data for anomaly visualization."""
+        try:
+            from app.services.query_engine import CatalogQueryEngine
+
+            engine = CatalogQueryEngine.get_instance()
+            if engine.precomputed_pca:
+                return engine.precomputed_pca
+        except Exception:
+            pass
+
         df = self.get_processed_data()
 
         # Select features for PCA
         feature_cols = [
-            "planet_radius", "planet_mass", "equilibrium_temperature",
-            "orbital_period", "semi_major_axis", "eccentricity",
-            "earth_similarity", "observational_accessibility",
+            "planet_radius",
+            "planet_mass",
+            "equilibrium_temperature",
+            "orbital_period",
+            "semi_major_axis",
+            "eccentricity",
+            "earth_similarity",
+            "observational_accessibility",
         ]
 
         available_cols = [col for col in feature_cols if col in df.columns]
@@ -225,7 +258,11 @@ class DataProcessor:
             top_part = df.head(200)
             anom_part = df.nlargest(150, "anomaly_score")
             rand_part = df.sample(n=150, random_state=42)
-            df_sample = pd.concat([top_part, anom_part, rand_part]).drop_duplicates(subset=["planet_name"]).reset_index(drop=True)
+            df_sample = (
+                pd.concat([top_part, anom_part, rand_part])
+                .drop_duplicates(subset=["planet_name"])
+                .reset_index(drop=True)
+            )
         else:
             df_sample = df.reset_index(drop=True)
 
@@ -248,12 +285,21 @@ class DataProcessor:
             "target_priority_score": [round(float(v), 1) for v in df_sample["target_priority_score"]],
             "hz_status": df_sample["hz_status"].tolist(),
             "explained_variance": [round(float(v), 4) for v in pca.explained_variance_ratio_],
-            "feature_names": available_cols
+            "feature_names": available_cols,
         }
 
     def get_ltr_info(self) -> Dict[str, Any]:
         """Get LTR model metadata, training configuration, and test performance."""
-        artifacts_dir = Path("artifacts")
+        try:
+            from app.services.query_engine import CatalogQueryEngine
+
+            engine = CatalogQueryEngine.get_instance()
+            if engine.manifest:
+                return engine.get_ltr_info()
+        except Exception:
+            pass
+
+        artifacts_dir = settings.get_artifacts_dir()
         active_ptr = artifacts_dir / "active_version.txt"
         version = active_ptr.read_text().strip() if active_ptr.exists() else "default"
 
@@ -268,19 +314,28 @@ class DataProcessor:
                 "model_name": models_info.get("ltr_model", "ltr_model.joblib"),
                 "algorithm": models_info.get("ltr_algorithm", "LightGBM Supervised Learning-to-Rank GBDT"),
                 "top_features": models_info.get("ltr_top_features", []),
-                "benchmark_leaderboard": bench_info.get("leaderboard", [])
+                "benchmark_leaderboard": bench_info.get("leaderboard", []),
             }
 
         return {
             "artifact_version": version,
             "model_name": "ltr_model.joblib",
             "algorithm": "LightGBM Supervised Learning-to-Rank GBDT",
-            "status": "Available via pipeline build"
+            "status": "Available via pipeline build",
         }
 
     def get_ltr_feature_importances(self) -> Dict[str, Any]:
         """Get ranked feature importances for the LTR model."""
-        artifacts_dir = Path("artifacts")
+        try:
+            from app.services.query_engine import CatalogQueryEngine
+
+            engine = CatalogQueryEngine.get_instance()
+            if engine.ltr_feature_importance:
+                return engine.get_ltr_feature_importances()
+        except Exception:
+            pass
+
+        artifacts_dir = settings.get_artifacts_dir()
         active_ptr = artifacts_dir / "active_version.txt"
         version = active_ptr.read_text().strip() if active_ptr.exists() else None
 
@@ -294,10 +349,7 @@ class DataProcessor:
                 with open(cand, "r") as f:
                     return json.load(f)
 
-        return {
-            "error": "LTR feature importance not yet computed. Run python -m app.pipeline build"
-        }
-
+        return {"error": "LTR feature importance not yet computed. Run python -m app.pipeline build"}
 
 
 # Global processor instance

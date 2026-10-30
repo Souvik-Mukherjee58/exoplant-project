@@ -1,63 +1,78 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { usePlanets } from '../hooks/usePlanets'
-import { formatRadius, formatMass, formatPeriod, formatTemperature, formatPriority, formatAnomaly, getHZColor } from '../utils/formatters'
-import DifferentialSHAPComparison from '../components/DifferentialSHAPComparison'
-import SectionDivider from '../components/SectionDivider'
-
+import React, { useState, useEffect, useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { usePlanets } from '../hooks/usePlanets';
+import {
+  formatRadius,
+  formatMass,
+  formatPeriod,
+  formatTemperature,
+  formatPriority,
+  formatAnomaly,
+  getHZColor,
+  getCleanHostStar,
+} from '../utils/formatters';
+import DifferentialSHAPComparison from '../components/DifferentialSHAPComparison';
+import SectionDivider from '../components/SectionDivider';
+import { PriorityScoreDisplay } from '../components/PriorityBadge';
 
 const Compare = () => {
-  const [searchParams] = useSearchParams()
-  const planetsParams = useMemo(() => ({ limit: 500 }), [])
-  const { planets: availablePlanets, loading, error } = usePlanets(planetsParams)
-  const [selectedPlanets, setSelectedPlanets] = useState([])
-  const [selectorSearch, setSelectorSearch] = useState('')
+  const [searchParams] = useSearchParams();
+  const planetsParams = useMemo(() => ({ limit: 500 }), []);
+  const { planets: availablePlanets, loading, error } = usePlanets(planetsParams);
+  const [selectedPlanets, setSelectedPlanets] = useState([]);
+  const [selectorSearch, setSelectorSearch] = useState('');
 
   // Handle URL query parameters (e.g. /compare?planet_a=TOI-700%20d&planet_b=TRAPPIST-1%20e)
   useEffect(() => {
     if (availablePlanets && availablePlanets.length > 0 && selectedPlanets.length === 0) {
-      const urlA = searchParams.get('planet_a')
-      const urlB = searchParams.get('planet_b')
-      const initial = []
+      const urlA = searchParams.get('planet_a');
+      const urlB = searchParams.get('planet_b');
+      const initial = [];
 
       if (urlA) {
-        const foundA = availablePlanets.find(p => p.planet_name.toLowerCase() === urlA.toLowerCase())
-        if (foundA) initial.push(foundA)
+        const foundA = availablePlanets.find(
+          (p) => p.planet_name.toLowerCase() === urlA.toLowerCase()
+        );
+        if (foundA) initial.push(foundA);
       }
       if (urlB) {
-        const foundB = availablePlanets.find(p => p.planet_name.toLowerCase() === urlB.toLowerCase())
-        if (foundB) initial.push(foundB)
+        const foundB = availablePlanets.find(
+          (p) => p.planet_name.toLowerCase() === urlB.toLowerCase()
+        );
+        if (foundB) initial.push(foundB);
       }
 
       if (initial.length > 0) {
-        setSelectedPlanets(initial)
+        setSelectedPlanets(initial);
       } else {
         // Default to TOI-700 d and TRAPPIST-1 e if available
-        const defaultA = availablePlanets.find(p => p.planet_name === 'TOI-700 d') || availablePlanets[0]
-        const defaultB = availablePlanets.find(p => p.planet_name === 'TRAPPIST-1 e') || availablePlanets[1]
+        const defaultA =
+          availablePlanets.find((p) => p.planet_name === 'TOI-700 d') || availablePlanets[0];
+        const defaultB =
+          availablePlanets.find((p) => p.planet_name === 'TRAPPIST-1 e') || availablePlanets[1];
         if (defaultA && defaultB) {
-          setSelectedPlanets([defaultA, defaultB])
+          setSelectedPlanets([defaultA, defaultB]);
         }
       }
     }
-  }, [availablePlanets, searchParams])
+  }, [availablePlanets, searchParams]);
 
   const togglePlanetSelection = (planet) => {
-    if (selectedPlanets.find(p => p.planet_name === planet.planet_name)) {
-      setSelectedPlanets(selectedPlanets.filter(p => p.planet_name !== planet.planet_name))
+    if (selectedPlanets.find((p) => p.planet_name === planet.planet_name)) {
+      setSelectedPlanets(selectedPlanets.filter((p) => p.planet_name !== planet.planet_name));
     } else {
       if (selectedPlanets.length < 4) {
-        setSelectedPlanets([...selectedPlanets, planet])
+        setSelectedPlanets([...selectedPlanets, planet]);
       }
     }
-  }
+  };
 
   const filteredCatalogForSelection = useMemo(() => {
-    if (!selectorSearch.trim()) return availablePlanets.slice(0, 30)
+    if (!selectorSearch.trim()) return availablePlanets.slice(0, 30);
     return availablePlanets
-      .filter(p => p.planet_name.toLowerCase().includes(selectorSearch.toLowerCase()))
-      .slice(0, 30)
-  }, [availablePlanets, selectorSearch])
+      .filter((p) => p.planet_name.toLowerCase().includes(selectorSearch.toLowerCase()))
+      .slice(0, 30);
+  }, [availablePlanets, selectorSearch]);
 
   return (
     <div className="space-y-8">
@@ -70,7 +85,8 @@ const Compare = () => {
           Multi-Target Comparative Analysis
         </h1>
         <p className="text-sm text-exosignal-text-secondary mt-1 max-w-2xl">
-          Side-by-side physical parameter comparison and exact pairwise TreeSHAP differential feature attributions ($\Delta \phi_i$) explaining ranking reversals.
+          Side-by-side physical parameter comparison and exact pairwise TreeSHAP differential
+          feature attributions ($\Delta \phi_i$) explaining ranking reversals.
         </p>
       </div>
 
@@ -94,7 +110,9 @@ const Compare = () => {
             {/* List */}
             <div className="max-h-80 overflow-y-auto space-y-1.5 pr-1">
               {filteredCatalogForSelection.map((planet) => {
-                const isSelected = selectedPlanets.some(p => p.planet_name === planet.planet_name)
+                const isSelected = selectedPlanets.some(
+                  (p) => p.planet_name === planet.planet_name
+                );
                 return (
                   <button
                     key={planet.planet_name}
@@ -108,17 +126,19 @@ const Compare = () => {
                   >
                     <span className="font-semibold truncate">{planet.planet_name}</span>
                     <span className="text-[10px] text-exosignal-cyan">
-                      {(planet.priority_score ?? planet.ml_priority_score ?? planet.target_priority_score)?.toFixed(1)}
+                      <PriorityScoreDisplay planet={planet} />
                     </span>
                   </button>
-                )
+                );
               })}
             </div>
 
             {/* Selected Pills */}
             {selectedPlanets.length > 0 && (
               <div className="mt-4 pt-3 border-t border-exosignal-cyan/15 space-y-2">
-                <span className="text-[11px] font-mono text-exosignal-text-muted uppercase">Selected Targets:</span>
+                <span className="text-[11px] font-mono text-exosignal-text-muted uppercase">
+                  Selected Targets:
+                </span>
                 <div className="flex flex-wrap gap-1.5">
                   {selectedPlanets.map((planet) => (
                     <span
@@ -165,11 +185,13 @@ const Compare = () => {
                           <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-space-void border border-exosignal-cyan/30 text-exosignal-cyan">
                             Target #{idx + 1}
                           </span>
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                            planet.hz_status === 'Inside HZ'
-                              ? 'bg-emerald-500/20 text-emerald-400'
-                              : 'bg-slate-700/40 text-slate-300'
-                          }`}>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                              planet.hz_status === 'Inside HZ'
+                                ? 'bg-emerald-500/20 text-emerald-400'
+                                : 'bg-slate-700/40 text-slate-300'
+                            }`}
+                          >
                             {planet.hz_status || 'Outside HZ'}
                           </span>
                         </div>
@@ -182,25 +204,33 @@ const Compare = () => {
                         </Link>
 
                         <div className="text-[11px] font-mono text-exosignal-text-muted mb-3 truncate">
-                          Host: {planet.hostname || planet.stellar_name || planet.planet_name?.replace(/\s+[a-z]$/i, '') || '—'}
+                          Host: {getCleanHostStar(planet)}
                         </div>
 
                         <div className="space-y-1.5 text-xs font-mono bg-space-void/60 p-2.5 rounded-xl border border-exosignal-cyan/15 mb-3">
                           <div className="flex justify-between">
                             <span className="text-exosignal-text-muted">Radius:</span>
-                            <span className="text-white font-bold">{formatRadius(planet.planet_radius)}</span>
+                            <span className="text-white font-bold">
+                              {formatRadius(planet.planet_radius)}
+                            </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-exosignal-text-muted">Mass:</span>
-                            <span className="text-white font-bold">{formatMass(planet.planet_mass)}</span>
+                            <span className="text-white font-bold">
+                              {formatMass(planet.planet_mass)}
+                            </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-exosignal-text-muted">Period:</span>
-                            <span className="text-white font-bold">{formatPeriod(planet.orbital_period)}</span>
+                            <span className="text-white font-bold">
+                              {formatPeriod(planet.orbital_period)}
+                            </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-exosignal-text-muted">Distance:</span>
-                            <span className="text-white font-bold">{planet.distance ? `${planet.distance.toFixed(1)} pc` : '—'}</span>
+                            <span className="text-white font-bold">
+                              {planet.distance ? `${planet.distance.toFixed(1)} pc` : '—'}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -208,16 +238,20 @@ const Compare = () => {
                       <div className="pt-2 border-t border-exosignal-cyan/15">
                         <div className="flex justify-between text-xs font-mono mb-1">
                           <span className="text-exosignal-text-muted">
-                            Priority Score {planet.priority_rank ? `(#${planet.priority_rank})` : ''}
+                            Priority Score{' '}
+                            {planet.priority_rank ? `(#${planet.priority_rank})` : ''}
                           </span>
-                          <span className="text-exosignal-cyan font-bold">
-                            {formatPriority(planet.priority_score ?? planet.ml_priority_score ?? planet.target_priority_score)}
-                          </span>
+                          <PriorityScoreDisplay
+                            planet={planet}
+                            className="text-exosignal-cyan font-bold"
+                          />
                         </div>
                         <div className="w-full bg-space-void rounded-full h-1.5 overflow-hidden">
                           <div
                             className="bg-gradient-to-r from-exosignal-cyan to-exosignal-purple h-full rounded-full"
-                            style={{ width: `${Math.min(Math.max(planet.priority_score ?? planet.ml_priority_score ?? planet.target_priority_score ?? 0, 5), 100)}%` }}
+                            style={{
+                              width: `${planet.priority_score != null ? Math.min(Math.max(planet.priority_score, 5), 100) : 0}%`,
+                            }}
                           ></div>
                         </div>
                       </div>
@@ -246,20 +280,22 @@ const Compare = () => {
                 </div>
               )}
             </>
-
           ) : (
             <div className="glass-panel p-16 text-center text-exosignal-text-muted space-y-3">
               <span className="text-4xl">🔭</span>
-              <h3 className="text-lg font-bold text-white font-display">No Exoplanet Targets Selected</h3>
+              <h3 className="text-lg font-bold text-white font-display">
+                No Exoplanet Targets Selected
+              </h3>
               <p className="text-xs font-mono max-w-md mx-auto">
-                Select targets from the catalog sidebar to compare physical characteristics and view exact TreeSHAP attributions.
+                Select targets from the catalog sidebar to compare physical characteristics and view
+                exact TreeSHAP attributions.
               </p>
             </div>
           )}
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Compare
+export default Compare;

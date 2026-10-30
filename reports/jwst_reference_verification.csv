@@ -1,0 +1,36 @@
+planet_name,program_id,http_ok,host_found,program_title,observation_type,needs_review
+TRAPPIST-1 b,1201,True,True,NIRISS Exploration of the Atmospheric diversity of Transiting exoplanets (NEAT),unknown,True
+TRAPPIST-1 c,1201,True,True,NIRISS Exploration of the Atmospheric diversity of Transiting exoplanets (NEAT),unknown,True
+TRAPPIST-1 d,2589,True,True,Atmospheric reconnaissance of the TRAPPIST-1 planets,unknown,True
+TRAPPIST-1 e,2589,True,True,Atmospheric reconnaissance of the TRAPPIST-1 planets,unknown,True
+TRAPPIST-1 f,2589,True,True,Atmospheric reconnaissance of the TRAPPIST-1 planets,unknown,True
+TRAPPIST-1 g,2589,True,True,Atmospheric reconnaissance of the TRAPPIST-1 planets,unknown,True
+TRAPPIST-1 h,2589,True,True,Atmospheric reconnaissance of the TRAPPIST-1 planets,unknown,True
+LHS 1140 b,3817,True,False,,unknown,True
+L 98-59 b,2512,True,True,Seeing the Forest and the Trees: Unveiling Small Planet Atmospheres with a Population-Level Framework,unknown,True
+L 98-59 c,2512,True,True,Seeing the Forest and the Trees: Unveiling Small Planet Atmospheres with a Population-Level Framework,unknown,True
+L 98-59 d,2512,True,True,Seeing the Forest and the Trees: Unveiling Small Planet Atmospheres with a Population-Level Framework,unknown,True
+GJ 1132 b,1995,True,False,Answering the Most Important Problem in Cosmology Today: Is the Tension in the Hubble Constant Real?,unknown,True
+GJ 1214 b,1803,True,True,Unlocking the Mysteries of the Archetype Sub-Neptune GJ1214b with a Full-Orbit Phase Curve,phase_curve,True
+GJ 436 b,2534,True,False,,unknown,True
+GJ 3470 b,2445,True,False,,unknown,True
+LP 791-18 d,4252,True,False,,unknown,True
+TOI-270 d,2722,True,False,Chemical Disequilibrium in a Temperate sub-Neptune,unknown,True
+K2-18 b,2722,True,True,Chemical Disequilibrium in a Temperate sub-Neptune,unknown,True
+55 Cnc e,1952,True,True,Determining the Atmospheric Composition of the Super-Earth 55 Cancri e,unknown,True
+WASP-39 b,1366,True,True,The Transiting Exoplanet Community Early Release Science Program,unknown,True
+WASP-96 b,2734,True,True,JWST Early Release Observation 8,unknown,True
+WASP-121 b,1729,True,True,A NIRSpec Phase Curve for the ultrahot Jupiter WASP-121b,phase_curve,True
+WASP-76 b,2644,True,False,,unknown,True
+WASP-43 b,1366,True,True,The Transiting Exoplanet Community Early Release Science Program,unknown,True
+WASP-18 b,2470,True,False,,unknown,True
+WASP-80 b,2114,True,False,MIR Spectroscopy of Type Ia Supernovae: The Key to Unlocking their Explosions and Element Production,unknown,True
+WASP-107 b,2481,True,False,,unknown,True
+HD 209458 b,2489,True,False,,unknown,True
+HD 189733 b,1633,True,True,A Deep Molecular Survey of HD 189733b,unknown,True
+HAT-P-18 b,2472,True,False,,unknown,True
+HAT-P-26 b,1743,True,False,Constraining the Atmosphere of the Terrestrial Exoplanet Gl486b,unknown,True
+HAT-P-32 b,2146,True,False,,unknown,True
+TOI-700 d,,False,False,TODO: Check if GO 6193 (exomoon search / transit timing) qualifies as atmospheric transmission,unknown,True
+TOI-849 b,,False,False,TODO: Check if GO 5967 (secondary eclipse emission spectroscopy) qualifies as atmospheric transmission,unknown,True
+GJ 367 b,,False,False,TODO: Check if GO 2508 (thermal phase curve) qualifies as atmospheric transmission,unknown,True

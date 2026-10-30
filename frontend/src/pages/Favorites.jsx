@@ -1,11 +1,18 @@
-import React from 'react'
-import { Link } from 'react-router-dom'
-import { useFavorites } from '../context/FavoritesContext'
-import { formatPriority, formatAnomaly, formatDistance, getHZColor } from '../utils/formatters'
-import { motion } from 'framer-motion'
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { useFavorites } from '../context/FavoritesContext';
+import {
+  formatPriority,
+  formatAnomaly,
+  formatDistance,
+  getHZColor,
+  getCleanHostStar,
+} from '../utils/formatters';
+import { motion } from 'framer-motion';
+import { PriorityScoreDisplay } from '../components/PriorityBadge';
 
 const Favorites = () => {
-  const { favorites, removeFavorite, isFavorite } = useFavorites()
+  const { favorites, removeFavorite, isFavorite } = useFavorites();
 
   if (favorites.length === 0) {
     return (
@@ -22,27 +29,39 @@ const Favorites = () => {
           Explore Top Targets
         </Link>
       </div>
-    )
+    );
   }
 
   return (
     <div>
       <h1 className="text-3xl font-bold text-exosignal-text mb-4">Your Favorites</h1>
-      <p className="text-exosignal-text/70 mb-6">
-        Your bookmarked exoplanets for quick access.
-      </p>
+      <p className="text-exosignal-text/70 mb-6">Your bookmarked exoplanets for quick access.</p>
 
       <div className="bg-space-darker rounded-lg border border-exosignal-blue/20 overflow-hidden">
         <table className="min-w-full divide-y divide-exosignal-blue/10">
           <thead className="bg-space-dark">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-exosignal-text/70 uppercase">Planet</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-exosignal-text/70 uppercase">Host Star</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-exosignal-text/70 uppercase">Distance</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-exosignal-text/70 uppercase">Priority</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-exosignal-text/70 uppercase">Anomaly</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-exosignal-text/70 uppercase">HZ Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-exosignal-text/70 uppercase">Actions</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-exosignal-text/70 uppercase">
+                Planet
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-exosignal-text/70 uppercase">
+                Host Star
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-exosignal-text/70 uppercase">
+                Distance
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-exosignal-text/70 uppercase">
+                Priority
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-exosignal-text/70 uppercase">
+                Anomaly
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-exosignal-text/70 uppercase">
+                HZ Status
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-exosignal-text/70 uppercase">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-exosignal-blue/10">
@@ -55,26 +74,29 @@ const Favorites = () => {
                 className="hover:bg-space-dark/50"
               >
                 <td className="px-6 py-4 text-exosignal-text font-medium">
-                  <Link to={`/planet/${planet.planet_name}`} className="hover:text-exosignal-accent">
+                  <Link
+                    to={`/planet/${planet.planet_name}`}
+                    className="hover:text-exosignal-accent"
+                  >
                     {planet.planet_name}
                   </Link>
                 </td>
-                <td className="px-6 py-4 text-exosignal-text/70">
-                  {planet.stellar_name || 'Unknown'}
-                </td>
+                <td className="px-6 py-4 text-exosignal-text/70">{getCleanHostStar(planet)}</td>
                 <td className="px-6 py-4 text-exosignal-text/70">
                   {formatDistance(planet.distance)}
                 </td>
                 <td className="px-6 py-4 text-exosignal-accent font-semibold">
-                  {formatPriority(planet.priority_score ?? planet.ml_priority_score ?? planet.target_priority_score)}
+                  <PriorityScoreDisplay planet={planet} />
                   {planet.priority_rank ? ` (#${planet.priority_rank})` : ''}
                 </td>
                 <td className="px-6 py-4 text-exosignal-text/70">
                   {formatAnomaly(planet.anomaly_score)}
                 </td>
                 <td className="px-6 py-4">
-                  <span className={`text-xs px-2 py-1 rounded-full text-white
-                    ${getHZColor(planet.hz_status)}`}>
+                  <span
+                    className={`text-xs px-2 py-1 rounded-full text-white
+                    ${getHZColor(planet.hz_status)}`}
+                  >
                     {planet.hz_status || 'Insufficient data'}
                   </span>
                 </td>
@@ -93,7 +115,7 @@ const Favorites = () => {
         </table>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Favorites
+export default Favorites;

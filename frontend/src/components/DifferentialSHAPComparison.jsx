@@ -1,38 +1,38 @@
-import React, { useState, useEffect } from 'react'
-import { explainabilityApi } from '../services/api'
+import React, { useState, useEffect } from 'react';
+import { explainabilityApi } from '../services/api';
 
 export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
-  const [diffExplanation, setDiffExplanation] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [showAll, setShowAll] = useState(false)
+  const [diffExplanation, setDiffExplanation] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
-    let isMounted = true
+    let isMounted = true;
     const fetchDiff = async () => {
-      if (!planetA || !planetB) return
+      if (!planetA || !planetB) return;
       try {
-        setLoading(true)
-        setError(null)
-        const data = await explainabilityApi.getComparisonExplanation(planetA, planetB)
+        setLoading(true);
+        setError(null);
+        const data = await explainabilityApi.getComparisonExplanation(planetA, planetB);
         if (isMounted) {
-          setDiffExplanation(data)
-          setLoading(false)
+          setDiffExplanation(data);
+          setLoading(false);
         }
       } catch (err) {
         if (isMounted) {
-          setError(err?.response?.data?.detail || 'Failed to compute differential attribution')
-          setLoading(false)
+          setError(err?.response?.data?.detail || 'Failed to compute differential attribution');
+          setLoading(false);
         }
       }
-    }
+    };
 
-    fetchDiff()
+    fetchDiff();
 
     return () => {
-      isMounted = false
-    }
-  }, [planetA, planetB])
+      isMounted = false;
+    };
+  }, [planetA, planetB]);
 
   if (loading) {
     return (
@@ -42,7 +42,7 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
           Computing pairwise differential TreeSHAP attribution: Δφ = φ({planetA}) - φ({planetB})...
         </p>
       </div>
-    )
+    );
   }
 
   if (error || !diffExplanation) {
@@ -50,7 +50,7 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
       <div className="bg-space-darker rounded-lg border border-exosignal-blue/20 p-4 text-center text-exosignal-text/60 text-xs">
         <p>Differential attribution unavailable: {error}</p>
       </div>
-    )
+    );
   }
 
   const {
@@ -61,15 +61,17 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
     score_advantage,
     primary_drivers_for_advantage,
     primary_drivers_for_disadvantage,
-    differential_waterfall
-  } = diffExplanation
+    differential_waterfall,
+  } = diffExplanation;
 
   const displayedItems = showAll
     ? differential_waterfall
-    : [...primary_drivers_for_advantage, ...primary_drivers_for_disadvantage].sort((a, b) => b.abs_diff - a.abs_diff)
+    : [...primary_drivers_for_advantage, ...primary_drivers_for_disadvantage].sort(
+        (a, b) => b.abs_diff - a.abs_diff
+      );
 
-  const favoredPlanet = score_advantage >= 0 ? planet_a : planet_b
-  const absAdvantage = Math.abs(score_advantage)
+  const favoredPlanet = score_advantage >= 0 ? planet_a : planet_b;
+  const absAdvantage = Math.abs(score_advantage);
 
   return (
     <div className="bg-space-darker rounded-lg border border-exosignal-blue/30 p-6 mt-6">
@@ -84,7 +86,8 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
             </span>
           </div>
           <p className="text-xs text-exosignal-text/70 mt-1">
-            Explains precisely which astrophysical parameter differences drive the ranking separation between {planet_a} and {planet_b}.
+            Explains precisely which astrophysical parameter differences drive the ranking
+            separation between {planet_a} and {planet_b}.
           </p>
         </div>
 
@@ -104,23 +107,35 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
           </p>
           <ul className="space-y-1.5 text-xs">
             {primary_drivers_for_advantage.slice(0, 3).map((item) => (
-              <li key={item.feature} className="flex justify-between items-center text-exosignal-text/80">
-                <span>{item.display_name} ({item.planet_a_value} vs {item.planet_b_value})</span>
-                <span className="font-mono text-emerald-400 font-bold">+{item.diff_score_impact.toFixed(1)} pts</span>
+              <li
+                key={item.feature}
+                className="flex justify-between items-center text-exosignal-text/80"
+              >
+                <span>
+                  {item.display_name} ({item.planet_a_value} vs {item.planet_b_value})
+                </span>
+                <span className="font-mono text-emerald-400 font-bold">
+                  +{item.diff_score_impact.toFixed(1)} pts
+                </span>
               </li>
             ))}
           </ul>
         </div>
 
         <div className="bg-space-dark rounded-lg p-3 border border-rose-500/30">
-          <p className="text-xs font-semibold text-rose-400 mb-2">
-            Features Favoring {planet_b}
-          </p>
+          <p className="text-xs font-semibold text-rose-400 mb-2">Features Favoring {planet_b}</p>
           <ul className="space-y-1.5 text-xs">
             {primary_drivers_for_disadvantage.slice(0, 3).map((item) => (
-              <li key={item.feature} className="flex justify-between items-center text-exosignal-text/80">
-                <span>{item.display_name} ({item.planet_b_value} vs {item.planet_a_value})</span>
-                <span className="font-mono text-rose-400 font-bold">{item.diff_score_impact.toFixed(1)} pts</span>
+              <li
+                key={item.feature}
+                className="flex justify-between items-center text-exosignal-text/80"
+              >
+                <span>
+                  {item.display_name} ({item.planet_b_value} vs {item.planet_a_value})
+                </span>
+                <span className="font-mono text-rose-400 font-bold">
+                  {item.diff_score_impact.toFixed(1)} pts
+                </span>
               </li>
             ))}
           </ul>
@@ -154,28 +169,39 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
           </thead>
           <tbody className="divide-y divide-exosignal-blue/10">
             {displayedItems.map((item) => {
-              const favorsA = item.advantage === 'Planet A'
+              const favorsA = item.advantage === 'Planet A';
               return (
                 <tr key={item.feature} className="hover:bg-space-dark/60 transition">
                   <td className="py-2 pr-3 font-medium text-exosignal-text">{item.display_name}</td>
-                  <td className="py-2 px-3 font-mono text-exosignal-text/80">{item.planet_a_value}</td>
-                  <td className="py-2 px-3 font-mono text-exosignal-text/80">{item.planet_b_value}</td>
+                  <td className="py-2 px-3 font-mono text-exosignal-text/80">
+                    {item.planet_a_value}
+                  </td>
+                  <td className="py-2 px-3 font-mono text-exosignal-text/80">
+                    {item.planet_b_value}
+                  </td>
                   <td className="py-2 px-3 text-right">
-                    <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${favorsA ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[11px] font-semibold ${favorsA ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}
+                    >
                       {favorsA ? planet_a : planet_b}
                     </span>
                   </td>
-                  <td className={`py-2 pl-3 text-right font-mono font-bold ${favorsA ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {favorsA ? `+${item.diff_score_impact.toFixed(1)}` : `${item.diff_score_impact.toFixed(1)}`} pts
+                  <td
+                    className={`py-2 pl-3 text-right font-mono font-bold ${favorsA ? 'text-emerald-400' : 'text-rose-400'}`}
+                  >
+                    {favorsA
+                      ? `+${item.diff_score_impact.toFixed(1)}`
+                      : `${item.diff_score_impact.toFixed(1)}`}{' '}
+                    pts
                   </td>
                 </tr>
-              )
+              );
             })}
           </tbody>
         </table>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default DifferentialSHAPComparison
+export default DifferentialSHAPComparison;

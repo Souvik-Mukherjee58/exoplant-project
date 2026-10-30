@@ -5,23 +5,27 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: exosignal-backend:0.3.0
     container_name: exosignal-backend
     restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
-      - EXOSIGNAL_ENV=production
-      - LOG_LEVEL=info
-      - CORS_ORIGINS=["http://localhost", "http://localhost:80"]
+      - EXOSIGNAL_ENV=${EXOSIGNAL_ENV:-production}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - JSON_LOGS=${JSON_LOGS:-true}
+      - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost", "http://localhost:80", "http://localhost:3000"]}
+      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-120}
+      - WORKERS=2
     volumes:
       # Mount artifacts for hot-swappable model updates without rebuild
       - ./backend/artifacts:/app/artifacts:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
+      test: ["CMD", "curl", "-f", "http://localhost:8000/ready"]
+      interval: 15s
       timeout: 5s
       retries: 3
-      start_period: 15s
+      start_period: 10s
     networks:
       - exosignal-net
 
@@ -29,10 +33,17 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    image: exosignal-frontend:0.3.0
     container_name: exosignal-frontend
     restart: unless-stopped
     ports:
       - "80:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
     depends_on:
       backend:
         condition: service_healthy
