@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """
     Decoupled application lifecycle:
-    Warm up vectorized DuckDB query engine, precomputed artifacts, and TreeSHAP explainer on startup;
+    Warm up vectorized DuckDB query engine, precomputed artifacts, and Linear SHAP explainer on startup;
     close connections cleanly on shutdown.
     """
     logger.info(f"ExoSignal starting (env={_env}, log_level={_log_level})")
@@ -54,9 +54,9 @@ async def lifespan(app: FastAPI):
         from app.ml.explainability import SHAPExplainer
 
         explainer = SHAPExplainer.get_instance()
-        logger.info(f"TreeSHAP explainer initialized with model: {explainer.model_path}")
+        logger.info(f"Linear SHAP explainer initialized with model: {explainer.model_path}")
     except Exception as e:
-        logger.warning(f"Could not initialize TreeSHAP explainer on startup: {str(e)}")
+        logger.warning(f"Could not initialize Linear SHAP explainer on startup: {str(e)}")
 
     logger.info("ExoSignal startup complete — all subsystems online")
     yield
@@ -281,3 +281,11 @@ async def metrics():
 
 # Include API routers
 app.include_router(v1.router, prefix="/api/v1", tags=["v1"])
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    port = int(os.environ.get("PORT", getattr(settings, "PORT", 8000)))
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port)
+

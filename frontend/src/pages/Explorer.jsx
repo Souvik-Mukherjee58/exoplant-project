@@ -7,12 +7,9 @@ import {
   formatPeriod,
   formatTemperature,
   formatAnomaly,
-  formatPriority,
-  getHZColor,
-  getIneligibleTooltip,
 } from '../utils/formatters';
 import SectionDivider from '../components/SectionDivider';
-import TreeSHAPWaterfall from '../components/TreeSHAPWaterfall';
+import ShapWaterfall from '../components/ShapWaterfall';
 import { PriorityScoreDisplay } from '../components/PriorityBadge';
 
 const HZ_OPTIONS = ['All', 'Inside HZ', 'Near HZ', 'Outside HZ'];
@@ -138,7 +135,7 @@ const Explorer = () => {
           <h1 className="text-3xl font-black text-white font-display">Exoplanet Target Database</h1>
           <p className="text-sm text-exosignal-text-secondary mt-1 max-w-2xl">
             Columnar Parquet queries over NASA archive parameters. Filter by planetary radius,
-            habitable zone alignment, transit probability, or inspect exact TreeSHAP waterfall
+            habitable zone alignment, transit probability, or inspect exact Linear SHAP waterfall
             attributions.
           </p>
         </div>
@@ -348,7 +345,7 @@ const Explorer = () => {
           number="02"
           title={
             viewMode === 'shap'
-              ? 'TreeSHAP Model Interpretability Subfeature'
+              ? 'Linear SHAP Model Interpretability Subfeature'
               : 'Catalog Targets & Observational Yield'
           }
           subtitle={
@@ -388,7 +385,7 @@ const Explorer = () => {
                     <span>🌲 Subfeature: SHAP Model Interpretability</span>
                   </div>
                   <h3 className="text-xl font-black text-white font-display">
-                    TreeSHAP Waterfall Feature Attribution Inspector
+                    Linear SHAP Waterfall Feature Attribution Inspector
                   </h3>
                   <p className="text-xs text-exosignal-text-secondary font-mono mt-1">
                     Search any exoplanet (e.g. "kepler 452 b", "TRAPPIST-1 e") to inspect its exact
@@ -525,9 +522,9 @@ const Explorer = () => {
               )}
             </div>
 
-            {/* Embedded TreeSHAP Waterfall Component */}
+            {/* Embedded Linear SHAP Waterfall Component */}
             <div className="divided-compartment p-6">
-              <TreeSHAPWaterfall planetName={shapTarget} />
+              <ShapWaterfall planetName={shapTarget} />
             </div>
           </div>
         ) : viewMode === 'grid' ? (
@@ -777,7 +774,7 @@ const Explorer = () => {
                 <span className="text-xl">🌲</span>
                 <div>
                   <h3 className="text-lg font-bold text-white font-display">
-                    TreeSHAP Waterfall — {inspectingPlanet}
+                    Linear SHAP Waterfall — {inspectingPlanet}
                   </h3>
                   <p className="text-xs font-mono text-exosignal-text-muted">
                     Exact local feature attributions via SHAP attribution engine
@@ -801,7 +798,7 @@ const Explorer = () => {
               </div>
             </div>
 
-            <TreeSHAPWaterfall planetName={inspectingPlanet} />
+            <ShapWaterfall planetName={inspectingPlanet} />
           </div>
         </div>
       )}

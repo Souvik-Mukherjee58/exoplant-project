@@ -16,12 +16,10 @@ import {
   ScatterChart,
   Scatter,
 } from 'recharts';
-import { formatPriority, formatAnomaly } from '../utils/formatters';
+import { formatPriority } from '../utils/formatters';
 import SectionDivider from '../components/SectionDivider';
 import SegmentedTabs from '../components/SegmentedTabs';
 import { calculateHzPieData } from '../utils/hzDonut';
-
-const COLORS = ['#00d4ff', '#10b981', '#f59e0b', '#a855f7', '#ef4444', '#64748b', '#0284c7'];
 
 const Analytics = () => {
   const { stats, loading: statsLoading, error, refetch } = useAnalytics();
@@ -95,7 +93,6 @@ const Analytics = () => {
   }
 
   const scoreStats = stats.score_distribution || {};
-  const anomalyStats = stats.anomaly_distribution || {};
 
   const analyticsTabs = [
     {

@@ -3,18 +3,11 @@ import {
   formatNumber,
   formatRadius,
   formatMass,
-  formatPeriod,
-  formatTemperature,
   formatDistance,
-  formatPercent,
   formatPriority,
-  formatAnomaly,
+  formatRawScore,
   getHZColor,
   getHZText,
-  truncate,
-  capitalize,
-  formatDiscoveryMethod,
-  formatStellarName,
   getIneligibleTooltip,
 } from '../utils/formatters';
 
@@ -51,9 +44,19 @@ describe('formatters', () => {
   });
 
   describe('formatPriority', () => {
-    it('formats priority to 1 decimal place', () => {
+    it('formats priority to 1 decimal place and never rounds to 100.0', () => {
       expect(formatPriority(84.37)).toBe('84.4');
+      expect(formatPriority(99.98)).toBe('99.9');
+      expect(formatPriority(100.0)).toBe('99.9');
       expect(formatPriority(null)).toBe('—');
+    });
+  });
+
+  describe('formatRawScore', () => {
+    it('formats raw score with exactly 4 decimal places for tooltips', () => {
+      expect(formatRawScore(99.9842)).toBe('99.9842');
+      expect(formatRawScore(84.3)).toBe('84.3000');
+      expect(formatRawScore(null)).toBe('—');
     });
   });
 

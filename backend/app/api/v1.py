@@ -2,13 +2,14 @@
 
 import ast
 import logging
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field, field_validator
 
 from app.ml.explainability import SHAPExplainer
+from app.scoring.priority_scorer import TargetPriorityScorer
 from app.services.query_engine import CatalogQueryEngine
 
 # Configure logging
@@ -57,6 +58,10 @@ class PlanetResponse(BaseModel):
     oof_ml_rank: Optional[int] = Field(None, description="Out-of-fold global model rank")
     oof_priority_score: Optional[float] = Field(None, description="Out-of-fold cross-validated priority score")
     unobserved_rank: Optional[int] = Field(None, description="Rank among unobserved candidates")
+    is_jwst_target: Optional[bool] = Field(None, description="Whether target is a confirmed JWST target")
+    mass_is_estimated: Optional[bool] = Field(
+        None, description="Whether planetary mass is estimated (Chen & Kipping 2017) vs measured"
+    )
 
     @field_validator("target_priority_score")
     @classmethod
@@ -100,6 +105,8 @@ class RecommendationResponse(BaseModel):
     stellar_name: Optional[str] = None
     hz_status: Optional[str] = None
     anomaly_score: Optional[float] = None
+    is_jwst_target: Optional[bool] = None
+    mass_is_estimated: Optional[bool] = None
 
 
 class AnalysisResponse(BaseModel):
@@ -130,16 +137,16 @@ class WaterfallItem(BaseModel):
     display_name: str = Field(..., description="Human-readable physical feature title")
     description: str = Field(..., description="Physical domain description")
     raw_value: str = Field(..., description="Formatted physical value with units")
-    shap_value: float = Field(..., description="Raw TreeSHAP contribution in log-odds margin space")
+    shap_value: float = Field(..., description="Linear SHAP contribution in log-odds margin space (Δ log-odds)")
     score_impact: float = Field(..., description="Calibrated priority score impact (points)")
     direction: str = Field(..., description="'positive' driver or 'negative' barrier")
-    abs_importance: float = Field(..., description="Absolute TreeSHAP magnitude")
+    abs_importance: float = Field(..., description="Absolute Linear SHAP magnitude (|Δ log-odds|)")
 
 
 class MathematicalInvariants(BaseModel):
-    base_margin: float = Field(..., description="Global expected baseline margin")
-    sum_shap_margin: float = Field(..., description="Sum of all individual feature SHAP contributions")
-    predicted_margin: float = Field(..., description="Model predicted margin")
+    base_margin: float = Field(..., description="Global expected baseline margin (w0 in log-odds)")
+    sum_shap_margin: float = Field(..., description="Sum of all individual feature SHAP contributions (sum phi_i)")
+    predicted_margin: float = Field(..., description="Model predicted margin / final logit (sum phi_i + w0)")
     reconstruction_error: float = Field(
         ..., description="Residual reconstruction error (|sum(phi) + base - predicted|)"
     )
@@ -150,11 +157,17 @@ class PlanetExplanationResponse(BaseModel):
     ml_priority_score: float = Field(..., ge=0.0, le=100.0, description="Predicted ML priority score")
     base_score: float = Field(..., ge=0.0, le=100.0, description="Expected baseline score across population")
     score_delta_from_base: float = Field(..., description="Net score shift attributed to planetary features")
-    mathematical_invariants: MathematicalInvariants = Field(..., description="TreeSHAP additive conservation proof")
+    citation: str = Field("Lundberg & Lee (2017, NeurIPS)", description="Theoretical attribution framework citation")
+    base_logit: Optional[float] = Field(None, description="Base value margin in log-odds units")
+    final_logit: Optional[float] = Field(None, description="Final predicted logit margin in log-odds units")
+    converted_percentile: Optional[float] = Field(None, description="Converted percentile score from logit via sigmoid")
+    mathematical_invariants: MathematicalInvariants = Field(
+        ..., description="Linear SHAP additive conservation proof"
+    )
     top_positive_drivers: List[WaterfallItem] = Field(..., description="Top 5 features elevating priority")
     top_negative_barriers: List[WaterfallItem] = Field(..., description="Top 5 features lowering priority")
     full_waterfall: List[WaterfallItem] = Field(
-        ..., description="All 21 feature contributions ordered by absolute impact"
+        ..., description="All feature contributions ordered by absolute impact"
     )
 
 
@@ -182,6 +195,13 @@ class ComparisonExplanationResponse(BaseModel):
         ..., description="Top features favoring Target B"
     )
     differential_waterfall: List[DifferentialWaterfallItem] = Field(..., description="All differential attributions")
+
+
+class MethodologyWeightsResponse(BaseModel):
+    scoring_config: Dict[str, float] = Field(..., description="Raw weights dictionary from priority_scorer.py")
+    weights: Dict[str, float] = Field(..., description="Normalized weight per scoring category (0.0 to 1.0)")
+    percentages: Dict[str, int] = Field(..., description="Integer percentage weight per scoring category (0 to 100)")
+    total_weight: float = Field(..., description="Sum of category weights")
 
 
 def _clean_val(val):
@@ -247,6 +267,12 @@ def _row_to_planet_response(row: pd.Series) -> PlanetResponse:
         oof_ml_rank=int(row["oof_ml_rank"]) if pd.notna(row.get("oof_ml_rank")) else None,
         oof_priority_score=_clean_val(row.get("oof_priority_score")),
         unobserved_rank=int(row["unobserved_rank"]) if pd.notna(row.get("unobserved_rank")) else None,
+        is_jwst_target=bool(row.get("is_jwst_target") or row.get("already_observed_jwst"))
+        if pd.notna(row.get("is_jwst_target")) or pd.notna(row.get("already_observed_jwst"))
+        else False,
+        mass_is_estimated=bool(row.get("mass_is_estimated"))
+        if pd.notna(row.get("mass_is_estimated"))
+        else (pd.isna(row.get("planet_mass")) or float(row.get("planet_mass") or 0.0) <= 0.0),
     )
 
 
@@ -294,6 +320,15 @@ def _row_to_planet_detail_response(row: pd.Series) -> PlanetDetailResponse:
         earth_similarity=_clean_val(row.get("earth_similarity")),
         observational_accessibility=_clean_val(row.get("observational_accessibility")),
         data_quality=_clean_val(row.get("data_quality")),
+        is_jwst_target=bool(row.get("is_jwst_target") or row.get("already_observed_jwst"))
+        if pd.notna(row.get("is_jwst_target")) or pd.notna(row.get("already_observed_jwst"))
+        else False,
+        mass_is_estimated=bool(row.get("mass_is_estimated"))
+        if pd.notna(row.get("mass_is_estimated"))
+        else (pd.isna(row.get("planet_mass")) or float(row.get("planet_mass") or 0.0) <= 0.0),
+        oof_ml_rank=int(row["oof_ml_rank"]) if pd.notna(row.get("oof_ml_rank")) else None,
+        oof_priority_score=_clean_val(row.get("oof_priority_score")),
+        unobserved_rank=int(row["unobserved_rank"]) if pd.notna(row.get("unobserved_rank")) else None,
     )
 
 
@@ -561,6 +596,10 @@ def get_recommendations(
                     stellar_name=_clean_val(p.get("stellar_name")),
                     hz_status=_clean_val(p.get("hz_status")),
                     anomaly_score=_clean_val(p.get("anomaly_score")),
+                    is_jwst_target=bool(p.get("already_observed_jwst") or p.get("is_jwst_target")),
+                    mass_is_estimated=bool(p.get("mass_is_estimated"))
+                    if pd.notna(p.get("mass_is_estimated"))
+                    else (pd.isna(p.get("planet_mass")) or float(p.get("planet_mass") or 0.0) <= 0.0),
                 )
             )
         return results
@@ -872,4 +911,49 @@ def rollback_model_version(req: Optional[RollbackRequest] = None):
         logger.error(f"Error during model rollback: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to rollback model version: {str(e)}"
+        )
+
+
+@router.get("/methodology/weights", response_model=MethodologyWeightsResponse)
+def get_methodology_weights():
+    """
+    Retrieve domain astrophysical heuristic weighting formulation from priority_scorer.py config.
+    """
+    try:
+        scorer = TargetPriorityScorer()
+        config = scorer.scoring_config
+
+        pr_w = float(config.get("planetary_relevance_weight", 0.35))
+        oa_w = float(config.get("observational_accessibility_weight", 0.30))
+        sc_w = float(config.get("stellar_characteristics_weight", 0.15))
+        dq_w = float(config.get("data_quality_weight", 0.10))
+        as_w = float(config.get("anomaly_score_weight", 0.10))
+
+        weights = {
+            "planetary_relevance": pr_w,
+            "observational_accessibility": oa_w,
+            "stellar_characteristics": sc_w,
+            "data_quality": dq_w,
+            "anomaly_score": as_w,
+        }
+
+        percentages = {
+            "planetary_relevance": int(round(pr_w * 100)),
+            "observational_accessibility": int(round(oa_w * 100)),
+            "stellar_characteristics": int(round(sc_w * 100)),
+            "data_quality": int(round(dq_w * 100)),
+            "anomaly_score": int(round(as_w * 100)),
+        }
+
+        return MethodologyWeightsResponse(
+            scoring_config=config,
+            weights=weights,
+            percentages=percentages,
+            total_weight=round(sum(weights.values()), 4),
+        )
+    except Exception as e:
+        logger.error(f"Error retrieving methodology weights: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while retrieving methodology weights",
         )

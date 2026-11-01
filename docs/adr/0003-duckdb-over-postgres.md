@@ -8,7 +8,7 @@
 
 ## Context & Problem Statement
 
-ExoSignal serves real-time analytical queries over an astronomical catalog of 5,821 exoplanets ($N = 4,643$ transmission-eligible targets) with 40+ numerical physical parameters, machine learning ranking scores, and observational metrics.
+ExoSignal serves analytical queries with sub-10ms response times over an astronomical catalog of 5,821 exoplanets ($N = 4,643$ transmission-eligible targets) with 40+ numerical physical parameters, machine learning ranking scores, and observational metrics.
 
 Workload Characteristics:
 - **Read-Heavy / Analytical**: Endpoints filter on continuous physical bounds (`min_priority`, `hz_status`, `radius`, `distance`), perform multi-key ordering, and execute single-target point lookups.

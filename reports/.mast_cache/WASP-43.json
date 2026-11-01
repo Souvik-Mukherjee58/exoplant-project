@@ -1,0 +1,10 @@
+[
+  {
+    "proposal_id": "1366",
+    "instrument_name": "MIRI/SLITLESS",
+    "filters": "P750L",
+    "target_name": "WASP-43",
+    "t_min": 59830.0,
+    "proposal_title": "The Transiting Exoplanet Community ERS Program Full Orbit Phase Curve"
+  }
+]

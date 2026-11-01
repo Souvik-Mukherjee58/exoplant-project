@@ -8,15 +8,12 @@ import {
   formatTemperature,
   formatDistance,
   formatPriority,
+  formatRawScore,
   formatAnomaly,
-  getHZColor,
-  getHZText,
-  formatDiscoveryMethod,
-  formatStellarName,
   getCleanHostStar,
   getIneligibleTooltip,
 } from '../utils/formatters';
-import TreeSHAPWaterfall from '../components/TreeSHAPWaterfall';
+import ShapWaterfall from '../components/ShapWaterfall';
 import SectionDivider from '../components/SectionDivider';
 import SegmentedTabs from '../components/SegmentedTabs';
 import Planet3DVisualizer from '../components/Planet3DVisualizer';
@@ -31,7 +28,7 @@ const PlanetDetail = () => {
       <div className="py-24 flex flex-col items-center justify-center space-y-4 font-mono">
         <div className="w-12 h-12 rounded-full border-4 border-exosignal-cyan/20 border-t-exosignal-cyan animate-spin"></div>
         <p className="text-xs text-exosignal-text-muted">
-          Loading astrophysical parameters & TreeSHAP attributions...
+          Loading astrophysical parameters & Linear SHAP attributions...
         </p>
       </div>
     );
@@ -119,7 +116,7 @@ const PlanetDetail = () => {
     { id: 'overview', label: 'Planetary Specs', icon: '🪐' },
     {
       id: 'explainability',
-      label: 'TreeSHAP Attribution',
+      label: 'Linear SHAP Attribution',
       icon: '🌲',
       badge: currentRank ? `#${currentRank}` : undefined,
     },
@@ -184,11 +181,21 @@ const PlanetDetail = () => {
               <div className="flex flex-wrap items-center gap-4 bg-space-void/90 p-4 rounded-2xl border border-exosignal-cyan/25 mt-5">
                 <div>
                   <span className="text-[10px] font-mono text-exosignal-text-muted block uppercase">
-                    Priority Score
+                    Priority Percentile
                   </span>
-                  <div className="text-3xl font-black font-mono text-exosignal-cyan">
+                  <div
+                    className="text-2xl sm:text-3xl font-black font-mono text-exosignal-cyan cursor-help"
+                    title={
+                      currentScore != null
+                        ? `Raw score: ${formatRawScore(currentScore)}`
+                        : undefined
+                    }
+                  >
                     {currentScore != null ? (
-                      formatPriority(currentScore)
+                      planet.percentile_rank_string ||
+                      (planet.percentile_rank
+                        ? `Top ${planet.percentile_rank}% of 4,643 eligible`
+                        : `Top 0.1% of 4,643 eligible`)
                     ) : (
                       <span
                         className="cursor-help text-slate-400"
@@ -198,6 +205,14 @@ const PlanetDetail = () => {
                       </span>
                     )}
                   </div>
+                  {currentScore != null && (
+                    <span
+                      className="text-[10px] font-mono text-slate-400 block cursor-help mt-0.5"
+                      title={`Raw score: ${formatRawScore(currentScore)}`}
+                    >
+                      Score: {formatPriority(currentScore)}
+                    </span>
+                  )}
                 </div>
                 {currentRank ? (
                   <div className="border-l border-exosignal-cyan/20 pl-4">
@@ -237,7 +252,10 @@ const PlanetDetail = () => {
                     >
                       Habitability heuristic (not used for ranking)
                     </span>
-                    <div className="text-xl font-bold font-mono text-emerald-400">
+                    <div
+                      className="text-xl font-bold font-mono text-emerald-400 cursor-help"
+                      title={`Raw score: ${formatRawScore(heurScore)}`}
+                    >
                       {formatPriority(heurScore)}
                     </div>
                   </div>
@@ -274,7 +292,10 @@ const PlanetDetail = () => {
                   period: planet.orbital_period
                     ? `${planet.orbital_period.toFixed(1)} days`
                     : '10 days',
-                  transitDepth: '0.2%',
+                  transitDepth:
+                    planet.planet_radius && planet.stellar_radius
+                      ? `${(((planet.planet_radius / (planet.stellar_radius * 109.1)) ** 2) * 100).toFixed(3)}%`
+                      : '0.25%',
                   atmosphereColor:
                     planet.hz_status === 'Inside HZ'
                       ? 'rgba(16, 185, 129, 0.45)'
@@ -349,15 +370,27 @@ const PlanetDetail = () => {
                   <div className="bg-space-void/80 p-3.5 rounded-xl border border-exosignal-cyan/15">
                     <span className="text-exosignal-text-muted block text-[10px]">Radius</span>
                     <span className="text-white font-bold text-sm">
-                      {formatRadius(planet.planet_radius)}
+                      {planet.planet_radius !== null && planet.planet_radius !== undefined && !isNaN(planet.planet_radius) ? (
+                        formatRadius(planet.planet_radius)
+                      ) : (
+                        <span title="Parameter not reported in NASA Exoplanet Archive" className="text-slate-500 italic text-xs cursor-help">
+                          not in archive
+                        </span>
+                      )}
                     </span>
                   </div>
                   <div className="bg-space-void/80 p-3.5 rounded-xl border border-exosignal-cyan/15">
                     <span className="text-exosignal-text-muted block text-[10px]">
-                      Estimated Mass
+                      {planet.mass_is_estimated ? 'Estimated Mass (Chen & Kipping 2017)' : 'Measured Mass'}
                     </span>
                     <span className="text-white font-bold text-sm">
-                      {formatMass(planet.planet_mass)}
+                      {planet.planet_mass !== null && planet.planet_mass !== undefined && !isNaN(planet.planet_mass) ? (
+                        formatMass(planet.planet_mass)
+                      ) : (
+                        <span title="Parameter not reported in NASA Exoplanet Archive" className="text-slate-500 italic text-xs cursor-help">
+                          not in archive
+                        </span>
+                      )}
                     </span>
                   </div>
                   <div className="bg-space-void/80 p-3.5 rounded-xl border border-exosignal-cyan/15">
@@ -365,7 +398,13 @@ const PlanetDetail = () => {
                       Orbital Period
                     </span>
                     <span className="text-white font-bold text-sm">
-                      {formatPeriod(planet.orbital_period)}
+                      {planet.orbital_period !== null && planet.orbital_period !== undefined && !isNaN(planet.orbital_period) ? (
+                        formatPeriod(planet.orbital_period)
+                      ) : (
+                        <span title="Parameter not reported in NASA Exoplanet Archive" className="text-slate-500 italic text-xs cursor-help">
+                          not in archive
+                        </span>
+                      )}
                     </span>
                   </div>
                   <div className="bg-space-void/80 p-3.5 rounded-xl border border-exosignal-cyan/15">
@@ -373,7 +412,13 @@ const PlanetDetail = () => {
                       Equilibrium Temp
                     </span>
                     <span className="text-white font-bold text-sm">
-                      {formatTemperature(planet.equilibrium_temperature)}
+                      {planet.equilibrium_temperature !== null && planet.equilibrium_temperature !== undefined && !isNaN(planet.equilibrium_temperature) ? (
+                        formatTemperature(planet.equilibrium_temperature)
+                      ) : (
+                        <span title="Parameter not reported in NASA Exoplanet Archive" className="text-slate-500 italic text-xs cursor-help">
+                          not in archive
+                        </span>
+                      )}
                     </span>
                   </div>
                 </div>
@@ -400,7 +445,13 @@ const PlanetDetail = () => {
                       Stellar Radius
                     </span>
                     <span className="text-white font-bold text-sm">
-                      {planet.stellar_radius ? `${planet.stellar_radius.toFixed(2)} R☉` : '—'}
+                      {planet.stellar_radius ? (
+                        `${planet.stellar_radius.toFixed(2)} R☉`
+                      ) : (
+                        <span title="Parameter not reported in NASA Exoplanet Archive" className="text-slate-500 italic text-xs cursor-help">
+                          not in archive
+                        </span>
+                      )}
                     </span>
                   </div>
                   <div className="bg-space-void/80 p-3.5 rounded-xl border border-purple-500/15">
@@ -408,7 +459,13 @@ const PlanetDetail = () => {
                       Stellar Temp
                     </span>
                     <span className="text-white font-bold text-sm">
-                      {planet.stellar_teff ? `${Math.round(planet.stellar_teff)} K` : '—'}
+                      {planet.stellar_teff ? (
+                        `${Math.round(planet.stellar_teff)} K`
+                      ) : (
+                        <span title="Parameter not reported in NASA Exoplanet Archive" className="text-slate-500 italic text-xs cursor-help">
+                          not in archive
+                        </span>
+                      )}
                     </span>
                   </div>
                   <div className="bg-space-void/80 p-3.5 rounded-xl border border-purple-500/15">
@@ -449,23 +506,21 @@ const PlanetDetail = () => {
         </div>
       )}
 
-      {/* SECTION 2: TreeSHAP Interpretability Waterfall */}
+      {/* SECTION 2: Linear SHAP Interpretability Waterfall */}
       {(showAll || activeTab === 'explainability') && (
         <div className="space-y-4">
           <SectionDivider
             number="02"
-            title="TreeSHAP Feature Attribution"
-            subtitle="Local Shapley feature importance waterfall explaining exactly why the model prioritized this target"
+            title="Linear SHAP Feature Attribution"
+            subtitle="Local Shapley feature importance waterfall (Lundberg & Lee 2017) explaining exactly why the model prioritized this target"
             badge="ML EXPLAINABILITY"
             accent="purple"
           />
 
           <div className="divided-compartment">
             <div className="p-6">
-              <TreeSHAPWaterfall
+              <ShapWaterfall
                 planetName={planet.planet_name}
-                targetPriorityScore={planet.priority_score}
-                mlPriorityScore={planet.priority_score}
                 mlRank={planet.priority_rank ?? planet.ml_rank}
                 rankDelta={planet.rank_delta}
               />

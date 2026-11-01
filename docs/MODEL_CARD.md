@@ -9,7 +9,7 @@ Following the standardized model reporting framework (*Mitchell et al., FAT* 201
 - **Model Identifier**: ExoSignal Production Ranker (Variant A)
 - **Model Version**: `v1_2026-10-29`
 - **Model Type**: Regularized Logistic Regression with Balanced Class Weighting ($L_2$, $C=1.0$) over standardized, log-transformed astrophysical features.
-- **Explainability Engine**: Exact Linear/TreeSHAP attribution via native analytic formulation, satisfying additive conservation $\sum_{i=1}^{21} \phi_i + \text{Base} = \text{Score}$ to machine precision.
+- **Explainability Engine**: Exact Linear SHAP attribution via native analytic formulation, satisfying additive conservation $\sum_{i=1}^{21} \phi_i + \text{Base} = \text{Score}$ to machine precision.
 - **Maintainer**: Souvik Mukherjee (`Souvik-Mukherjee58`)
 - **License**: MIT / Research & Educational Use
 
@@ -19,7 +19,7 @@ Following the standardized model reporting framework (*Mitchell et al., FAT* 201
 
 ### Primary Intended Use
 - Assisting astronomical researchers, observing teams, and Telescope Allocation Committees (TAC) in prioritizing known transiting exoplanets for atmospheric characterization via **transmission spectroscopy** with the James Webb Space Telescope (JWST) and future observatories (e.g., Ariel, HWO).
-- Providing interpretable, physically motivated ranking scores and local feature attributions (TreeSHAP waterfalls) explaining why individual targets rank higher or lower.
+- Providing interpretable, physically motivated ranking scores and local feature attributions (Linear SHAP waterfalls) explaining why individual targets rank higher or lower.
 
 ### Target Users
 - Exoplanet astronomers, observational astrophysicists, and instrument science teams.
@@ -72,3 +72,14 @@ Evaluated across **25 host-grouped folds** (`StratifiedGroupKFold`, 5 seeds $\ti
 3. **Observational Malmquist Bias**: Targets are heavily skewed toward nearby ($d < 100\text{ pc}$), infrared-bright host stars ($K < 10$) with large transit depths.
 4. **Unlabeled Candidates $\neq$ Negative Targets**: Planets not yet approved for JWST time may possess exceptional spectroscopic utility that has not yet been proposed.
 
+---
+
+## 7. Model Maintenance & Artifact Regeneration
+
+To regenerate the end-to-end data pipeline, feature engineering, model training, evaluation metrics, and Parquet artifacts:
+
+`ash
+cd backend && python -m app.pipeline build
+`
+
+This ingests composite archival data, computes physical proxies, validates ground-truth reference labels against STScI criteria, performs grouped cross-validation, exports model weights (ltr_model.joblib), and saves the Parquet dataset (planets.parquet).

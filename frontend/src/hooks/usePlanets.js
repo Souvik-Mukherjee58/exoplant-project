@@ -7,12 +7,15 @@ export function usePlanets(params = {}) {
   const [error, setError] = useState(null);
   const mounted = useRef(true);
 
+  const paramsKey = JSON.stringify(params);
+
   const fetchPlanets = useCallback(async () => {
     if (!mounted.current) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await planetsApi.getAll(params);
+      const queryParams = paramsKey ? JSON.parse(paramsKey) : undefined;
+      const data = await planetsApi.getAll(queryParams);
       if (mounted.current) {
         setPlanets(data);
       }
@@ -26,7 +29,7 @@ export function usePlanets(params = {}) {
         setLoading(false);
       }
     }
-  }, [JSON.stringify(params)]);
+  }, [paramsKey]);
 
   useEffect(() => {
     mounted.current = true;
@@ -39,7 +42,7 @@ export function usePlanets(params = {}) {
   return { planets, loading, error, refetch: fetchPlanets };
 }
 
-export function useTopTargets(limit = 10) {
+export function useTopTargets(limit = 10, excludeObserved = true) {
   const [planets, setPlanets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -50,7 +53,7 @@ export function useTopTargets(limit = 10) {
     setLoading(true);
     setError(null);
     try {
-      const data = await planetsApi.getTopTargets({ limit });
+      const data = await planetsApi.getTopTargets({ limit, exclude_observed: excludeObserved });
       if (mounted.current) {
         setPlanets(data);
       }
@@ -64,7 +67,7 @@ export function useTopTargets(limit = 10) {
         setLoading(false);
       }
     }
-  }, [limit]);
+  }, [limit, excludeObserved]);
 
   useEffect(() => {
     mounted.current = true;

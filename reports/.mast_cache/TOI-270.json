@@ -1,0 +1,10 @@
+[
+  {
+    "proposal_id": "2722",
+    "instrument_name": "NIRSPEC/SLIT",
+    "filters": "CLEAR;PRISM",
+    "target_name": "TOI-270",
+    "t_min": 59910.0,
+    "proposal_title": "Chemical Disequilibrium in a Temperate sub-Neptune TOI-270d transmission"
+  }
+]

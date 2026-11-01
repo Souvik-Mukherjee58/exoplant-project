@@ -7,7 +7,6 @@ const SegmentedTabs = ({
   tabs = [],
   activeTab,
   onChange,
-  variant = 'pills', // 'pills' | 'underline' | 'boxed'
   className = '',
 }) => {
   return (

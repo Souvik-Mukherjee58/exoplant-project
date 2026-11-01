@@ -1,0 +1,10 @@
+[
+  {
+    "proposal_id": "1185",
+    "instrument_name": "NIRCAM/GRISM",
+    "filters": "F322W2;GRISMR",
+    "target_name": "WASP-80",
+    "t_min": 59920.0,
+    "proposal_title": "Methane transmission spectroscopy in the warm Jupiter WASP-80b"
+  }
+]

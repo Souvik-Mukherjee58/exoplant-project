@@ -87,7 +87,10 @@ const About = () => {
                 </h3>
                 <ul className="text-xs font-mono space-y-2 text-exosignal-text-secondary">
                   <li>• FastAPI (Python 3.11) asynchronous REST microservice</li>
-                  <li>• DuckDB in-memory analytical query engine (sub-10ms P50 latency)</li>
+                  <li>
+                    • DuckDB in-memory analytical query engine (6.8ms P50 query latency, 170ms P50
+                    under concurrent load per reports/LOADTEST.md)
+                  </li>
                   <li>
                     • Regularized Logistic Regression (Variant A) prioritizing transmission
                     spectroscopy targets
@@ -144,7 +147,7 @@ const About = () => {
                 NASA Exoplanet Archive (IPAC / Caltech)
               </span>
               <p className="text-exosignal-text-secondary">
-                Composite planet parameter catalog containing verified orbital period, radii,
+                Composite planet parameter catalog containing archival orbital period, radii,
                 masses, stellar effective temperatures, and near-IR K-band magnitudes.
               </p>
             </div>

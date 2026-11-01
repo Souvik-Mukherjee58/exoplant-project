@@ -1,19 +1,21 @@
 """SHAP-based local explainability and feature attribution engine for ExoSignal.
 
-Implements TreeSHAP (Lundberg et al., Nature Machine Intelligence 2020) for local model interpretability:
-1. Exact TreeSHAP feature attributions via LightGBM's native C++ implementation (pred_contrib=True).
-2. Additive feature attribution guarantees: sum(SHAP) + Base Value = Predicted Margin.
+Implements Linear SHAP (Lundberg & Lee 2017, NeurIPS) for local model interpretability:
+1. Exact Linear SHAP feature attributions for regularized Logistic Regression.
+2. Additive feature attribution guarantees: sum(SHAP) + Base Value = Predicted Margin (Log-Odds).
 3. Calibrated score-space decomposition into positive drivers and negative barriers.
 4. Pairwise differential attribution explaining ranking reversals between any two planets.
 5. Human-readable physical labels and unit formatting.
 """
 
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 
+from app.config import settings
 from app.ml.ltr_model import ExoSignalLTRModel
 
 FEATURE_METADATA: Dict[str, Dict[str, str]] = {
@@ -234,6 +236,15 @@ class SHAPExplainer:
         else:
             artifacts_dir = Path("artifacts")
 
+        # 1. Check explicit environment variable or settings override first
+        env_version = os.environ.get("ARTIFACT_VERSION") or getattr(settings, "ARTIFACT_VERSION", None)
+        if env_version:
+            env_version = str(env_version).strip()
+            candidate = artifacts_dir / env_version / "ltr_model.joblib"
+            if candidate.exists():
+                return candidate
+
+        # 2. Check active_version.txt pointer
         active_ptr = artifacts_dir / "active_version.txt"
         if active_ptr.exists():
             version = active_ptr.read_text().strip()
@@ -380,6 +391,10 @@ class SHAPExplainer:
             "ml_priority_score": calibrated_score,
             "base_score": base_score,
             "score_delta_from_base": round(calibrated_score - base_score, 1),
+            "citation": "Lundberg & Lee (2017, NeurIPS)",
+            "base_logit": round(base_value_raw, 4),
+            "final_logit": round(predicted_margin, 4),
+            "converted_percentile": calibrated_score,
             "mathematical_invariants": {
                 "base_margin": round(base_value_raw, 6),
                 "sum_shap_margin": round(float(np.sum(shap_values)), 6),

@@ -39,7 +39,7 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
       <div className="bg-space-darker rounded-lg border border-exosignal-blue/20 p-6 text-center">
         <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-exosignal-accent"></div>
         <p className="mt-2 text-exosignal-text/70 text-xs">
-          Computing pairwise differential TreeSHAP attribution: Δφ = φ({planetA}) - φ({planetB})...
+          Computing pairwise differential Linear SHAP attribution: Δφ = φ({planetA}) - φ({planetB})...
         </p>
       </div>
     );
@@ -56,8 +56,6 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
   const {
     planet_a,
     planet_b,
-    planet_a_score,
-    planet_b_score,
     score_advantage,
     primary_drivers_for_advantage,
     primary_drivers_for_disadvantage,
@@ -79,7 +77,7 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
         <div>
           <div className="flex items-center gap-2">
             <h3 className="text-lg font-bold text-exosignal-text">
-              Differential Ranking Attribution (Δ TreeSHAP)
+              Differential Ranking Attribution (Δ Linear SHAP)
             </h3>
             <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-exosignal-blue/20 text-exosignal-blue">
               Pairwise Delta

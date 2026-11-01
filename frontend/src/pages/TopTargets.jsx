@@ -4,11 +4,11 @@ import { planetsApi } from '../services/api';
 import { useTopTargets } from '../hooks/usePlanets';
 import { useFavorites } from '../context/FavoritesContext';
 import {
-  formatAnomaly,
   formatDistance,
   formatRadius,
   formatPeriod,
-  getHZColor,
+  formatPriority,
+  formatRawScore,
   getCleanHostStar,
 } from '../utils/formatters';
 import {
@@ -26,14 +26,15 @@ import SectionDivider from '../components/SectionDivider';
 const TopTargets = () => {
   const [activeTab, setActiveTab] = useState('unobserved'); // 'unobserved' | 'validation'
   const [limit, setLimit] = useState(25);
+  const [includeObserved, setIncludeObserved] = useState(false);
   const { toggleFavorite, isFavorite } = useFavorites();
 
-  // Unobserved top targets (main recommendation list)
+  // Candidate top targets (defaults to unobserved, toggled to all eligible)
   const {
-    planets: unobservedTargets,
-    loading: loadingUnobserved,
-    error: errorUnobserved,
-  } = useTopTargets(limit);
+    planets: candidateTargets,
+    loading: loadingCandidates,
+    error: errorCandidates,
+  } = useTopTargets(limit, !includeObserved);
 
   // Validation known JWST targets (OOF evaluation)
   const [knownTargets, setKnownTargets] = useState([]);
@@ -65,11 +66,11 @@ const TopTargets = () => {
     if (activeTab === 'validation') {
       return knownTargets.slice(0, limit);
     }
-    return unobservedTargets?.slice(0, limit) || [];
-  }, [activeTab, knownTargets, unobservedTargets, limit]);
+    return candidateTargets?.slice(0, limit) || [];
+  }, [activeTab, knownTargets, candidateTargets, limit]);
 
-  const loading = activeTab === 'validation' ? loadingKnown : loadingUnobserved;
-  const error = activeTab === 'validation' ? errorKnown : errorUnobserved;
+  const loading = activeTab === 'validation' ? loadingKnown : loadingCandidates;
+  const error = activeTab === 'validation' ? errorKnown : errorCandidates;
 
   const podium = activePlanets.slice(0, 3);
 
@@ -80,19 +81,42 @@ const TopTargets = () => {
       const rankNum =
         activeTab === 'validation'
           ? (p.oof_ml_rank ?? idx + 1)
-          : (p.unobserved_rank ?? p.priority_rank ?? idx + 1);
+          : includeObserved
+            ? (p.priority_rank ?? idx + 1)
+            : (p.unobserved_rank ?? p.priority_rank ?? idx + 1);
       const tsmVal = Number((p.tsm || 0).toFixed(1));
-      const tsmThresh = Number((p.tsm_threshold || 10).toFixed(1));
+      const isExtrapolated = Number(p.planet_radius) > 10.0;
+      const tsmThresh = isExtrapolated ? null : Number((p.tsm_threshold || 10).toFixed(1));
       return {
         name: p.planet_name,
         rank: `#${rankNum}`,
         tsm: tsmVal,
         threshold: tsmThresh,
+        isExtrapolated,
         anomaly: Number(((p.anomaly_score || 0) * 100).toFixed(1)),
         percentile: p.percentile_rank || 1.0,
       };
     });
-  }, [activePlanets, activeTab]);
+  }, [activePlanets, activeTab, includeObserved]);
+
+  const renderKemptonThreshold = (planet) => {
+    const radius = Number(planet.planet_radius);
+    if (!isNaN(radius) && radius > 10.0) {
+      return (
+        <span className="text-amber-400 italic text-[10px]">
+          outside Kempton (2018) size classes — extrapolated
+        </span>
+      );
+    }
+    const threshold = planet.tsm_threshold ?? 10;
+    const tsm = planet.tsm ?? 0;
+    const passes = tsm >= threshold;
+    return (
+      <span className={passes ? 'text-emerald-400 font-bold' : 'text-slate-400'}>
+        ≥ {threshold} ({passes ? 'Passes' : 'Under'})
+      </span>
+    );
+  };
 
   return (
     <div className="space-y-10">
@@ -166,16 +190,33 @@ const TopTargets = () => {
           </button>
         </div>
 
-        <div className="text-[11px] font-mono text-exosignal-text-muted px-3">
-          {activeTab === 'unobserved' ? (
-            <span className="text-emerald-400">
-              ✓ In-sample recall eliminated (Known JWST targets excluded)
-            </span>
-          ) : (
-            <span className="text-purple-300">
-              ● 5-fold StratifiedGroupKFold (Zero host-star leakage)
-            </span>
+        <div className="flex flex-wrap items-center gap-3 px-3">
+          {activeTab === 'unobserved' && (
+            <label className="flex items-center space-x-2 text-xs font-mono text-slate-300 cursor-pointer select-none px-3 py-1.5 rounded-xl bg-space-void border border-slate-700 hover:border-exosignal-cyan transition">
+              <input
+                type="checkbox"
+                checked={includeObserved}
+                onChange={(e) => setIncludeObserved(e.target.checked)}
+                className="rounded border-slate-700 text-exosignal-cyan focus:ring-0 cursor-pointer"
+                data-testid="toggle-include-observed"
+              />
+              <span>Include already-observed JWST targets</span>
+            </label>
           )}
+
+          <div className="text-[11px] font-mono text-exosignal-text-muted">
+            {activeTab === 'unobserved' ? (
+              <span className={includeObserved ? 'text-cyan-400' : 'text-emerald-400'}>
+                {includeObserved
+                  ? '● Unified ranking (includes observed targets)'
+                  : '✓ In-sample recall eliminated (Unobserved targets only)'}
+              </span>
+            ) : (
+              <span className="text-purple-300">
+                ● 5-fold StratifiedGroupKFold (Zero host-star leakage)
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -229,9 +270,13 @@ const TopTargets = () => {
               const displayRank =
                 activeTab === 'validation'
                   ? (planet.oof_ml_rank ?? idx + 1)
-                  : (planet.unobserved_rank ?? planet.priority_rank ?? idx + 1);
-
-              const exceedsThreshold = (planet.tsm || 0) >= (planet.tsm_threshold || 10);
+                  : includeObserved
+                    ? (planet.priority_rank ?? idx + 1)
+                    : (planet.unobserved_rank ?? planet.priority_rank ?? idx + 1);
+              const currentScore =
+                activeTab === 'validation'
+                  ? (planet.oof_priority_score ?? planet.priority_score ?? 0)
+                  : (planet.priority_score ?? planet.ml_priority_score ?? 0);
 
               return (
                 <div
@@ -306,10 +351,13 @@ const TopTargets = () => {
                   <div className="pt-3 border-t border-exosignal-cyan/15 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-mono text-exosignal-text-muted uppercase">
-                        Catalog Rank
+                        Percentile Rank
                       </span>
-                      <span className="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
-                        {planet.percentile_rank_string || `Top ${planet.percentile_rank || 0.1}%`}
+                      <span
+                        className="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 cursor-help"
+                        title={`Raw score: ${formatRawScore(currentScore)}`}
+                      >
+                        {planet.percentile_rank_string || `Top ${planet.percentile_rank || 0.1}% of 4,643 eligible`}
                       </span>
                     </div>
 
@@ -322,19 +370,16 @@ const TopTargets = () => {
                       </div>
                       <div className="flex items-center justify-between mt-1 text-[10px]">
                         <span className="text-exosignal-text-muted">Kempton Threshold:</span>
-                        <span
-                          className={
-                            exceedsThreshold ? 'text-emerald-400 font-bold' : 'text-slate-400'
-                          }
-                        >
-                          ≥ {planet.tsm_threshold || 10} ({exceedsThreshold ? 'Passes' : 'Under'})
-                        </span>
+                        {renderKemptonThreshold(planet)}
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between pt-1">
-                      <span className="text-[10px] font-mono text-exosignal-text-muted">
-                        {activeTab === 'validation' ? 'OOF Priority Score' : 'Supervised Score'}
+                      <span
+                        className="text-[10px] font-mono text-exosignal-text-muted cursor-help"
+                        title={`Raw score: ${formatRawScore(currentScore)}`}
+                      >
+                        Score: <span className="text-white font-bold">{formatPriority(currentScore)}</span>
                       </span>
                       <Link
                         to={`/planet/${encodeURIComponent(planet.planet_name)}`}
@@ -513,9 +558,13 @@ const TopTargets = () => {
                     const pRank =
                       activeTab === 'validation'
                         ? (planet.oof_ml_rank ?? index + 1)
-                        : (planet.unobserved_rank ?? planet.priority_rank ?? index + 1);
-
-                    const exceedsThreshold = (planet.tsm || 0) >= (planet.tsm_threshold || 10);
+                        : includeObserved
+                          ? (planet.priority_rank ?? index + 1)
+                          : (planet.unobserved_rank ?? planet.priority_rank ?? index + 1);
+                    const currentScore =
+                      activeTab === 'validation'
+                        ? (planet.oof_priority_score ?? planet.priority_score ?? 0)
+                        : (planet.priority_score ?? planet.ml_priority_score ?? 0);
 
                     return (
                       <tr
@@ -537,23 +586,27 @@ const TopTargets = () => {
                           )}
                         </td>
                         <td className="py-3.5 px-4">
-                          <span className="font-bold text-cyan-300">
+                          <div
+                            className="font-bold text-cyan-300 cursor-help"
+                            title={`Raw score: ${formatRawScore(currentScore)}`}
+                          >
                             {planet.percentile_rank_string ||
-                              `Top ${planet.percentile_rank || 0.1}%`}
-                          </span>
+                              `Top ${planet.percentile_rank || 0.1}% of 4,643 eligible`}
+                          </div>
+                          <div
+                            className="text-[10px] font-mono text-exosignal-text-muted cursor-help"
+                            title={`Raw score: ${formatRawScore(currentScore)}`}
+                          >
+                            Score: {formatPriority(currentScore)}
+                          </div>
                         </td>
                         <td className="py-3.5 px-4">
                           <div className="font-bold text-amber-300">
                             TSM: {planet.tsm != null ? planet.tsm.toFixed(1) : '—'}
                           </div>
                           <div className="text-[10px] text-exosignal-text-muted">
-                            Threshold:{' '}
-                            <span
-                              className={exceedsThreshold ? 'text-emerald-400' : 'text-slate-400'}
-                            >
-                              {planet.tsm_threshold || 10}
-                            </span>{' '}
-                            ({planet.kempton_size_class || 'Terrestrial'})
+                            Threshold: {renderKemptonThreshold(planet)}{' '}
+                            {!(Number(planet.planet_radius) > 10.0) && `(${planet.kempton_size_class || 'Terrestrial'})`}
                           </div>
                         </td>
                         <td className="py-3.5 px-4 text-exosignal-text-secondary">

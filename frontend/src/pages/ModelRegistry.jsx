@@ -178,7 +178,7 @@ const ModelRegistry = () => {
           <SectionDivider
             number="01"
             title="Active Model Deployment Lineage"
-            subtitle="Verified in-process model artifact currently serving live astrophysical inference"
+            subtitle="Active in-process model artifact currently serving astrophysical inference"
             badge="ACTIVE MODEL"
             accent="cyan"
           />

@@ -44,7 +44,7 @@ We select **Regularized Logistic Regression (Variant A - All Features, $L_2$, $C
 ### Positive
 - Robust generalization on unseen planetary systems without tree overfitting.
 - $+104.6\%$ improvement in Average Precision over the peer-reviewed TSM baseline.
-- Instant, deterministic TreeSHAP attribution calculations ($< 0.1\text{ ms}$).
+- Instant, deterministic Linear SHAP attribution calculations ($< 0.1\text{ ms}$).
 
 ### Negative / Trade-offs
 - Linear models cannot capture high-order nonlinear feature interactions without explicit feature engineering (mitigated by including composite physical interaction proxies such as transit depth and atmospheric scale height).

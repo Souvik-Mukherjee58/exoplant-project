@@ -91,24 +91,22 @@ def get_verified_jwst_targets(reference_path: Optional[str | Path] = None) -> Se
         s = str(val).strip().lower()
         return s in ("true", "1", "yes", "t")
 
-    has_verified = "verified" in df.columns
-    has_obs_type = "observation_type" in df.columns
+    if "verified" not in df.columns or "observation_type" not in df.columns:
+        raise ValueError(
+            "Reference catalog is missing required columns 'verified' and/or 'observation_type'. "
+            "Please update backend/data/reference/jwst_transmission_targets.csv."
+        )
 
-    if has_verified and has_obs_type:
-        is_verified = df["verified"].apply(_parse_bool)
-        is_transmission = df["observation_type"].astype(str).str.strip().str.lower() == "transmission"
-        verified_mask = is_verified & is_transmission
+    is_verified = df["verified"].apply(_parse_bool)
+    is_transmission = df["observation_type"].astype(str).str.strip().str.lower() == "transmission"
+    verified_mask = is_verified & is_transmission
 
-        unverified_df = df[~verified_mask]
-        if len(unverified_df) > 0:
-            print_unverified_targets_warning(unverified_df)
+    unverified_df = df[~verified_mask]
+    if len(unverified_df) > 0:
+        print_unverified_targets_warning(unverified_df)
 
-        verified_planets = df[verified_mask]["planet_name"].astype(str).str.strip().tolist()
-        return set(verified_planets)
-
-    # Standard reference catalog: filter rows with non-empty program_id
-    verified = df[df["program_id"].notna() & (df["program_id"].astype(str).str.strip() != "")]
-    return set(verified["planet_name"].astype(str).str.strip())
+    verified_planets = df[verified_mask]["planet_name"].astype(str).str.strip().tolist()
+    return set(verified_planets)
 
 
 # Backward-compatible reference to verified JWST targets loaded from reference CSV

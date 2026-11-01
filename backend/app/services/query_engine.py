@@ -9,6 +9,7 @@ Provides:
 """
 
 import logging
+import os
 import threading
 import time
 from pathlib import Path
@@ -72,6 +73,15 @@ class CatalogQueryEngine:
 
     def _resolve_parquet_path(self) -> Tuple[str, Path]:
         """Locate the active Parquet catalog artifact."""
+        # 1. Check explicit environment variable or settings override first
+        env_version = os.environ.get("ARTIFACT_VERSION") or getattr(settings, "ARTIFACT_VERSION", None)
+        if env_version:
+            env_version = str(env_version).strip()
+            candidate = self.artifacts_dir / env_version / "planets.parquet"
+            if candidate.exists():
+                return env_version, candidate
+
+        # 2. Check active_version.txt pointer
         active_ptr = self.artifacts_dir / "active_version.txt"
         if active_ptr.exists():
             version = active_ptr.read_text().strip()

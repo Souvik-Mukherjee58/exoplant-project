@@ -108,6 +108,18 @@ export const modelsApi = {
     const response = await api.get('/evaluation/benchmark', { params: { split } });
     return response.data;
   },
+
+  getMethodologyWeights: async () => {
+    const response = await api.get('/methodology/weights');
+    return response.data;
+  },
+};
+
+export const methodologyApi = {
+  getWeights: async () => {
+    const response = await api.get('/methodology/weights');
+    return response.data;
+  },
 };
 
 export const healthApi = {

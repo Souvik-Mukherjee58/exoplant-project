@@ -5,10 +5,6 @@ import {
   formatRadius,
   formatMass,
   formatPeriod,
-  formatTemperature,
-  formatPriority,
-  formatAnomaly,
-  getHZColor,
   getCleanHostStar,
 } from '../utils/formatters';
 import DifferentialSHAPComparison from '../components/DifferentialSHAPComparison';
@@ -18,7 +14,7 @@ import { PriorityScoreDisplay } from '../components/PriorityBadge';
 const Compare = () => {
   const [searchParams] = useSearchParams();
   const planetsParams = useMemo(() => ({ limit: 500 }), []);
-  const { planets: availablePlanets, loading, error } = usePlanets(planetsParams);
+  const { planets: availablePlanets } = usePlanets(planetsParams);
   const [selectedPlanets, setSelectedPlanets] = useState([]);
   const [selectorSearch, setSelectorSearch] = useState('');
 
@@ -55,7 +51,7 @@ const Compare = () => {
         }
       }
     }
-  }, [availablePlanets, searchParams]);
+  }, [availablePlanets, searchParams, selectedPlanets.length]);
 
   const togglePlanetSelection = (planet) => {
     if (selectedPlanets.find((p) => p.planet_name === planet.planet_name)) {
@@ -85,7 +81,7 @@ const Compare = () => {
           Multi-Target Comparative Analysis
         </h1>
         <p className="text-sm text-exosignal-text-secondary mt-1 max-w-2xl">
-          Side-by-side physical parameter comparison and exact pairwise TreeSHAP differential
+          Side-by-side physical parameter comparison and exact pairwise Linear SHAP differential
           feature attributions ($\Delta \phi_i$) explaining ranking reversals.
         </p>
       </div>
@@ -260,12 +256,12 @@ const Compare = () => {
                 </div>
               </div>
 
-              {/* Section 02: Exact Differential TreeSHAP Breakdown */}
+              {/* Section 02: Exact Differential Linear SHAP Breakdown */}
               {selectedPlanets.length >= 2 && (
                 <div className="space-y-4 pt-2">
                   <SectionDivider
                     number="02"
-                    title="TreeSHAP Differential Feature Impact (Δφ)"
+                    title="Linear SHAP Differential Feature Impact (Δφ)"
                     subtitle={`Pairwise feature attribution difference explaining why ${selectedPlanets[0].planet_name} scored differently than ${selectedPlanets[1].planet_name}`}
                     badge="DIFFERENTIAL SHAP"
                     accent="purple"
@@ -288,7 +284,7 @@ const Compare = () => {
               </h3>
               <p className="text-xs font-mono max-w-md mx-auto">
                 Select targets from the catalog sidebar to compare physical characteristics and view
-                exact TreeSHAP attributions.
+                exact Linear SHAP attributions.
               </p>
             </div>
           )}

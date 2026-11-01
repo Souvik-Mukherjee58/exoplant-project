@@ -12,6 +12,7 @@ primary_region = "iad"
 [env]
   EXOSIGNAL_ENV = "production"
   PORT = "8000"
+  ARTIFACT_VERSION = "v1_2026-10-29"
   LOG_LEVEL = "info"
   JSON_LOGS = "true"
   RATE_LIMIT_PER_MINUTE = "120"

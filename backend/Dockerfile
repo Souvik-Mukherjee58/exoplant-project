@@ -46,6 +46,7 @@ USER exosignal
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     EXOSIGNAL_ENV=production \
+    PORT=8000 \
     CORS_ORIGINS='["*"]' \
     LOG_LEVEL=info \
     WORKERS=2
@@ -53,9 +54,7 @@ ENV PYTHONUNBUFFERED=1 \
 EXPOSE 8000
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8000/ready || exit 1
+    CMD curl -f http://localhost:${PORT:-8000}/ready || exit 1
 
 # Uvicorn production server
-CMD ["python", "-m", "uvicorn", "app.main:app", \
-     "--host", "0.0.0.0", "--port", "8000", \
-     "--workers", "2", "--log-level", "info"]
+CMD ["sh", "-c", "exec python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WORKERS:-2} --log-level ${LOG_LEVEL:-info}"]

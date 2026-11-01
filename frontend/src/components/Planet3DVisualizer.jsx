@@ -95,8 +95,8 @@ const Planet3DVisualizer = ({
 }) => {
   const canvasRef = useRef(null);
   const [selectedKey, setSelectedKey] = useState(initialPlanet);
-  const [isRotating, setIsRotating] = useState(true);
-  const [rotationSpeed, setRotationSpeed] = useState(1);
+  const [isRotating] = useState(true);
+  const [rotationSpeed] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const rotationAngleRef = useRef(0);
@@ -404,11 +404,11 @@ const Planet3DVisualizer = ({
           className="transition-transform duration-300 group-hover:scale-105"
         />
 
-        {/* Floating Planetary HUD Badge - only render on larger canvases to prevent label overlap */}
+        {/* Floating Planetary HUD Badge - positioned cleanly in top-left */}
         {!isCompact && (
-          <div className="absolute top-2 left-2 pointer-events-none bg-space-void/85 border border-exosignal-cyan/30 rounded-xl px-3 py-1.5 backdrop-blur-md font-mono text-[11px] shadow-lg max-w-[65%]">
+          <div className="absolute top-2 left-2 pointer-events-none bg-space-void/90 border border-exosignal-cyan/30 rounded-xl px-2.5 py-1 backdrop-blur-md font-mono text-[11px] shadow-lg max-w-[55%] z-10">
             <div className="text-exosignal-cyan font-bold tracking-wider uppercase flex items-center space-x-1.5 truncate">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
               <span className="truncate">{planet.name}</span>
             </div>
             <div className="text-[10px] text-exosignal-text-muted mt-0.5 truncate">
@@ -417,20 +417,20 @@ const Planet3DVisualizer = ({
           </div>
         )}
 
-        {/* Orbiting Transit Telemetry Chip - only render on larger canvases to prevent label overlap */}
+        {/* Orbiting Transit Telemetry Chip - positioned cleanly in bottom-right */}
         {!isCompact && (
-          <div className="absolute bottom-2 right-2 pointer-events-none bg-space-void/85 border border-exosignal-cyan/30 rounded-xl px-3 py-1.5 backdrop-blur-md font-mono text-[10px] text-right">
-            <span className="text-exosignal-text-muted block">Transit Depth</span>
+          <div className="absolute bottom-2 right-2 pointer-events-none bg-space-void/90 border border-exosignal-cyan/30 rounded-xl px-2.5 py-1 backdrop-blur-md font-mono text-[10px] text-right max-w-[40%] z-10">
+            <span className="text-exosignal-text-muted block text-[9px]">Transit Depth</span>
             <span className="text-emerald-400 font-bold text-xs">{planet.transitDepth}</span>
           </div>
         )}
+      </div>
 
-        {/* Mouse drag instruction hover hint */}
-        <div className="absolute inset-x-0 bottom-6 text-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-          <span className="bg-space-void/90 text-exosignal-cyan font-mono text-[10px] px-3 py-1 rounded-full border border-exosignal-cyan/40 shadow-neon-cyan">
-            ✦ Drag mouse to rotate exoplanet in 3D ✦
-          </span>
-        </div>
+      {/* Dedicated hint text completely separated below the canvas container - no overlap at 1440px or 390px */}
+      <div className="w-full text-center mt-2 pointer-events-none">
+        <span className="inline-block bg-space-void/90 text-exosignal-cyan font-mono text-[10px] px-3 py-1 rounded-full border border-exosignal-cyan/30 shadow-neon-cyan">
+          ✦ Drag to rotate 3D exoplanet ✦
+        </span>
       </div>
 
       {/* Preset Target Selector Pills & Rotation Speed */}

@@ -1,0 +1,10 @@
+[
+  {
+    "proposal_id": "1803",
+    "instrument_name": "MIRI/SLITLESS",
+    "filters": "P750L",
+    "target_name": "GJ 1214",
+    "t_min": 59880.0,
+    "proposal_title": "Unlocking the Mysteries of the Archetype Sub-Neptune GJ1214b with a Full-Orbit Phase Curve"
+  }
+]

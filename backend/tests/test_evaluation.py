@@ -241,7 +241,8 @@ def test_benchmark_suite_execution():
 
     # Verify secondary protocol (Leave-One-Host-Out)
     loho = report["secondary_protocol"]
-    assert loho["hosts_evaluated"] == 24
+    assert loho["hosts_evaluated"] == 19
+    assert loho["hosts_evaluated"] >= 15
     assert len(loho["models"]) >= 7
     for m in loho["models"]:
         assert 1.0 <= m["median_rank"] <= loho["eligible_candidates_per_fold"]

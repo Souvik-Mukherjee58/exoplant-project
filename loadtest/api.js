@@ -29,10 +29,11 @@ const SAMPLE_PLANETS = [
 
 export const options = {
   stages: [
-    { duration: '10s', target: 5 },   // Warm-up ramp: 0 -> 5 VUs
-    { duration: '30s', target: 20 },  // Sustained load: 20 VUs
-    { duration: '10s', target: 30 },  // Peak burst: 20 -> 30 VUs
-    { duration: '10s', target: 0 },   // Cool-down ramp: 30 -> 0 VUs
+    { duration: '30s', target: 50 },  // Ramp-up to 50 VUs
+    { duration: '1m', target: 50 },   // Steady load at 50 VUs
+    { duration: '30s', target: 200 }, // Ramp-up to 200 VUs
+    { duration: '1m', target: 200 },  // Sustained peak load at 200 VUs
+    { duration: '30s', target: 0 },   // Graceful cool-down ramp to 0 VUs
   ],
   thresholds: {
     // Global acceptance criteria
@@ -146,8 +147,8 @@ export default function () {
 
   sleep(0.1);
 
-  // 4. GET /api/v1/explain/{name} (TreeSHAP feature attribution waterfall)
-  group('TreeSHAP Explain: /api/v1/explain/{name}', () => {
+  // 4. GET /api/v1/explain/{name} (Linear SHAP feature attribution waterfall)
+  group('Linear SHAP Explain: /api/v1/explain/{name}', () => {
     const res = http.get(`${BASE_URL}/api/v1/explain/${encodedPlanet}`, {
       headers,
       tags: { name: 'GET /api/v1/explain/{name}' },
@@ -180,5 +181,12 @@ export default function () {
 
   // Short pause before next iteration per virtual user
   sleep(0.2);
+}
+
+// Export summary JSON for reports/k6_summary.json
+export function handleSummary(data) {
+  return {
+    'reports/k6_summary.json': JSON.stringify(data, null, 2),
+  };
 }
 

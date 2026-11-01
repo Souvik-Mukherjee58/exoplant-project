@@ -1,0 +1,26 @@
+[
+  {
+    "proposal_id": "1366",
+    "instrument_name": "NIRSPEC/SLIT",
+    "filters": "CLEAR;PRISM",
+    "target_name": "WASP-39",
+    "t_min": 59782.0,
+    "proposal_title": "The Transiting Exoplanet Community Early Release Science Program in transmission"
+  },
+  {
+    "proposal_id": "1366",
+    "instrument_name": "NIRCAM/GRISM",
+    "filters": "F322W2;GRISMR",
+    "target_name": "WASP-39",
+    "t_min": 59782.8,
+    "proposal_title": "The Transiting Exoplanet Community Early Release Science Program in transmission"
+  },
+  {
+    "proposal_id": "1366",
+    "instrument_name": "NIRISS/SOSS",
+    "filters": "CLEAR;GR700XD",
+    "target_name": "WASP-39",
+    "t_min": 59783.5,
+    "proposal_title": "The Transiting Exoplanet Community Early Release Science Program in transmission"
+  }
+]

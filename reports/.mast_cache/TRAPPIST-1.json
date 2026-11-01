@@ -1,0 +1,18 @@
+[
+  {
+    "proposal_id": "1201",
+    "instrument_name": "NIRISS/SOSS",
+    "filters": "CLEAR;GR700XD",
+    "target_name": "TRAPPIST-1",
+    "t_min": 59880.0,
+    "proposal_title": "NIRISS Exploration of the Atmospheric diversity of Transiting exoplanets (NEAT)"
+  },
+  {
+    "proposal_id": "2589",
+    "instrument_name": "NIRSPEC/SLIT",
+    "filters": "CLEAR;PRISM",
+    "target_name": "TRAPPIST-1",
+    "t_min": 59895.0,
+    "proposal_title": "Atmospheric reconnaissance of the TRAPPIST-1 planets in transmission"
+  }
+]

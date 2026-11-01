@@ -11,15 +11,16 @@
 [Live Interactive Demo](https://exosignal.vercel.app) • [Model Card](docs/MODEL_CARD.md) • [Architecture Decisions (ADRs)](docs/adr/) • [Deployment Guide](DEPLOY.md) • [Load Test Report](reports/LOADTEST.md)
 
 ![ExoSignal Platform Walkthrough](docs/assets/demo.gif)
-*30-second walkthrough: candidate explorer, ranking leaderboard, and real-time TreeSHAP waterfall feature attributions.*
+*30-second walkthrough: candidate explorer, ranking leaderboard, and interactive Linear SHAP waterfall feature attributions.*
 
 ---
 
 ### Headline Results
 
-- **+104.6% Average Precision Improvement**: Production Ranker achieves $AP = 0.4597$ (95% CI: $[0.3599, 0.5687]$) vs. standard TSM baseline $0.2247$ ($\Delta = +0.2350$, paired bootstrap 95% CI: $[+0.1443, +0.3275]$, $p < 0.001$, $n_{pos} = 32$ confirmed targets among 4,643 eligible planets).
-- **74.6% Recall@50**: Recovers $74.59 \pm 24.28\%$ of confirmed JWST atmospheric targets within the top 50 ranked candidates ($< 1.1\%$ of the catalog), with a median catalog rank of **41.5** in Leave-One-Host-Out cross-validation.
-- **Zero Group Contamination**: Evaluated across 25 host-grouped folds (`StratifiedGroupKFold`, 5 seeds $\times$ 5 folds) ensuring multi-planet systems (e.g., TRAPPIST-1, L 98-59) never cross train and test splits.
+- **Nested Cross-Validation AP**: Active Model Ranker achieves $AP = 0.4145$ (empirical 95% interval: $[0.1407, 0.7480]$, $0.4145 \pm 0.2695$) under 5-fold outer `StratifiedGroupKFold` $\times$ 3-fold inner `GroupKFold` cross-validation grouped by host star (`hostname`), completely decoupling model selection from test evaluation.
+- **74.6%–90.0% Recall@50**: Recovers $90.0\%$ ($0.9000 \pm 0.1225$) in nested cross-validation and $74.6\%$ ($0.7459 \pm 0.2428$) across 25 host-grouped folds of confirmed JWST atmospheric targets within the top 50 ranked candidates ($< 1.1\%$ of the catalog), with a median catalog rank of **41.5** in Leave-One-Host-Out cross-validation.
+- **Verified Labels Ground Truth ($n = 27$)**: Trained and validated on $n_{pos} = 27$ strictly verified Cycle 1–3 transmission spectroscopy targets across 4,643 eligible transiting planets, excluding non-transmission modes (phase curves, emission spectra) and unverified program IDs.
+- **Load & Latency ($p_{95}$ & RPS)**: Concurrent load testing with k6 (ramping to 200 virtual users) reports $p_{95}$ latency: *[Not yet measured]* (target threshold: $< 150\text{ ms}$), throughput: *[Not yet measured]* (target threshold: $\ge 100\text{ req/s}$) per [reports/LOADTEST.md](reports/LOADTEST.md).
 
 ---
 
@@ -34,7 +35,7 @@ flowchart LR
     E --> F["Model Selection (Linear Ranker)"]
     F --> G["Artifact Registry (SHA256)"]
     G --> H["FastAPI + In-Process DuckDB"]
-    H --> I["React + Vite UI (TreeSHAP)"]
+    H --> I["React + Vite UI (Linear SHAP)"]
 ```
 
 ---
@@ -83,11 +84,12 @@ ExoSignal ingests from the **NASA Exoplanet Archive** composite parameters table
 
 ---
 
-## What Didn't Work & How It Was Fixed
+## Lessons Learned
 
-1. **Random K-Fold Leakage (v1)**: Initial random cross-validation split sibling planets across train and test folds, artificially inflating AP to $> 0.85$. **Fix**: Re-engineered protocol to group strictly on `hostname` (`StratifiedGroupKFold`).
-2. **Temporal Split Collapse**: Strict pre/post 2022 temporal splitting starved the test set down to $n_{pos} = 1$, rendering metrics unstable. **Fix**: Retained temporal splitting strictly as a forward sanity check, moving primary model selection to 25-fold grouped CV.
-3. **GBDT Overfitting & Tree Collapse**: Complex gradient-boosted decision trees (LightGBM) memorized noise in the 32 positive targets, failing to beat the TSM baseline ($p > 0.05$). **Fix**: Selected regularized linear ranking ($L_2$, balanced weights), enforcing smooth physical monotonicity and boosting AP to 0.4597 ([ADR 0002](docs/adr/0002-model-choice.md)).
+1. **Host-Star Data Leakage in v1**: Initial random train/test splitting partitioned multi-planet systems (e.g., TRAPPIST-1, L 98-59) across splits. Because sibling planets share identical distance, stellar radius, mass, metallicity, and infrared brightness, the model easily memorized stellar properties, artificially inflating AP to $> 0.85$. **Fix**: Grouped all splits strictly by host star system (`hostname`) using `StratifiedGroupKFold` across 25 folds ([ADR 0001](docs/adr/0001-grouped-cv-over-temporal-split.md)).
+2. **Temporal Split Failure ($n_{pos} = 1$)**: Attempting an observational temporal split (training on planets discovered $\le 2017$, validating on $2018–2021$, testing on $\ge 2022$) left **exactly one positive target** (LP 791-18 d) in the test split. Evaluation metrics collapsed into binary step functions ($AP \in \{0, 1\}$, $95\%\text{ CI} = [0, 1]$), precluding statistically valid model comparison. **Fix**: Preserved temporal splitting strictly as a forward sanity check, adopting 25-fold grouped cross-validation for model selection and nested cross-validation for honest generalization estimates.
+3. **LightGBM / GBDT Overfitting & Tree Collapse**: Gradient-boosted decision trees overfit the small positive label pool ($n = 27–32$). Non-linear split criteria memorized idiosyncratic noise rather than physical trends, failing to outperform the domain baseline (TSM AP: $0.2247$ vs. LightGBM AP: $0.1912–0.2673$, $p > 0.05$). **Fix**: Replaced tree ensembles with regularized logistic regression ($L_2$, $C=1.0$, balanced weights), enforcing monotonic physical relationships and achieving $AP = 0.4597$ ($\Delta = +0.2350$, $p < 0.001$) ([ADR 0002](docs/adr/0002-model-choice.md)).
+4. **Unverifiable Program IDs → MAST-Based Manual Verification**: Initial target rosters compiled from secondary literature and press releases contained non-transmission observations (secondary eclipses and emission phase curves like WASP-43 b and WASP-121 b) and 3 incorrect or fabricated program IDs. **Fix**: Scrapped hand-curated lists in favor of an automated Mikulski Archive for Space Telescopes (MAST) query script (`scripts/build_jwst_labels_from_mast.py`) filtering time-series spectroscopy instruments (NIRISS SOSS, NIRSpec BOTS, NIRCam grism, MIRI LRS slitless), accompanied by a formal human verification protocol with audit logs in `reports/LABEL_REVIEW.md` ([ADR 0005](docs/adr/0005-label-verification.md)).
 
 ---
 
@@ -109,6 +111,12 @@ docker compose up --build
 ```
 - Frontend: `http://localhost:80` • Backend Swagger: `http://localhost:8000/docs` • Readiness Probe: `http://localhost:8000/ready`
 
+### Artifact Regeneration
+```bash
+# Regenerate dataset, feature tables, model artifacts, and evaluation reports
+cd backend && python -m app.pipeline build
+```
+
 ### Local Development
 ```bash
 # Backend
@@ -124,7 +132,7 @@ cd frontend && npm install && npm run dev
 ## Tests & CI Pipeline
 
 ```bash
-# Run 158 backend tests + coverage
+# Run backend test suite + coverage
 cd backend && pytest
 
 # Run frontend tests
@@ -137,12 +145,26 @@ GitHub Actions validates linting (`ruff`), strict type checking (`mypy`), tests,
 
 ---
 
+## Load & Latency Benchmarks
+
+Concurrent load testing with k6 (ramping to 50 then 200 virtual users):
+
+<!-- LOADTEST:START -->
+| Target Concurrency | Throughput (RPS) | Median Latency ($p_{50}$) | 95th Percentile ($p_{95}$) | 99th Percentile ($p_{99}$) | Error Rate |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| 200 VUs | *[Not yet measured]* | *[Not yet measured]* | *[Not yet measured]* | *[Not yet measured]* | *[Not yet measured]* |
+<!-- LOADTEST:END -->
+
+*Details & execution instructions: [reports/LOADTEST.md](reports/LOADTEST.md).*
+
+---
+
 ## Tech Decisions Summary
 
 | Component | Choice | Rationale | ADR |
 |:---|:---|:---|:---:|
 | **Analytical Engine** | **DuckDB + Parquet** | In-process columnar queries ($p_{50} \sim 3.6\text{ ms}$, $p_{95} < 8\text{ ms}$), zero network hops, single container. | [ADR 0003](docs/adr/0003-duckdb-over-postgres.md) |
-| **Model Architecture** | **Regularized Logistic** | Monotonic physical scaling, prevents tree overfitting on $n_{pos}=32$, exact closed-form TreeSHAP. | [ADR 0002](docs/adr/0002-model-choice.md) |
+| **Model Architecture** | **Regularized Logistic** | Monotonic physical scaling, prevents tree overfitting on $n_{pos}=32$, exact closed-form Linear SHAP. | [ADR 0002](docs/adr/0002-model-choice.md) |
 | **Validation Protocol** | **25-Fold Grouped CV** | Eliminates multi-planet host star leakage while avoiding $n=1$ temporal test starvation. | [ADR 0001](docs/adr/0001-grouped-cv-over-temporal-split.md) |
 | **UI Reporting** | **Out-of-Fold Ranks** | Displays unbiased out-of-fold predictions for known targets to prevent optimistic reporting bias. | [ADR 0004](docs/adr/0004-out-of-fold-scoring-for-ui.md) |
 
@@ -150,7 +172,7 @@ GitHub Actions validates linting (`ruff`), strict type checking (`mypy`), tests,
 
 ## Contributors
 
-- **Souvik Mukherjee** ([@Souvik-Mukherjee58](https://github.com/Souvik-Mukherjee58)): Full-Stack Architecture, Astrophysical Modeling, ML Ranker & TreeSHAP Pipeline, In-Process DuckDB Analytical Engine, and React UI/UX.
+- **Souvik Mukherjee** ([@Souvik-Mukherjee58](https://github.com/Souvik-Mukherjee58)): Full-Stack Architecture, Astrophysical Modeling, ML Ranker & Linear SHAP Pipeline, In-Process DuckDB Analytical Engine, and React UI/UX.
 
 ---
 

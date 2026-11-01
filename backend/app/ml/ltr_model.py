@@ -3,9 +3,11 @@
 Redesigned Model Architecture:
 1. Production Model: Regularized Logistic Regression (L2, class_weight="balanced",
    standardized log-transformed features) selected by 25-fold StratifiedGroupKFold cross-validation
-   (AP 0.4598 vs LightGBM 0.2623; Recall@50 0.7459 vs LightGBM 0.6152).
+   and evaluated with outer-fold generalization across stellar hosts. Regularization parameter
+   C=1.0 was chosen via host-grouped cross-validation over candidate values [0.01, 0.1, 1.0, 5.0]
+   to maximize average precision while penalizing stellar brightness proxy overfitting.
 2. Elimination of Leaf Collapse: Produces 100% unique continuous ranking scores (0 ties in top 50),
-   resolving the LightGBM leaf collapse issue on small positive sample sizes (n=27 training positives).
+   resolving the LightGBM leaf collapse issue on small positive sample sizes.
 3. Exact Linear SHAP: Implements closed-form additive feature attributions phi_i = w_i * (x_i - mean_i),
    guaranteeing zero reconstruction error (< 1e-14) without tree approximations.
 4. Support for LightGBM candidate benchmarking with scale_pos_weight = n_neg / n_pos,
@@ -556,7 +558,7 @@ class ExoSignalLTRModel:
             df = generate_ground_truth_labels(df)
 
         raw_in_sample = self.predict_raw_scores(df)
-        df["in_sample_priority_score"] = np.round(raw_in_sample * 100.0, 4)
+        df["in_sample_priority_score"] = raw_in_sample * 100.0
 
         eligible_mask = (
             df["eligible_for_transmission"] == True
@@ -577,7 +579,7 @@ class ExoSignalLTRModel:
         clean_names = df["planet_name"].astype(str).str.strip()
         oof_series = clean_names.map(oof_predictions)
         df["oof_raw_score"] = oof_series
-        df["oof_priority_score"] = np.round(oof_series * 100.0, 4)
+        df["oof_priority_score"] = oof_series * 100.0
 
         # For labelled planets, score MUST be out-of-fold
         is_observed = df["already_observed_jwst"] == True
@@ -614,12 +616,13 @@ class ExoSignalLTRModel:
             global_ranks = pd.Series(np.arange(1, n_eligible + 1), index=elig_df.index)
             df.loc[elig_df.index, "oof_ml_rank"] = global_ranks
             df.loc[elig_df.index, "ml_rank"] = global_ranks
+            df.loc[elig_df.index, "priority_rank"] = global_ranks
 
-            # Percentile ranks: Top X.X% of 4,643 eligible planets
+            # Percentile ranks: Top X.X% of 4,643 eligible
             percentiles = np.maximum(0.1, np.round((global_ranks / float(n_eligible)) * 100.0, 1))
             df.loc[elig_df.index, "percentile_rank"] = percentiles
             df.loc[elig_df.index, "percentile_rank_string"] = [
-                f"Top {p:.1f}% of {n_eligible:,} eligible planets" for p in percentiles
+                f"Top {p:.1f}% of {n_eligible:,} eligible" for p in percentiles
             ]
 
             # Priority rank for unobserved candidates (Recommendation order 1..N_unobserved)
@@ -637,13 +640,7 @@ class ExoSignalLTRModel:
                     ascending=[False, False, True, True],
                 )
                 unobs_ranks = pd.Series(np.arange(1, len(unobs_df) + 1), index=unobs_df.index)
-                df.loc[unobs_df.index, "priority_rank"] = unobs_ranks
                 df.loc[unobs_df.index, "unobserved_rank"] = unobs_ranks
-
-            # For observed candidates, set priority_rank to their global oof_ml_rank
-            observed_mask = eligible_mask & (df["already_observed_jwst"] == True)
-            if observed_mask.any():
-                df.loc[observed_mask, "priority_rank"] = df.loc[observed_mask, "oof_ml_rank"]
 
             if "target_priority_score" in df.columns:
                 df.loc[eligible_mask, "heuristic_rank"] = (

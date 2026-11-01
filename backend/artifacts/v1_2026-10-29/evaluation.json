@@ -2850,5 +2850,68 @@
     "small n: only 32 positive JWST transmission spectroscopy targets currently confirmed in public approved programs.",
     "label = human selection: targets reflect human TAC selection and telescope observing pressure rather than pure physical ground truth.",
     "bias toward bright, well-studied targets: host stars in confirmed programs are systematically brighter (lower J/K magnitudes) and closer than average catalog stars."
-  ]
+  ],
+  "nested_cv": {
+    "outer_results": [
+      {
+        "ap": 0.13608540582224793,
+        "pr_auc": 0.1006481693401198,
+        "recall@50": 0.75,
+        "fold": 1,
+        "selected_model": "Logistic Regression Variant A (C=0.01)",
+        "best_c": 0.01,
+        "n_test_pos": 4,
+        "n_test_total": 931
+      },
+      {
+        "ap": 0.18179945054945054,
+        "pr_auc": 0.10823759632785442,
+        "recall@50": 0.75,
+        "fold": 2,
+        "selected_model": "Logistic Regression Variant A (C=1.0)",
+        "best_c": 1.0,
+        "n_test_pos": 4,
+        "n_test_total": 918
+      },
+      {
+        "ap": 0.27499999999999997,
+        "pr_auc": 0.2133928571428571,
+        "recall@50": 1.0,
+        "fold": 3,
+        "selected_model": "Logistic Regression Variant A (C=0.01)",
+        "best_c": 0.01,
+        "n_test_pos": 4,
+        "n_test_total": 927
+      },
+      {
+        "ap": 0.729703036405525,
+        "pr_auc": 0.7209856291290571,
+        "recall@50": 1.0,
+        "fold": 4,
+        "selected_model": "Logistic Regression Variant A (C=0.1)",
+        "best_c": 0.1,
+        "n_test_pos": 13,
+        "n_test_total": 942
+      },
+      {
+        "ap": 0.75,
+        "pr_auc": 0.7083333333333333,
+        "recall@50": 1.0,
+        "fold": 5,
+        "selected_model": "Logistic Regression Variant A (C=5.0)",
+        "best_c": 5.0,
+        "n_test_pos": 2,
+        "n_test_total": 925
+      }
+    ],
+    "mean_nested_ap": 0.4145,
+    "std_nested_ap": 0.2695,
+    "mean_nested_recall50": 0.9,
+    "std_nested_recall50": 0.1225,
+    "ci_low": 0.1407,
+    "ci_high": 0.748,
+    "elapsed_sec": 13.88,
+    "n_candidates": 4643,
+    "n_positives": 27
+  }
 }

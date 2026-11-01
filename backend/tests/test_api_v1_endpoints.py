@@ -15,6 +15,7 @@ from app.api.v1 import (
     AnalysisResponse,
     AnomalyPCAResponse,
     ComparisonExplanationResponse,
+    MethodologyWeightsResponse,
     PlanetDetailResponse,
     PlanetExplanationResponse,
     PlanetResponse,
@@ -301,3 +302,27 @@ class TestAnalyticsAndRegistry:
         assert resp.status_code in [200, 404]
         if resp.status_code == 200:
             assert resp.json().get("valid") is False
+
+    def test_methodology_weights_endpoint(self, client):
+        """Assert /api/v1/methodology/weights returns valid configuration matching priority_scorer.py."""
+        resp = client.get("/api/v1/methodology/weights")
+        assert resp.status_code == 200
+        data = resp.json()
+
+        validated = MethodologyWeightsResponse.model_validate(data)
+        assert validated.total_weight == 1.0
+
+        weights = data["weights"]
+        percentages = data["percentages"]
+
+        assert weights["planetary_relevance"] == 0.35
+        assert weights["observational_accessibility"] == 0.30
+        assert weights["stellar_characteristics"] == 0.15
+        assert weights["data_quality"] == 0.10
+        assert weights["anomaly_score"] == 0.10
+
+        assert percentages["planetary_relevance"] == 35
+        assert percentages["observational_accessibility"] == 30
+        assert percentages["stellar_characteristics"] == 15
+        assert percentages["data_quality"] == 10
+        assert percentages["anomaly_score"] == 10

@@ -1,9 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import SectionDivider from '../components/SectionDivider';
 import SegmentedTabs from '../components/SegmentedTabs';
+import { methodologyApi } from '../services/api';
 
 const Methodology = () => {
   const [activeTab, setActiveTab] = useState('framework');
+  const [weightsData, setWeightsData] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    methodologyApi
+      .getWeights()
+      .then((data) => {
+        if (isMounted) setWeightsData(data);
+      })
+      .catch((err) => {
+        console.error('Failed to load methodology weights:', err);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const methodologyTabs = [
     { id: 'context', label: 'Scientific Context', icon: '🔭' },
@@ -118,7 +135,8 @@ const Methodology = () => {
                 </span>
                 <p className="text-exosignal-text-muted">
                   Serializes processed tables to columnar Snappy-compressed Parquet, queried
-                  directly in memory with sub-10ms latency.
+                  directly in memory with 6.8ms P50 latency (170ms P50 under concurrent load per
+                  reports/LOADTEST.md).
                 </p>
               </div>
             </div>
@@ -139,33 +157,72 @@ const Methodology = () => {
 
           <div className="divided-compartment">
             <div className="compartment-header">
-              <h3 className="text-base font-bold text-white font-display">
-                Mathematical Component Hierarchy (0–100 Scale)
-              </h3>
+              <div>
+                <h3 className="text-base font-bold text-white font-display">
+                  Mathematical Component Hierarchy (0–100 Scale)
+                </h3>
+                <span className="text-[11px] font-mono text-exosignal-text-muted">
+                  Dynamic weights synchronized from priority_scorer.py config via GET /api/v1/methodology/weights
+                </span>
+              </div>
               <span className="text-xs font-mono text-emerald-400">
-                Regularized Logistic Regression (Variant A)
+                {weightsData ? '● Live Scorer Config' : 'Loading Scorer Config...'}
               </span>
             </div>
             <div className="p-6">
+              {/* Category Weight Pills */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5 font-mono text-xs">
+                <div className="bg-space-void/90 p-3 rounded-xl border border-exosignal-cyan/30 text-center">
+                  <span className="text-[10px] text-exosignal-text-muted block uppercase">Planetary</span>
+                  <span className="text-lg font-bold text-exosignal-cyan">
+                    {weightsData?.percentages?.planetary_relevance ?? 35}%
+                  </span>
+                </div>
+                <div className="bg-space-void/90 p-3 rounded-xl border border-blue-500/30 text-center">
+                  <span className="text-[10px] text-exosignal-text-muted block uppercase">Transmission</span>
+                  <span className="text-lg font-bold text-blue-400">
+                    {weightsData?.percentages?.observational_accessibility ?? 30}%
+                  </span>
+                </div>
+                <div className="bg-space-void/90 p-3 rounded-xl border border-amber-500/30 text-center">
+                  <span className="text-[10px] text-exosignal-text-muted block uppercase">Stellar</span>
+                  <span className="text-lg font-bold text-amber-400">
+                    {weightsData?.percentages?.stellar_characteristics ?? 15}%
+                  </span>
+                </div>
+                <div className="bg-space-void/90 p-3 rounded-xl border border-purple-500/30 text-center">
+                  <span className="text-[10px] text-exosignal-text-muted block uppercase">Completeness</span>
+                  <span className="text-lg font-bold text-purple-400">
+                    {weightsData?.percentages?.data_quality ?? 10}%
+                  </span>
+                </div>
+                <div className="bg-space-void/90 p-3 rounded-xl border border-rose-500/30 text-center col-span-2 sm:col-span-1">
+                  <span className="text-[10px] text-exosignal-text-muted block uppercase">Anomaly</span>
+                  <span className="text-lg font-bold text-rose-400">
+                    {weightsData?.percentages?.anomaly_score ?? 10}%
+                  </span>
+                </div>
+              </div>
+
               <div className="bg-space-void/90 rounded-xl p-5 border border-exosignal-cyan/20">
                 <pre className="text-xs font-mono text-exosignal-cyan leading-relaxed overflow-x-auto">
                   {`Target Priority Score (0–100)
-├── Planetary Bulk Properties (25%)
-│   ├── Planetary Radius (Earth-like / Sub-Neptune boundary ~1.6–2.0 R⊕)
-│   ├── Planetary Mass & Bulk Density Proxy (g/cm³)
-│   ├── Equilibrium Temperature (~200–350 K temperate window)
-│   └── Insolation Flux (S/S⊕)
-├── Host Star & Radiative Environment (25%)
-│   ├── Host Star Effective Temperature (Teff)
-│   ├── Stellar Radius (R☉) — smaller M-dwarfs yield higher transit depths
-│   └── 2MASS Near-Infrared K-Magnitude (stellar flux in spectroscopy bands)
-├── Observational Transmission Yield (20%)
-│   ├── Transmission SNR Proxy (~ (Rp² · H) / (Rs² · 10^(0.2·K)))
+├── Planetary Relevance (${weightsData?.percentages?.planetary_relevance ?? 35}%)
+│   ├── Earth Similarity Index (ESI) (Schulze-Makuch et al. 2011)
+│   ├── Circumstellar Habitable Zone Position (Kopparapu et al. 2013/2014)
+│   ├── Planetary Radius Envelope (Terrestrial / Super-Earth regime)
+│   └── Equilibrium Temperature temperate window
+├── Observational Transmission Yield (${weightsData?.percentages?.observational_accessibility ?? 30}%)
+│   ├── Transmission Spectroscopy Metric (TSM) (Kempton et al. 2018)
 │   ├── Atmospheric Scale Height (H = k·T / (μ·g))
-│   └── Distance Attenuation (parsec geometric dilution)
-├── Data Quality & Completeness (15%)
+│   └── Distance Attenuation (parsec dilution)
+├── Stellar Characteristics (${weightsData?.percentages?.stellar_characteristics ?? 15}%)
+│   ├── Host Star Effective Temperature (Teff)
+│   ├── Stellar Radius (R☉) — smaller dwarfs maximize transit depth
+│   └── 2MASS Near-Infrared K-Magnitude (stellar flux in spectroscopy bands)
+├── Data Quality & Completeness (${weightsData?.percentages?.data_quality ?? 10}%)
 │   └── Non-missing parameter coverage across critical orbital elements
-└── Anomaly Index (15%)
+└── Anomaly Index (${weightsData?.percentages?.anomaly_score ?? 10}%)
     ├── Isolation Forest Outlier Score
     └── Local Outlier Factor (LOF) density deviation`}
                 </pre>

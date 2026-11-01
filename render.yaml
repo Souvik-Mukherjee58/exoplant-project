@@ -16,6 +16,8 @@ services:
         value: production
       - key: PORT
         value: 8000
+      - key: ARTIFACT_VERSION
+        value: "v1_2026-10-29"
       - key: LOG_LEVEL
         value: info
       - key: JSON_LOGS

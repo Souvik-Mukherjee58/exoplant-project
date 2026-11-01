@@ -9,13 +9,14 @@ Usage:
     python scripts/bench_query.py [--iterations 200] [--warmup 20] [--json]
 """
 
-import sys
-import os
-import time
 import argparse
 import json
+import os
+import sys
+import time
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any, Dict
+
 import numpy as np
 
 # Ensure backend directory is in python search path
@@ -33,8 +34,7 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
     except Exception:
         pass
 
-from app.services.query_engine import CatalogQueryEngine
-
+from app.services.query_engine import CatalogQueryEngine  # noqa: E402
 
 BENCHMARK_QUERIES = [
     {
@@ -89,7 +89,6 @@ def run_benchmark(iterations: int = 200, warmup: int = 20) -> Dict[str, Any]:
             all_latencies_ms.append(elapsed_ms)
 
         q_latencies.sort()
-        n = len(q_latencies)
         per_query_results.append({
             "name": q["name"],
             "iterations": iterations,

@@ -57,10 +57,27 @@ export function formatPercent(value, decimals = 1) {
 }
 
 /**
- * Format priority score
+ * Format priority score (0-100). Never display a score that rounds to 100.0.
  */
 export function formatPriority(value) {
-  return formatNumber(value, 1);
+  if (value === null || value === undefined || isNaN(value)) {
+    return '—';
+  }
+  const num = Number(value);
+  if (num >= 99.95 && num <= 100.0) {
+    return '99.9';
+  }
+  return formatNumber(num, 1);
+}
+
+/**
+ * Format raw score for details tooltips with 4 decimals.
+ */
+export function formatRawScore(value) {
+  if (value === null || value === undefined || isNaN(value)) {
+    return '—';
+  }
+  return Number(value).toFixed(4);
 }
 
 /**

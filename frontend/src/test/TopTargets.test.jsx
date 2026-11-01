@@ -116,4 +116,24 @@ describe('TopTargets Component', () => {
     expect(top25Btn).toBeInTheDocument();
     expect(top50Btn).toBeInTheDocument();
   });
+
+  it('renders the "Include already-observed JWST targets" toggle and displays raw score only in 4-decimal tooltip', () => {
+    render(
+      <MemoryRouter>
+        <TopTargets />
+      </MemoryRouter>
+    );
+
+    // Verify toggle presence
+    const toggle = screen.getByLabelText(/Include already-observed JWST targets/i);
+    expect(toggle).toBeInTheDocument();
+    expect(toggle).not.toBeChecked(); // defaults to unobserved planets
+
+    // Verify primary number is percentile ("Top 0.02%")
+    expect(screen.getAllByText('Top 0.02%').length).toBeGreaterThan(0);
+
+    // Verify raw score is displayed in 4-decimal tooltip
+    const rawScoreTooltips = screen.getAllByTitle('Raw score: 94.6000');
+    expect(rawScoreTooltips.length).toBeGreaterThan(0);
+  });
 });

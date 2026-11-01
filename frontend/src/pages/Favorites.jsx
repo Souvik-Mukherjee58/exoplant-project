@@ -2,7 +2,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useFavorites } from '../context/FavoritesContext';
 import {
-  formatPriority,
   formatAnomaly,
   formatDistance,
   getHZColor,
@@ -12,7 +11,7 @@ import { motion } from 'framer-motion';
 import { PriorityScoreDisplay } from '../components/PriorityBadge';
 
 const Favorites = () => {
-  const { favorites, removeFavorite, isFavorite } = useFavorites();
+  const { favorites, removeFavorite } = useFavorites();
 
   if (favorites.length === 0) {
     return (

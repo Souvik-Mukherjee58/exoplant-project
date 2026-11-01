@@ -1,0 +1,10 @@
+[
+  {
+    "proposal_id": "2472",
+    "instrument_name": "NIRISS/SOSS",
+    "filters": "CLEAR;GR700XD",
+    "target_name": "HAT-P-18",
+    "t_min": 59840.0,
+    "proposal_title": "NIRISS SOSS transmission spectroscopy of HAT-P-18b"
+  }
+]

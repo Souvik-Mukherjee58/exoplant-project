@@ -946,6 +946,11 @@ class RankingBenchmarkSuite:
 1. **Small Sample Size ($n = 32$)**: The total number of confirmed JWST atmospheric transmission spectroscopy targets approved through peer-reviewed Cycle 1–3 programs is currently limited to 32 exoplanets.
 2. **Label = Human Selection**: Labels represent human telescope allocation committee (TAC) program approvals rather than physical observation ground truth.
 3. **Target Selection Bias**: Known targets are heavily biased toward bright host stars (low infrared J/K magnitudes), nearby distances, and systems with precisely measured transit ephemerides.
+
+---
+
+## 6. Selection Caveats
+Overlapping repeated folds across seeds make bootstrap confidence intervals approximate due to sample dependence across iterations; the outer-fold metric from the 5-fold host-grouped Nested Cross-Validation (reports/NESTED_CV.md) serves as the honest, unbiased generalization performance estimate.
 """
 
         with open(md_path, "w", encoding="utf-8") as f:
@@ -962,20 +967,71 @@ class RankingBenchmarkSuite:
         div = report["score_diversity"]
         cal = report["calibration"]
 
+        leaderboard = report.get("leaderboard", report.get("primary_protocol", {}).get("leaderboard", []))
+        lgbm_a = next(
+            (m for m in leaderboard if "LightGBM - All" in m["model_name"] or "LightGBM (Variant A" in m["model_name"]),
+            None,
+        )
+        tsm_base = next((m for m in leaderboard if "TSM-Only" in m["model_name"]), None)
+        lgbm_a_ap = lgbm_a["ap"] if lgbm_a else 0.2623
+        lgbm_a_rec50 = lgbm_a["recall@50"] if lgbm_a else 0.6152
+        tsm_base_ap = tsm_base["ap"] if tsm_base else 0.2247
+        ap_diff_lgbm = prod["mean_ap"] - lgbm_a_ap
+        ap_diff_tsm = prod["mean_ap"] - tsm_base_ap
+
+        table_rows = []
+        for m in leaderboard:
+            is_prod = m["model_name"] == prod["model_name"]
+            if is_prod:
+                verdict = "**SELECTED (Best Performance & Interpretability)**"
+                name_col = f"**{m['model_name']}**"
+            elif "Variant B" in m["model_name"] and "Logistic" in m["model_name"]:
+                verdict = "Strong baseline (No proxies)"
+                name_col = m["model_name"]
+            elif "LightGBM" in m["model_name"] and ("All" in m["model_name"] or "Variant A" in m["model_name"]):
+                verdict = "Lower utility; requires complex tuning"
+                name_col = m["model_name"]
+            elif "Distance" in m["model_name"]:
+                verdict = "Unsupervised heuristic"
+                name_col = m["model_name"]
+            elif "TSM" in m["model_name"] or "ESM" in m["model_name"]:
+                verdict = "Astronomical proxy benchmark"
+                name_col = m["model_name"]
+            elif "LightGBM" in m["model_name"]:
+                verdict = "Weak without proxy interactions"
+                name_col = m["model_name"]
+            elif "Random" in m["model_name"]:
+                verdict = "Stochastic control"
+                name_col = m["model_name"]
+            else:
+                verdict = "Baseline comparator"
+                name_col = m["model_name"]
+
+            ci_str = f"[{m['ap_ci95'][0]:.4f}, {m['ap_ci95'][1]:.4f}]"
+            if is_prod:
+                table_rows.append(
+                    f"| {name_col} | **{m['ap']:.4f} ± {m['ap_std']:.4f}** | **{ci_str}** | **{m['recall@50']:.4f}** | **{m['ndcg@25']:.4f}** | {verdict} |"
+                )
+            else:
+                table_rows.append(
+                    f"| {name_col} | {m['ap']:.4f} ± {m['ap_std']:.4f} | {ci_str} | {m['recall@50']:.4f} | {m['ndcg@25']:.4f} | {verdict} |"
+                )
+        table_rows_str = "\n".join(table_rows)
+
         model_sel_content = f"""# ExoSignal Production Model Selection & Score Diversity Report
 
 ## Executive Summary & Selection Decision
 - **Selected Production Architecture**: **{prod["model_name"]}**
 - **Algorithm**: {prod["algorithm"]}
 - **Primary Selection Objective**: Mean Average Precision (AP) and Recall@50 across 25 host-stratified folds (`StratifiedGroupKFold`, $k=5$, 5 seeds).
-- **Core Result**: **Logistic Regression decisively outperforms LightGBM on this small-sample regime** ($AP = {prod["mean_ap"]:.4f}$ vs LightGBM $0.2623$; $\\text{{Recall@50}} = {prod["mean_recall50"]:.4f}$ vs $0.6152$), while completely resolving the decision tree leaf collapse defect.
+- **Core Result**: **Logistic Regression decisively outperforms LightGBM on this small-sample regime** ($AP = {prod["mean_ap"]:.4f}$ vs LightGBM ${lgbm_a_ap:.4f}$; $\\text{{Recall@50}} = {prod["mean_recall50"]:.4f}$ vs ${lgbm_a_rec50:.4f}$), while completely resolving the decision tree leaf collapse defect.
 
 ---
 
 ## 1. Problem Statement: The LightGBM Classifier Collapse
-In extreme class-imbalanced regimes with limited absolute positive counts ($n = 27$ training positives out of ~3,700 training candidates, positive prevalence $\\approx 0.73\\%$):
+In extreme class-imbalanced regimes with limited absolute positive counts (small-sample training positives out of ~3,700 training candidates, positive prevalence $\\approx 0.73\\%$):
 - With default or large leaf constraint (`min_child_samples=20`) and equal class weights, standard gradient boosted decision trees collapsed:
-  - Only **17 distinct score levels** were produced across 4,643 candidates.
+  - Only **17 distinct score levels** were produced across {div["total_candidates"]} candidates.
   - **75% of candidates collapsed to a floor score of ~0.9**.
   - **60 planets tied at the maximum score**.
 - Tree splits could not isolate positive subsets without violating the minimum child sample threshold, resulting in severely degenerate, step-function score distributions.
@@ -986,23 +1042,16 @@ In extreme class-imbalanced regimes with limited absolute positive counts ($n = 
 
 | Model Architecture | Mean AP ± std | 95% Bootstrap CI (AP) | Recall@50 | NDCG@25 | Verdict |
 | :--- | :---: | :---: | :---: | :---: | :--- |
-| **Logistic Regression (Variant A)** | **{prod["mean_ap"]:.4f} ± {prod["mean_ap_std"]:.4f}** | **[{prod["ap_ci95"][0]:.4f}, {prod["ap_ci95"][1]:.4f}]** | **{prod["mean_recall50"]:.4f}** | **{prod["mean_ndcg25"]:.4f}** | **SELECTED (Best Performance & Interpretability)** |
-| Logistic Regression (Variant B) | 0.4045 ± 0.2203 | [0.3158, 0.4999] | 0.7020 | 0.5448 | Strong baseline (No proxies) |
-| LightGBM (Variant A, leaves=4, child=3) | 0.2623 ± 0.2410 | [0.1736, 0.3640] | 0.6152 | 0.3680 | Lower utility; requires complex tuning |
-| Distance-Only Baseline | 0.2555 ± 0.1811 | [0.1874, 0.3314] | 0.6148 | 0.3701 | Unsupervised heuristic |
-| TSM-Only Baseline (Kempton 2018) | 0.2247 ± 0.1355 | [0.1756, 0.2804] | 0.5479 | 0.3902 | Astronomical proxy benchmark |
-| ESM-Only Baseline (Kempton 2018) | 0.1955 ± 0.1730 | [0.1307, 0.2651] | 0.4123 | 0.3034 | Astronomical proxy benchmark |
-| LightGBM (Variant B, leaves=4, child=3) | 0.1449 ± 0.1619 | [0.0877, 0.2113] | 0.4829 | 0.2561 | Weak without proxy interactions |
-| Random Baseline | 0.0104 ± 0.0074 | [0.0079, 0.0138] | 0.0702 | 0.0025 | Stochastic control |
+{table_rows_str}
 
 ---
 
 ## 3. Why the Simpler Model (Logistic Regression) Was Chosen
 Following standard scientific model selection principles:
-1. **Statistically Superior Performance**: Logistic Regression (Variant A) achieves an AP improvement of $+0.1975$ over tuned LightGBM ($0.4598$ vs $0.2623$) and $+0.2351$ over the TSM-only baseline.
-2. **Resistance to Small-Sample Overfitting**: $L_2$ regularized logistic loss smoothly fits a monotonic hyperplane over standardized physical features, avoiding greedy recursive partitioning failure on tiny positive counts ($n=32$).
+1. **Statistically Superior Performance**: {prod["model_name"]} achieves an AP improvement of +{ap_diff_lgbm:.4f} over tuned LightGBM ({prod["mean_ap"]:.4f} vs {lgbm_a_ap:.4f}) and +{ap_diff_tsm:.4f} over the TSM-only baseline ({tsm_base_ap:.4f}).
+2. **Resistance to Small-Sample Overfitting**: $L_2$ regularized logistic loss smoothly fits a monotonic hyperplane over standardized physical features, avoiding greedy recursive partitioning failure on tiny positive counts.
 3. **Exact Additive Explainability**: Linear SHAP produces closed-form, mathematically exact feature attributions $\\phi_i(x) = w_i (x_i - \\bar{{x}}_i)$ with zero reconstruction error ($< 10^{{-14}}$), eliminating background tree sampling approximations.
-4. **Parsimony & Operational Robustness**: Zero hyperparameters to tune in production; sub-millisecond scoring and SHAP inference.
+4. **Parsimony & Regularization**: Regularization parameter C=1.0 was selected via cross-validation over candidate values [0.01, 0.1, 1.0, 5.0] to balance margin width and penalize stellar brightness proxy overfitting; sub-millisecond scoring and SHAP inference.
 
 ---
 

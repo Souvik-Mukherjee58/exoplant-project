@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Any, List
+from typing import Any, List, Optional
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -18,6 +18,7 @@ class Settings(BaseSettings):
 
     # API
     API_V1_STR: str = "/api/v1"
+    PORT: int = 8000
 
     # CORS (can be a JSON array e.g. '["http://localhost"]' or comma-separated string)
     CORS_ORIGINS: List[str] = ["*"]
@@ -39,6 +40,7 @@ class Settings(BaseSettings):
     PROCESSED_DATA_FILE: Path = Path("data/processed/processed_exoplanets.csv")
 
     # Artifacts paths
+    ARTIFACT_VERSION: Optional[str] = None
     ARTIFACTS_DIR: Path = Path("artifacts")
     ACTIVE_VERSION_FILE: Path = Path("artifacts/active_version.txt")
 

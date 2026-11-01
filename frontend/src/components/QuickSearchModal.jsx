@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { planetsApi } from '../services/api';
-import TreeSHAPWaterfall from './TreeSHAPWaterfall';
-import { formatPriority, getIneligibleTooltip } from '../utils/formatters';
+import ShapWaterfall from './ShapWaterfall';
+import { getIneligibleTooltip } from '../utils/formatters';
 
 const SUGGESTED_QUERIES = ['kepler 452 b', 'TRAPPIST-1 e', 'TOI-700 d', 'K2-18 b', 'WASP-96 b'];
 
@@ -13,8 +13,21 @@ export const QuickSearchModal = ({ isOpen, onClose }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [activeShapPlanet, setActiveShapPlanet] = useState(null);
   const inputRef = useRef(null);
+  const modalRef = useRef(null);
   const navigate = useNavigate();
 
+  // Scroll lock page body while modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
+  // Focus input on open and reset state on close
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -24,6 +37,39 @@ export const QuickSearchModal = ({ isOpen, onClose }) => {
       setSelectedIndex(0);
       setActiveShapPlanet(null);
     }
+  }, [isOpen]);
+
+  // Focus trap inside modal
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleFocusTrap = (e) => {
+      if (e.key !== 'Tab') return;
+      if (!modalRef.current) return;
+
+      const focusable = modalRef.current.querySelectorAll(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (!focusable.length) return;
+
+      const firstEl = focusable[0];
+      const lastEl = focusable[focusable.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstEl) {
+          e.preventDefault();
+          lastEl.focus();
+        }
+      } else {
+        if (document.activeElement === lastEl) {
+          e.preventDefault();
+          firstEl.focus();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleFocusTrap);
+    return () => window.removeEventListener('keydown', handleFocusTrap);
   }, [isOpen]);
 
   // Reset selected index whenever results change
@@ -69,6 +115,7 @@ export const QuickSearchModal = ({ isOpen, onClose }) => {
       if (!isOpen) return;
 
       if (e.key === 'Escape') {
+        e.preventDefault();
         if (activeShapPlanet) {
           setActiveShapPlanet(null);
         } else {
@@ -100,9 +147,22 @@ export const QuickSearchModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-black/80 backdrop-blur-md animate-fadeIn"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Quick Search Modal"
+    >
       {/* Modal Container */}
-      <div className="relative w-full max-w-2xl bg-space-card/95 border border-exosignal-cyan/40 rounded-2xl shadow-[0_0_50px_rgba(6,182,212,0.25)] overflow-hidden flex flex-col max-h-[85vh]">
+      <div
+        ref={modalRef}
+        className="relative w-full max-w-2xl bg-space-card/95 border border-exosignal-cyan/40 rounded-2xl shadow-[0_0_50px_rgba(6,182,212,0.25)] overflow-hidden flex flex-col max-h-[85vh]"
+      >
         {/* Header / Search Input */}
         <div className="p-4 border-b border-exosignal-cyan/20 flex items-center space-x-3 bg-space-void/90">
           <span className="text-exosignal-cyan text-lg" aria-hidden="true">
@@ -155,7 +215,7 @@ export const QuickSearchModal = ({ isOpen, onClose }) => {
               <div className="flex items-center justify-between bg-purple-950/40 border border-purple-500/40 p-3 rounded-xl">
                 <div>
                   <span className="text-xs font-mono text-purple-300 uppercase tracking-wider">
-                    Target SHAP Waterfall:
+                    Target Linear SHAP Waterfall:
                   </span>
                   <h3 className="text-base font-orbitron font-bold text-white">
                     {activeShapPlanet}
@@ -180,7 +240,7 @@ export const QuickSearchModal = ({ isOpen, onClose }) => {
                 </div>
               </div>
 
-              <TreeSHAPWaterfall planetName={activeShapPlanet} />
+              <ShapWaterfall planetName={activeShapPlanet} />
             </div>
           ) : (
             <>
@@ -254,7 +314,7 @@ export const QuickSearchModal = ({ isOpen, onClose }) => {
                         <div className="flex items-center space-x-2">
                           <button
                             type="button"
-                            aria-label={`View TreeSHAP for ${planet.planet_name}`}
+                            aria-label={`View Linear SHAP for ${planet.planet_name}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               setActiveShapPlanet(planet.planet_name);
@@ -262,7 +322,7 @@ export const QuickSearchModal = ({ isOpen, onClose }) => {
                             className="px-3 py-1.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 text-xs font-mono flex items-center space-x-1.5 transition-colors shadow-[0_0_10px_rgba(168,85,247,0.2)]"
                           >
                             <span>🌲</span>
-                            <span>TreeSHAP</span>
+                            <span>Linear SHAP</span>
                           </button>
                           <button
                             type="button"
@@ -294,7 +354,7 @@ export const QuickSearchModal = ({ isOpen, onClose }) => {
               ) : (
                 <div className="py-6 text-center space-y-2 text-exosignal-text-muted">
                   <p className="text-xs font-mono">
-                    Type an exoplanet name to search the archive and inspect its exact TreeSHAP
+                    Type an exoplanet name to search the archive and inspect its exact Linear SHAP
                     attribution waterfall.
                   </p>
                 </div>
@@ -306,7 +366,7 @@ export const QuickSearchModal = ({ isOpen, onClose }) => {
         {/* Footer info */}
         <div className="px-4 py-2 border-t border-exosignal-cyan/15 bg-space-void/90 flex items-center justify-between text-[11px] font-mono text-slate-400">
           <span>Navigate with ↑↓ • Enter to select • ESC to exit</span>
-          <span>Target Search &amp; TreeSHAP Inspector</span>
+          <span>Target Search &amp; Linear SHAP Inspector</span>
         </div>
       </div>
     </div>

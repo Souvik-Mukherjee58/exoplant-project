@@ -1,0 +1,10 @@
+[
+  {
+    "proposal_id": "2146",
+    "instrument_name": "NIRSPEC/SLIT",
+    "filters": "CLEAR;PRISM",
+    "target_name": "HAT-P-32",
+    "t_min": 59860.0,
+    "proposal_title": "NIRSpec PRISM transmission spectroscopy of HAT-P-32b"
+  }
+]

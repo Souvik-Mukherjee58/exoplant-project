@@ -21,14 +21,13 @@ Outputs:
 
 import csv
 import re
-import sys
 import time
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-
 
 # Canonical host star synonyms / aliases to ensure robust detection
 HOST_ALIASES = {
@@ -155,7 +154,7 @@ def fetch_stsci_program_info(
                 resp_visits = session.get(visits_url, timeout=timeout)
                 if resp_visits.status_code == 200:
                     visits_text = resp_visits.text
-            except Exception as e_visits:
+            except Exception:
                 pass
 
         # Parse program title
@@ -243,7 +242,6 @@ def verify_jwst_reference(
     # Read existing rows
     with open(ref_path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        fieldnames = reader.fieldnames or []
         rows = list(reader)
 
     print("=" * 80)
@@ -397,7 +395,7 @@ def print_manual_checklist(rows: List[Dict[str, Any]]) -> None:
     needs_rev_count = sum(1 for r in rows if r["needs_review"])
     print(f"Total entries      : {total}")
     print(f"Needs manual review: {needs_rev_count} / {total}")
-    print(f"Report saved to    : reports/jwst_reference_verification.csv")
+    print("Report saved to    : reports/jwst_reference_verification.csv")
     print("=" * 80 + "\n")
 
 

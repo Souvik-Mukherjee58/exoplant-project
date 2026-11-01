@@ -115,43 +115,36 @@ def build_artifacts(
 
     # Compute Out-Of-Fold predictions grouped by hostname so labelled planets are never scored by models trained on them
     n_pos = int(gt_df["ground_truth_binary"].sum()) if "ground_truth_binary" in gt_df.columns else 0
-    if n_pos == 0:
-        print("\n" + "=" * 80)
-        print(" [PIPELINE WARNING] MODEL FITTING PAUSED: 0 VERIFIED TRANSMISSION TARGETS ".center(80, "="))
-        print("=" * 80)
-        print(" All rows in jwst_transmission_targets.csv are currently unverified (verified=False).")
-        print(" Supervised ranking models require confirmed ground-truth positive labels.")
-        print(" Please review reports/jwst_reference_verification.csv and set verified=True")
-        print(" for confirmed transmission spectroscopy targets to resume training.")
-        print("=" * 80 + "\n")
-        oof_preds = {}
-        prod_model = ExoSignalLTRModel(model_type="logistic", feature_variant="A", random_state=settings.RANDOM_STATE)
-        ltr_model_a = prod_model
-        ltr_model_b = ExoSignalLTRModel(model_type="logistic", feature_variant="B", random_state=settings.RANDOM_STATE)
-    else:
-        print("      Computing Out-Of-Fold predictions across host star groups...")
-        from app.ml.ltr_model import compute_out_of_fold_predictions
-
-        oof_preds = compute_out_of_fold_predictions(
-            eligible_df, feature_variant="A", random_state=settings.RANDOM_STATE
+    if n_pos < 15:
+        raise RuntimeError(
+            f"Pipeline stopped: Fewer than 15 verified labels exist (found {n_pos}). "
+            "Please finish the label review in backend/data/reference/jwst_transmission_targets.csv "
+            "(set verified=True and observation_type='transmission') before running the pipeline."
         )
 
-        # Production Model: Regularized Logistic Regression (Variant A) selected by 25-fold CV
-        prod_model = ExoSignalLTRModel(model_type="logistic", feature_variant="A", random_state=settings.RANDOM_STATE)
-        prod_model.fit(gt_df)
-        ltr_model_path = version_dir / "ltr_model.joblib"
-        prod_model.save(str(ltr_model_path))
+    print("      Computing Out-Of-Fold predictions across host star groups...")
+    from app.ml.ltr_model import compute_out_of_fold_predictions
 
-        # Reference Ablations: Variant A and Variant B models retained for benchmark reproducibility
-        ltr_model_a = ExoSignalLTRModel(model_type="logistic", feature_variant="A", random_state=settings.RANDOM_STATE)
-        ltr_model_a.fit(gt_df)
-        ltr_model_a_path = version_dir / "ltr_model_a.joblib"
-        ltr_model_a.save(str(ltr_model_a_path))
+    oof_preds = compute_out_of_fold_predictions(
+        eligible_df, feature_variant="A", random_state=settings.RANDOM_STATE
+    )
 
-        ltr_model_b = ExoSignalLTRModel(model_type="logistic", feature_variant="B", random_state=settings.RANDOM_STATE)
-        ltr_model_b.fit(gt_df)
-        ltr_model_b_path = version_dir / "ltr_model_b.joblib"
-        ltr_model_b.save(str(ltr_model_b_path))
+    # Production Model: Regularized Logistic Regression (Variant A) selected by 25-fold CV
+    prod_model = ExoSignalLTRModel(model_type="logistic", feature_variant="A", random_state=settings.RANDOM_STATE)
+    prod_model.fit(gt_df)
+    ltr_model_path = version_dir / "ltr_model.joblib"
+    prod_model.save(str(ltr_model_path))
+
+    # Reference Ablations: Variant A and Variant B models retained for benchmark reproducibility
+    ltr_model_a = ExoSignalLTRModel(model_type="logistic", feature_variant="A", random_state=settings.RANDOM_STATE)
+    ltr_model_a.fit(gt_df)
+    ltr_model_a_path = version_dir / "ltr_model_a.joblib"
+    ltr_model_a.save(str(ltr_model_a_path))
+
+    ltr_model_b = ExoSignalLTRModel(model_type="logistic", feature_variant="B", random_state=settings.RANDOM_STATE)
+    ltr_model_b.fit(gt_df)
+    ltr_model_b_path = version_dir / "ltr_model_b.joblib"
+    ltr_model_b.save(str(ltr_model_b_path))
 
     # Save feature importance breakdowns
     feat_imp_path = version_dir / "ltr_feature_importance.json"

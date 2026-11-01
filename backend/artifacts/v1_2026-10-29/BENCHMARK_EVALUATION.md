@@ -87,3 +87,8 @@
 1. **Small Sample Size ($n = 32$)**: The total number of confirmed JWST atmospheric transmission spectroscopy targets approved through peer-reviewed Cycle 1–3 programs is currently limited to 32 exoplanets.
 2. **Label = Human Selection**: Labels represent human telescope allocation committee (TAC) program approvals rather than physical observation ground truth.
 3. **Target Selection Bias**: Known targets are heavily biased toward bright host stars (low infrared J/K magnitudes), nearby distances, and systems with precisely measured transit ephemerides.
+
+---
+
+## 6. Selection Caveats
+Overlapping repeated folds across seeds make bootstrap confidence intervals approximate due to sample dependence across iterations; the outer-fold metric from the 5-fold host-grouped Nested Cross-Validation (reports/NESTED_CV.md) serves as the honest, unbiased generalization performance estimate.

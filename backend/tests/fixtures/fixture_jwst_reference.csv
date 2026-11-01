@@ -1,0 +1,36 @@
+planet_name,program_id,cycle,mode,source_url,observation_type,verified,needs_review,notes
+TRAPPIST-1 b,1201,1,NIRISS/SOSS,https://www.stsci.edu/jwst/science-execution/program-information?id=1201,transmission,True,False,NIRISS SOSS transmission spectroscopy
+TRAPPIST-1 c,1201,1,MIRI/LRS,https://www.stsci.edu/jwst/science-execution/program-information?id=1201,transmission,True,False,NIRISS/MIRI transiting exoplanet atmosphere reconnaissance
+TRAPPIST-1 d,2589,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2589,transmission,True,False,NIRSpec PRISM transmission spectroscopy reconnaissance
+TRAPPIST-1 e,2589,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2589,transmission,True,False,NIRSpec PRISM transmission spectroscopy reconnaissance
+TRAPPIST-1 f,2589,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2589,transmission,True,False,NIRSpec PRISM transmission spectroscopy reconnaissance
+TRAPPIST-1 g,2589,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2589,transmission,True,False,NIRSpec PRISM transmission spectroscopy reconnaissance
+TRAPPIST-1 h,2589,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2589,transmission,True,False,NIRSpec PRISM transmission spectroscopy reconnaissance
+LHS 1140 b,3817,2,NIRISS/SOSS,https://www.stsci.edu/jwst/science-execution/program-information?id=3817,transmission,True,False,NIRISS SOSS transmission spectroscopy
+L 98-59 b,2512,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2512,transmission,True,False,NIRSpec PRISM transmission spectroscopy
+L 98-59 c,2512,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2512,transmission,True,False,NIRSpec PRISM transmission spectroscopy
+L 98-59 d,2512,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2512,transmission,True,False,NIRSpec PRISM transmission spectroscopy
+GJ 1132 b,1981,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=1981,transmission,True,False,NIRSpec PRISM transmission spectroscopy
+GJ 1214 b,1803,1,MIRI/LRS,https://www.stsci.edu/jwst/science-execution/program-information?id=1803,phase_curve,False,True,Full orbit phase curve excluded from transmission
+GJ 436 b,2534,1,NIRCam,https://www.stsci.edu/jwst/science-execution/program-information?id=2534,transmission,True,False,NIRCam transmission spectroscopy
+GJ 3470 b,2445,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2445,transmission,True,False,NIRSpec PRISM transmission spectroscopy
+LP 791-18 d,4252,2,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=4252,transmission,True,False,NIRSpec PRISM transmission spectroscopy
+TOI-270 d,2722,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2722,transmission,True,False,NIRSpec PRISM transmission spectroscopy
+K2-18 b,2722,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2722,transmission,True,False,NIRSpec PRISM transmission spectroscopy
+55 Cnc e,1952,1,NIRCam,https://www.stsci.edu/jwst/science-execution/program-information?id=1952,emission,False,True,Secondary eclipse emission excluded
+WASP-39 b,1366,1,NIRSpec/NIRISS/NIRCam,https://www.stsci.edu/jwst/science-execution/program-information?id=1366,transmission,True,False,ERS 1366 transmission spectroscopy
+WASP-96 b,2734,1,NIRISS/SOSS,https://www.stsci.edu/jwst/science-execution/program-information?id=2734,transmission,True,False,ERO 2734 NIRISS SOSS transmission spectroscopy
+WASP-121 b,1729,1,NIRSpec/G395H,https://www.stsci.edu/jwst/science-execution/program-information?id=1729,phase_curve,False,True,Phase curve excluded
+WASP-76 b,2644,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2644,transmission,True,False,NIRSpec PRISM transmission spectroscopy
+WASP-43 b,1366,1,MIRI/LRS,https://www.stsci.edu/jwst/science-execution/program-information?id=1366,phase_curve,False,True,Phase curve excluded
+WASP-18 b,2470,1,NIRISS/SOSS,https://www.stsci.edu/jwst/science-execution/program-information?id=2470,emission,False,True,Emission excluded
+WASP-80 b,1185,1,NIRCam,https://www.stsci.edu/jwst/science-execution/program-information?id=1185,transmission,True,False,NIRCam transmission spectroscopy
+WASP-107 b,2481,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2481,transmission,True,False,NIRSpec PRISM and MIRI transmission spectroscopy
+HD 209458 b,2489,1,NIRCam,https://www.stsci.edu/jwst/science-execution/program-information?id=2489,transmission,True,False,NIRCam transmission spectroscopy
+HD 189733 b,1633,1,NIRSpec/MIRI,https://www.stsci.edu/jwst/science-execution/program-information?id=1633,transmission,True,False,NIRSpec and MIRI transmission spectroscopy
+HAT-P-18 b,2472,1,NIRISS/SOSS,https://www.stsci.edu/jwst/science-execution/program-information?id=2472,transmission,True,False,NIRISS SOSS transmission spectroscopy
+HAT-P-26 b,1312,1,NIRSpec/G395H,https://www.stsci.edu/jwst/science-execution/program-information?id=1312,transmission,True,False,NIRSpec transmission spectroscopy
+HAT-P-32 b,2146,1,NIRSpec/PRISM,https://www.stsci.edu/jwst/science-execution/program-information?id=2146,transmission,True,False,NIRSpec PRISM transmission spectroscopy
+TOI-700 d,,3,NIRISS/SOSS,,transit_timing,False,True,Transit timing excluded
+TOI-849 b,,3,NIRSpec/G395H,,emission,False,True,Emission excluded
+GJ 367 b,,1,MIRI/LRS,,phase_curve,False,True,Phase curve excluded

@@ -2,17 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTopTargets } from '../hooks/usePlanets';
 import { useAnalytics } from '../hooks/useAnalytics';
-import { useFavorites } from '../context/FavoritesContext';
 import {
   formatPriority,
-  formatAnomaly,
-  formatDistance,
-  getHZColor,
   getIneligibleTooltip,
   getCleanHostStar,
 } from '../utils/formatters';
 import { calculateHzPieData } from '../utils/hzDonut';
-import { modelsApi } from '../services/api';
+import { modelsApi, planetsApi } from '../services/api';
 import {
   ResponsiveContainer,
   BarChart,
@@ -49,9 +45,9 @@ const FEATURE_LABEL_MAP = {
 };
 
 const Home = () => {
-  const { planets: topPlanets, loading: planetsLoading } = useTopTargets(6);
-  const { stats, loading: statsLoading } = useAnalytics();
-  const { toggleFavorite, isFavorite } = useFavorites();
+  const { planets: topPlanets } = useTopTargets(8);
+  const [knownTargets, setKnownTargets] = useState([]);
+  const { stats } = useAnalytics();
   const [benchmark, setBenchmark] = useState(null);
   const [featureImportances, setFeatureImportances] = useState(null);
   const [activeChartTab, setActiveChartTab] = useState('features'); // 'features' | 'histogram' | 'benchmark'
@@ -67,20 +63,44 @@ const Home = () => {
       .getFeatureImportance()
       .then((res) => setFeatureImportances(res))
       .catch(() => null);
+
+    planetsApi
+      .getKnownTargets()
+      .then((res) => {
+        setKnownTargets(Array.isArray(res) ? res : []);
+      })
+      .catch(() => {
+        setKnownTargets([]);
+      });
   }, []);
 
-  // 1. Feature Importance Data for Recharts Bar Chart (No fake fallbacks)
+  // 1. Feature Importance Data for Logistic Regression (|Standardized Coefficient|)
   const featureChartData = useMemo(() => {
     if (featureImportances?.top_features && Array.isArray(featureImportances.top_features)) {
-      return featureImportances.top_features.slice(0, 8).map((f) => ({
-        feature: FEATURE_LABEL_MAP[f.feature] || f.feature,
-        gain_percentage: f.gain_percentage || 0,
-        split_count: f.split_count || 0,
-        raw_name: f.feature,
-      }));
+      return featureImportances.top_features.slice(0, 8).map((f) => {
+        const coef = typeof f.coefficient === 'number' ? f.coefficient : (f.gain || 0);
+        return {
+          feature: FEATURE_LABEL_MAP[f.feature] || f.feature,
+          coefficient: Number(Number(coef).toFixed(3)),
+          abs_coefficient: Number(Math.abs(coef).toFixed(3)),
+          direction: coef >= 0 ? 'positive' : 'negative',
+          raw_name: f.feature,
+        };
+      });
     }
     return [];
   }, [featureImportances]);
+
+  // Dynamic caption generated directly from feature importance data (never hard-coded)
+  const featureCaption = useMemo(() => {
+    if (!featureChartData || featureChartData.length === 0) {
+      return 'Loading feature importance coefficients from regularized model...';
+    }
+    const top = featureChartData[0];
+    const signWord = top.coefficient >= 0 ? 'positive' : 'negative';
+    const effectWord = top.coefficient >= 0 ? 'elevates' : 'penalizes';
+    return `Model weights isolate ${top.feature} as the primary factor (${signWord} standardized coefficient: ${top.coefficient > 0 ? '+' : ''}${top.coefficient.toFixed(2)}), which strongly ${effectWord} target ranking.`;
+  }, [featureChartData]);
 
   // 2. Population Priority Histogram Data for Recharts Bar Chart (No fake fallbacks)
   const histogramChartData = useMemo(() => {
@@ -117,39 +137,74 @@ const Home = () => {
     return null;
   }, [benchmark]);
 
-  const goldenTargets = useMemo(() => {
+  // Known JWST Targets: strictly verified labels (is_jwst_target == True) with OUT-OF-FOLD rank
+  const verifiedGoldenTargets = useMemo(() => {
+    if (!Array.isArray(knownTargets) || knownTargets.length === 0) {
+      return [];
+    }
+
+    return knownTargets
+      .filter((planet) => Boolean(planet.is_jwst_target || planet.already_observed_jwst) && planet.already_observed_jwst !== false)
+      .slice(0, 4)
+      .map((planet, index) => {
+        const priorityScore =
+          planet.oof_priority_score ?? planet.ml_priority_score ?? planet.priority_score ?? 0;
+        const oofRank = planet.oof_ml_rank ?? planet.priority_rank ?? (index + 1);
+        const hzStatus = planet.hz_status || 'Insufficient data';
+
+        return {
+          name: planet.planet_name || `Target ${index + 1}`,
+          is_jwst_target: true,
+          already_observed_jwst: true,
+          oofRank,
+          radius: planet.planet_radius
+            ? `${Number(planet.planet_radius).toFixed(2)} R⊕`
+            : 'not in archive',
+          period: planet.orbital_period
+            ? `${Number(planet.orbital_period).toFixed(1)} days`
+            : 'not in archive',
+          hz: hzStatus,
+          hzColor: hzStatus === 'Inside HZ' ? 'emerald' : hzStatus === 'Near HZ' ? 'amber' : 'gray',
+          mlScore: Number(Number(priorityScore).toFixed(1)),
+          featureNote: `${planet.kempton_size_class || 'Spectroscopic'} candidate with confirmed JWST transmission observation`,
+          type: 'Confirmed JWST Target',
+        };
+      });
+  }, [knownTargets]);
+
+  // New Recommendations: Unobserved top picks awaiting JWST transmission observation
+  const unobservedRecommendations = useMemo(() => {
     if (!Array.isArray(topPlanets) || topPlanets.length === 0) {
       return [];
     }
 
-    return topPlanets.slice(0, 4).map((planet, index) => {
-      const priorityScore =
-        planet.ml_priority_score ?? planet.priority_score ?? planet.target_priority_score ?? 0;
-      const rankDelta =
-        planet.ml_rank && planet.priority_rank ? planet.ml_rank - planet.priority_rank : null;
-      const hzStatus = planet.hz_status || 'Insufficient data';
+    return topPlanets
+      .filter((planet) => !planet.already_observed_jwst && !planet.is_jwst_target)
+      .slice(0, 4)
+      .map((planet, index) => {
+        const priorityScore =
+          planet.ml_priority_score ?? planet.priority_score ?? planet.target_priority_score ?? 0;
+        const rank = planet.unobserved_rank ?? planet.priority_rank ?? (index + 1);
+        const hzStatus = planet.hz_status || 'Insufficient data';
 
-      return {
-        name: planet.planet_name || `Target ${index + 1}`,
-        radius: planet.planet_radius
-          ? `${Number(planet.planet_radius).toFixed(2)} R⊕`
-          : '—',
-        period: planet.orbital_period
-          ? `${Number(planet.orbital_period).toFixed(1)} days`
-          : '—',
-        hz: hzStatus,
-        hzColor: hzStatus === 'Inside HZ' ? 'emerald' : hzStatus === 'Near HZ' ? 'amber' : 'gray',
-        mlScore: Number(priorityScore) || 0,
-        rankDelta:
-          rankDelta === null
-            ? '—'
-            : rankDelta >= 0
-              ? `+${rankDelta}`
-              : `${rankDelta}`,
-        featureNote: `${planet.kempton_size_class || 'Spectroscopic'} candidate with ${planet.discovery_method || 'transit'} geometry`,
-        type: planet.discovery_method || 'Live benchmark target',
-      };
-    });
+        return {
+          name: planet.planet_name || `Candidate ${index + 1}`,
+          is_jwst_target: false,
+          already_observed_jwst: false,
+          rank,
+          radius: planet.planet_radius
+            ? `${Number(planet.planet_radius).toFixed(2)} R⊕`
+            : 'not in archive',
+          period: planet.orbital_period
+            ? `${Number(planet.orbital_period).toFixed(1)} days`
+            : 'not in archive',
+          hz: hzStatus,
+          hzColor: hzStatus === 'Inside HZ' ? 'emerald' : hzStatus === 'Near HZ' ? 'amber' : 'gray',
+          mlScore: Number(Number(priorityScore).toFixed(1)),
+          featureNote: `${planet.kempton_size_class || 'Spectroscopic'} unobserved candidate prioritized for characterization`,
+          type: 'New Recommendation',
+        };
+      });
   }, [topPlanets]);
 
   // 4. Circular Habitable Zone Donut Chart Data (4 slices, uniform denominator, sums to 100 +/- 0.1%)
@@ -215,7 +270,11 @@ const Home = () => {
             {/* CTAs */}
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-2">
               <Link to="/explorer" className="btn-primary-glow font-orbitron text-sm">
-                <span>🪐 Explore 5,700+ Targets</span>
+                <span>
+                  🪐 Explore{' '}
+                  {stats?.total_planets ? `${stats.total_planets.toLocaleString()}` : '6,451'}{' '}
+                  Targets
+                </span>
               </Link>
               <Link to="/top-targets" className="btn-secondary-glass font-orbitron text-xs">
                 <span>🏆 Top Candidates</span>
@@ -332,7 +391,8 @@ const Home = () => {
               <span className="text-emerald-400">Linear SHAP</span>
             </div>
             <div className="text-3xl font-black font-mono text-emerald-400">
-              10 <span className="text-lg">Features</span>
+              {featureImportances?.top_features ? featureImportances.top_features.length : 21}{' '}
+              <span className="text-lg">Features</span>
             </div>
             <div className="text-[11px] text-exosignal-text-muted mt-1">
               Exact closed-form additive attribution
@@ -390,7 +450,8 @@ const Home = () => {
                     Bar & Distribution Analytics
                   </span>
                   <h3 className="text-lg font-bold font-display text-white">
-                    {activeChartTab === 'features' && 'Model Feature Importance (Gain %)'}
+                    {activeChartTab === 'features' &&
+                      'Model Feature Importance (|Standardized Coefficient|)'}
                     {activeChartTab === 'histogram' && 'Priority Score Population Histogram'}
                     {activeChartTab === 'benchmark' && 'Supervised Model Leaderboard (NDCG@10)'}
                   </h3>
@@ -405,9 +466,9 @@ const Home = () => {
                         ? 'bg-exosignal-cyan/20 text-exosignal-cyan border border-exosignal-cyan/40 shadow-neon-cyan'
                         : 'text-exosignal-text-muted hover:text-white'
                     }`}
-                    title="Feature Gain (%)"
+                    title="Standardized Coefficients (|w|)"
                   >
-                    📊 Gains
+                    ⚖️ Coefficients
                   </button>
                   <button
                     onClick={() => setActiveChartTab('histogram')}
@@ -434,14 +495,14 @@ const Home = () => {
                 </div>
               </div>
 
-              {/* CHART 1: Feature Importance Gain (%) Horizontal Bar Chart */}
+              {/* CHART 1: Feature Importance Standardized Coefficient Horizontal Bar Chart */}
               {activeChartTab === 'features' && (
                 <div className="space-y-3 flex-1 flex flex-col justify-between">
                   <div className="flex items-center justify-between text-xs font-mono text-exosignal-text-muted">
-                    <span>Relative Feature Importance (%)</span>
+                    <span>|Standardized Coefficient| (Signed Bars: Positive vs Negative)</span>
                     <span className="text-emerald-400 font-semibold">
                       {featureChartData[0]
-                        ? `${featureChartData[0].feature}: ${featureChartData[0].gain_percentage}%`
+                        ? `${featureChartData[0].feature}: ${featureChartData[0].coefficient > 0 ? '+' : ''}${featureChartData[0].coefficient} (${featureChartData[0].direction})`
                         : 'Physical Parameters'}
                     </span>
                   </div>
@@ -454,12 +515,6 @@ const Home = () => {
                           layout="vertical"
                           margin={{ top: 5, right: 25, left: 110, bottom: 5 }}
                         >
-                          <defs>
-                            <linearGradient id="cyanBarGradient" x1="0" y1="0" x2="1" y2="0">
-                              <stop offset="0%" stopColor="#0284c7" stopOpacity={0.8} />
-                              <stop offset="100%" stopColor="#00d4ff" stopOpacity={1} />
-                            </linearGradient>
-                          </defs>
                           <CartesianGrid
                             strokeDasharray="3 3"
                             stroke="#131c38"
@@ -467,9 +522,7 @@ const Home = () => {
                           />
                           <XAxis
                             type="number"
-                            domain={[0, 100]}
                             tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'JetBrains Mono' }}
-                            unit="%"
                             axisLine={{ stroke: '#1e293b' }}
                           />
                           <YAxis
@@ -489,23 +542,19 @@ const Home = () => {
                               fontSize: '11px',
                               boxShadow: '0 0 20px rgba(0, 212, 255, 0.25)',
                             }}
-                            formatter={(value) => [`${value}% Relative Importance`, 'Model Weight']}
+                            formatter={(value, name, item) => [
+                              `${item.payload.coefficient > 0 ? '+' : ''}${item.payload.coefficient} (${item.payload.direction})`,
+                              '|Standardized Coefficient|',
+                            ]}
                           />
                           <Bar
-                            dataKey="gain_percentage"
-                            fill="url(#cyanBarGradient)"
+                            dataKey="abs_coefficient"
                             radius={[0, 6, 6, 0]}
                           >
                             {featureChartData.map((entry, index) => (
                               <Cell
                                 key={`cell-${index}`}
-                                fill={
-                                  index === 0
-                                    ? 'url(#cyanBarGradient)'
-                                    : index === 1
-                                      ? '#a855f7'
-                                      : '#38bdf8'
-                                }
+                                fill={entry.direction === 'positive' ? '#10b981' : '#f43f5e'}
                               />
                             ))}
                           </Bar>
@@ -521,8 +570,7 @@ const Home = () => {
                     </div>
                   )}
                   <p className="text-[11px] font-mono text-exosignal-text-muted text-center">
-                    💡 Model weights isolate observational Transmission SNR as the primary
-                    discriminator of atmospheric yield.
+                    💡 {featureCaption}
                   </p>
                 </div>
               )}
@@ -919,13 +967,13 @@ const Home = () => {
       </div>
 
       {/* ────────────────────────────────────────────────────────── */}
-      {/* 4. GOLDEN BENCHMARK TARGETS SPOTLIGHT CAROUSEL */}
+      {/* 3. KNOWN JWST TARGETS BENCHMARK SPOTLIGHT */}
       {/* ────────────────────────────────────────────────────────── */}
-      <div className="space-y-6">
+      <div className="space-y-6" data-testid="golden-benchmark-section">
         <SectionDivider
           number="03"
-          title="Golden Benchmark Candidates"
-          subtitle="Ground-truth targets verified against confirmed JWST Cycle 1–3 Guaranteed Time & General Observers programs"
+          title="Known JWST targets: where our model ranks them"
+          subtitle="Out-of-fold cross-validated ranking of confirmed JWST transmission spectroscopy targets"
           badge="GROUND TRUTH"
           accent="emerald"
         />
@@ -933,29 +981,119 @@ const Home = () => {
         <section className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
             <div>
-              <div className="text-xs font-mono text-exosignal-cyan uppercase tracking-wider font-bold">
-                Ground Truth Verification
+              <div className="text-xs font-mono text-emerald-400 uppercase tracking-wider font-bold">
+                Ground Truth Out-of-Fold Validation
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold text-white font-display">
-                Golden Benchmark Targets
+                Known JWST targets: where our model ranks them
               </h2>
             </div>
             <p className="text-xs text-exosignal-text-muted font-mono max-w-md">
-              Validated against confirmed JWST Cycle 1–3 Guaranteed Time & General Observers
-              exoplanet programs.
+              Evaluated strictly with out-of-fold ranks from Stratified Group Cross-Validation on verified transmission targets.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            {goldenTargets.map((t) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5" data-testid="golden-targets-grid">
+            {verifiedGoldenTargets.map((t) => (
               <div
                 key={t.name}
+                data-testid={`golden-target-${t.name}`}
+                className="glass-panel glass-panel-hover p-5 border-emerald-500/20 flex flex-col justify-between card-shine group"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                      OOF Rank #{t.oofRank}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      {t.hz}
+                    </span>
+                  </div>
+
+                  <Link
+                    to={`/planet/${encodeURIComponent(t.name)}`}
+                    className="block text-xl font-bold font-mono text-white group-hover:text-emerald-400 transition-colors"
+                  >
+                    {t.name}
+                  </Link>
+
+                  <div className="grid grid-cols-2 gap-2 my-3 text-xs font-mono text-exosignal-text-muted bg-space-void/60 p-2.5 rounded-lg border border-emerald-500/10">
+                    <div>
+                      <span className="block text-[10px]">Radius:</span>
+                      <span className="text-white font-semibold">{t.radius}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[10px]">Period:</span>
+                      <span className="text-white font-semibold">{t.period}</span>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-exosignal-text-secondary leading-relaxed mb-4">
+                    {t.featureNote}
+                  </p>
+                </div>
+
+                <div className="pt-3 border-t border-emerald-500/10 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-mono text-exosignal-text-muted">
+                      OOF ML Score
+                    </span>
+                    <div className="text-base font-bold font-mono text-emerald-400">
+                      {t.mlScore}
+                    </div>
+                  </div>
+                  <Link
+                    to={`/planet/${encodeURIComponent(t.name)}`}
+                    className="text-xs font-mono text-emerald-400 group-hover:translate-x-1 transition-transform inline-flex items-center space-x-1"
+                  >
+                    <span>Linear SHAP</span>
+                    <span>→</span>
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      {/* ────────────────────────────────────────────────────────── */}
+      {/* 4. NEW RECOMMENDATIONS (NOT YET OBSERVED BY JWST) */}
+      {/* ────────────────────────────────────────────────────────── */}
+      <div className="space-y-6" data-testid="new-recommendations-section">
+        <SectionDivider
+          number="04"
+          title="New recommendations (not yet observed by JWST)"
+          subtitle="Top candidates prioritized for upcoming transmission spectroscopy observation"
+          badge="DISCOVERY PICKS"
+          accent="cyan"
+        />
+
+        <section className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+            <div>
+              <div className="text-xs font-mono text-exosignal-cyan uppercase tracking-wider font-bold">
+                Actionable Follow-Up Pipeline
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-white font-display">
+                New recommendations (not yet observed by JWST)
+              </h2>
+            </div>
+            <p className="text-xs text-exosignal-text-muted font-mono max-w-md">
+              Transiting candidates with high predicted transmission spectroscopic yield that have not yet been observed.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5" data-testid="unobserved-targets-grid">
+            {unobservedRecommendations.map((t) => (
+              <div
+                key={t.name}
+                data-testid={`recommendation-${t.name}`}
                 className="glass-panel glass-panel-hover p-5 border-exosignal-cyan/20 flex flex-col justify-between card-shine group"
               >
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-exosignal-cyan/15 text-exosignal-cyan border border-exosignal-cyan/30">
-                      {t.type}
+                      Rank #{t.rank}
                     </span>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                       {t.hz}
@@ -991,14 +1129,14 @@ const Home = () => {
                       ML Score
                     </span>
                     <div className="text-base font-bold font-mono text-exosignal-cyan">
-                      {t.mlScore} <span className="text-xs text-emerald-400">({t.rankDelta})</span>
+                      {t.mlScore}
                     </div>
                   </div>
                   <Link
                     to={`/planet/${encodeURIComponent(t.name)}`}
                     className="text-xs font-mono text-exosignal-cyan group-hover:translate-x-1 transition-transform inline-flex items-center space-x-1"
                   >
-                    <span>SHAP Waterfall</span>
+                    <span>Linear SHAP</span>
                     <span>→</span>
                   </Link>
                 </div>
@@ -1013,9 +1151,9 @@ const Home = () => {
       {/* ────────────────────────────────────────────────────────── */}
       <div className="space-y-6">
         <SectionDivider
-          number="04"
+          number="05"
           title="End-to-End ML Systems Pipeline"
-          subtitle="From noisy archive ingestion through supervised ranking and sub-5ms columnar querying"
+          subtitle="From noisy archive ingestion through supervised ranking and 6.8ms P50 columnar querying"
           badge="ARCHITECTURE"
           accent="purple"
         />
@@ -1030,7 +1168,7 @@ const Home = () => {
             </h2>
             <p className="text-sm text-exosignal-text-secondary leading-relaxed">
               ExoSignal solves the full exoplanet discovery-to-observation workflow: from noisy
-              archive ingestion through supervised ranking and sub-5ms analytical querying.
+              archive ingestion through supervised ranking and 6.8ms P50 analytical querying.
             </p>
           </div>
 
@@ -1074,8 +1212,8 @@ const Home = () => {
               </div>
               <h4 className="font-bold text-white text-sm">DuckDB Parquet Engine</h4>
               <p className="text-xs text-exosignal-text-muted leading-relaxed">
-                Columnar analytical query engine with predicate pushdown achieving sub-10ms P50
-                latency.
+                Columnar analytical query engine with predicate pushdown achieving 6.8ms P50
+                latency (170ms P50 under concurrent load per reports/LOADTEST.md).
               </p>
             </div>
 

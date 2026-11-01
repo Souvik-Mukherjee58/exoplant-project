@@ -2,8 +2,9 @@
 """
 render_readme_results.py
 
-Regenerates the benchmark evaluation results table in README.md from evaluation.json
-between <!-- RESULTS:START --> and <!-- RESULTS:END --> markers.
+Regenerates benchmark tables in README.md from:
+1. evaluation.json (between <!-- RESULTS:START --> and <!-- RESULTS:END -->)
+2. reports/k6_summary.json (between <!-- LOADTEST:START --> and <!-- LOADTEST:END -->)
 
 Usage:
     python scripts/render_readme_results.py          # Update README.md in-place
@@ -14,9 +15,10 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any, Dict, Optional
 
 
-def find_evaluation_json(workspace_root: Path, json_arg: str = None) -> Path:
+def find_evaluation_json(workspace_root: Path, json_arg: Optional[str] = None) -> Path:
     if json_arg:
         path = Path(json_arg)
         if path.exists():
@@ -89,29 +91,75 @@ def generate_results_table(eval_data: dict) -> str:
     return "\n".join(lines)
 
 
-def update_readme(readme_path: Path, new_table: str, check_only: bool = False) -> bool:
+def generate_loadtest_table(workspace_root: Path, summary_arg: Optional[str] = None) -> str:
+    summary_path = Path(summary_arg) if summary_arg else workspace_root / "reports" / "k6_summary.json"
+    k6_data: Optional[Dict[str, Any]] = None
+
+    if summary_path.exists():
+        try:
+            with open(summary_path, "r", encoding="utf-8") as f:
+                loaded = json.load(f)
+                if "metrics" in loaded:
+                    k6_data = loaded
+        except Exception:
+            pass
+
+    if not k6_data:
+        return (
+            "| Target Concurrency | Throughput (RPS) | Median Latency ($p_{50}$) | 95th Percentile ($p_{95}$) | 99th Percentile ($p_{99}$) | Error Rate |\n"
+            "|:---:|:---:|:---:|:---:|:---:|:---:|\n"
+            "| 200 VUs | *[Not yet measured]* | *[Not yet measured]* | *[Not yet measured]* | *[Not yet measured]* | *[Not yet measured]* |"
+        )
+
+    metrics = k6_data.get("metrics", {})
+    http_reqs = metrics.get("http_reqs", {}).get("values", {})
+    duration = metrics.get("http_req_duration", {}).get("values", {})
+    failed = metrics.get("http_req_failed", {}).get("values", {})
+    vus_max = metrics.get("vus_max", {}).get("values", {}).get("max") or metrics.get("vus", {}).get("values", {}).get("max", 200)
+
+    rps = float(http_reqs.get("rate", 0.0))
+    p50 = float(duration.get("med", duration.get("p(50)", 0.0)))
+    p95 = float(duration.get("p(95)", 0.0))
+    p99 = float(duration.get("p(99)", 0.0))
+    error_rate = float(failed.get("rate", 0.0)) * 100.0
+
+    return (
+        "| Target Concurrency | Throughput (RPS) | Median Latency ($p_{50}$) | 95th Percentile ($p_{95}$) | 99th Percentile ($p_{99}$) | Error Rate |\n"
+        "|:---:|:---:|:---:|:---:|:---:|:---:|\n"
+        f"| {vus_max} VUs | {rps:.1f} req/s | {p50:.2f} ms | {p95:.2f} ms | {p99:.2f} ms | {error_rate:.2f}% |"
+    )
+
+
+def update_section(content: str, start_tag: str, end_tag: str, new_block: str) -> str:
+    if start_tag not in content or end_tag not in content:
+        return content
+
+    pre, rest = content.split(start_tag, 1)
+    _, post = rest.split(end_tag, 1)
+    return f"{pre}{start_tag}\n{new_block.strip()}\n{end_tag}{post}"
+
+
+def update_readme(readme_path: Path, results_table: str, loadtest_table: str, check_only: bool = False) -> bool:
     if not readme_path.exists():
         raise FileNotFoundError(f"README file not found at {readme_path}")
 
     content = readme_path.read_text(encoding="utf-8")
-    start_tag = "<!-- RESULTS:START -->"
-    end_tag = "<!-- RESULTS:END -->"
 
-    if start_tag not in content or end_tag not in content:
-        raise ValueError(f"Missing required markers '{start_tag}' and '{end_tag}' in {readme_path}")
+    # Verify presence of markers
+    if "<!-- RESULTS:START -->" not in content or "<!-- RESULTS:END -->" not in content:
+        raise ValueError(f"Missing required RESULTS markers in {readme_path}")
 
-    pre, rest = content.split(start_tag, 1)
-    current_table, post = rest.split(end_tag, 1)
+    new_content = update_section(content, "<!-- RESULTS:START -->", "<!-- RESULTS:END -->", results_table)
+    if "<!-- LOADTEST:START -->" in new_content and "<!-- LOADTEST:END -->" in new_content:
+        new_content = update_section(new_content, "<!-- LOADTEST:START -->", "<!-- LOADTEST:END -->", loadtest_table)
 
-    expected_block = f"\n{new_table.strip()}\n"
-    if current_table == expected_block:
-        return True  # Table is already up to date
+    is_fresh = (content.strip() == new_content.strip())
 
     if check_only:
-        return False  # Stale
+        return is_fresh
 
-    updated_content = f"{pre}{start_tag}{expected_block}{end_tag}{post}"
-    readme_path.write_text(updated_content, encoding="utf-8")
+    if not is_fresh:
+        readme_path.write_text(new_content, encoding="utf-8")
     return True
 
 
@@ -119,6 +167,7 @@ def main():
     parser = argparse.ArgumentParser(description="Render benchmark evaluation results into README.md")
     parser.add_argument("--check", action="store_true", help="Check if README results are up-to-date without modifying")
     parser.add_argument("--json", type=str, default=None, help="Path to evaluation.json")
+    parser.add_argument("--summary", type=str, default=None, help="Path to k6_summary.json")
     parser.add_argument("--readme", type=str, default=None, help="Path to README.md")
     args = parser.parse_args()
 
@@ -130,22 +179,24 @@ def main():
         with open(json_path, "r", encoding="utf-8") as f:
             eval_data = json.load(f)
 
-        table_md = generate_results_table(eval_data)
-        is_fresh = update_readme(readme_path, table_md, check_only=args.check)
+        results_table = generate_results_table(eval_data)
+        loadtest_table = generate_loadtest_table(workspace_root, args.summary)
+
+        is_fresh = update_readme(readme_path, results_table, loadtest_table, check_only=args.check)
 
         if args.check:
             if is_fresh:
-                print(f"[OK] README.md results table is up-to-date with {json_path.name}")
+                print(f"[OK] README.md tables are up-to-date with {json_path.name}")
                 sys.exit(0)
             else:
                 print(
-                    f"[FAIL] README.md results table is STALE compared to {json_path.name}!\n"
+                    "[FAIL] README.md benchmark or loadtest table is STALE!\n"
                     "Run 'python scripts/render_readme_results.py' to synchronize.",
                     file=sys.stderr,
                 )
                 sys.exit(1)
         else:
-            print(f"[SUCCESS] Updated README.md results table from {json_path}")
+            print(f"[SUCCESS] Updated README.md tables from {json_path} and load test summary.")
             sys.exit(0)
 
     except Exception as e:
