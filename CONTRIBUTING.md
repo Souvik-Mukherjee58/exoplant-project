@@ -2,6 +2,10 @@
 
 Thank you for contributing to ExoSignal. As a scientific exoplanet research and prioritization system, scientific integrity, label accuracy, and reproducible benchmarks are top priorities.
 
+> [!IMPORTANT]
+> **Strict Policy on Scientific Data & Benchmark Reports**:
+> Files under `backend/data/reference/` and `reports/` require human review and verified astronomical provenance. AI tools and autonomous agents MUST NOT create, edit, fill in, or fabricate data in these directories under any circumstances. All changes require human verification via `.guard-allow`.
+
 ---
 
 ## Change Guard Architecture

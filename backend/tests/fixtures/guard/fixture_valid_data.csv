@@ -1,3 +1,4 @@
 # SYNTHETIC TEST DATA - Guard Valid Test Fixture
 planet_name,program_id,source_url,observation_type,verified,needs_review,notes
 Synthetic-1 b,1234,https://example.com/1234,transmission,True,False,Synthetic test row
+

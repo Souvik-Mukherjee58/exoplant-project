@@ -34,6 +34,9 @@ backend/artifacts/registry.json
 # Change Guard local runs
 .guard/
 
+# MAST cache directory (raw API caches must never be committed)
+reports/.mast_cache/
+
 # Editors and operating systems
 .vscode/
 .idea/

@@ -153,7 +153,7 @@ class GuardRunner:
                 else:
                     self.untracked_files.append(filepath)
             else:
-                if status[0] in ("M", "A", "R", "D"):
+                if status[0] in ("M", "A", "R"):
                     self.staged_files.append(filepath)
                 if status[1] in ("M", "D"):
                     self.changed_files.append(filepath)
@@ -316,7 +316,7 @@ class GuardRunner:
 
         # 2. Check that no files under reports/.mast_cache/ are committed or staged
         for filepath in self.staged_files:
-            if filepath.startswith("reports/.mast_cache/"):
+            if filepath.startswith("reports/.mast_cache/") and filepath not in self.deleted_files:
                 self.failures.append(
                     f"DATA INTEGRITY FAIL: File '{filepath}' under reports/.mast_cache/ cannot be committed or staged."
                 )

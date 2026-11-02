@@ -58,3 +58,4 @@ Tests with SYNTHETIC fixtures (monkeypatch input()).
 --- PHASE 10: Final audit (no file changes except .agent/PROGRESS.md) --- From a fresh clone in a temp folder: follow README local + docker setup; run all tests, linters, type checks, builds, data-integrity check, check_mast_cache.py (live), smoke_test.sh on the live URL. Verify n verified labels in CSV == LABEL_REVIEW approvals == n_positives in every report == UI/API. Verify every README number traces to evaluation.json / LOADTEST.md / FORWARD_TEST.md. Output a pass/fail checklist with file:line evidence; no scores or verdicts. Then print "PLAN COMPLETE" and the list of things only I can still do: write INTERVIEW_NOTES.md answers, do 3 mock interviews, state my contributions in README and resume, use only real numbers on my resume.
 
 ================================================================================================== START NOW: do Section A, then Phase G, and continue automatically.
+
