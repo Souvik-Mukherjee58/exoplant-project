@@ -1,12 +1,12 @@
 # ExoSignal Autonomous Execution Progress
 
-**Current phase**: Phase G (Automatic change guard)
+**Current phase**: Phase 1 (Purge fabricated data)
 
 ---
 
 ## Phase Checklist
 
-- [ ] **Phase G**: Automatic change guard (`scripts/guard_changes.py`, `.guard.toml`, tests, pre-commit, CI)
+- [x] **Phase G**: Automatic change guard (`scripts/guard_changes.py`, `.guard.toml`, tests, pre-commit, CI)
 - [ ] **Phase 1**: Purge fabricated data (MAST cache purge, cycle 4 reset, `check_data_integrity.py`, CI)
 - [ ] **HUMAN CHECKPOINT H0**: Create `.guard-allow` for Phase 1 purge, then remove after commit
 - [ ] **Phase 2**: Real MAST script with planet assignment (`scripts/build_jwst_labels_from_mast.py`, TAP query ephemerides)
@@ -33,4 +33,10 @@
 - **Status**: Completed
 - **Commit**: a438cd1
 - **Verified**: Saved verbatim prompt to `.agent/PLAN.md`, initialized `.agent/PROGRESS.md`.
+- **Unresolved**: None
+
+### Phase G: Automatic Change Guard
+- **Status**: Completed
+- **Commit**: fe373b9
+- **Verified**: Implemented `scripts/guard_changes.py`, `.guard.toml`, `.github/workflows/guard.yml`, `.pre-commit-config.yaml` hook, `backend/tests/test_guard.py` (13 passed), synthetic fixtures, `CONTRIBUTING.md`. Passed backend pytest (201 passed), ruff, mypy, frontend eslint, vitest (23 passed), and vite build.
 - **Unresolved**: None
