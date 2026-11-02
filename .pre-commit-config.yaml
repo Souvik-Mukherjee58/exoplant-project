@@ -40,3 +40,14 @@ repos:
           - eslint-plugin-react@7.34.0
           - eslint-plugin-react-hooks@4.6.0
 
+  # ExoSignal Change Guard
+  - repo: local
+    hooks:
+      - id: guard-changes
+        name: ExoSignal Change Guard
+        entry: python scripts/guard_changes.py --staged
+        language: system
+        pass_filenames: false
+        always_run: true
+
+

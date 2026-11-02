@@ -1,0 +1,62 @@
+# ExoSignal Change Guard Configuration
+# Standard: Strict protection of data, reports, test integrity, and guard infrastructure
+
+[protected]
+paths = [
+    "backend/data/reference/",
+    "reports/.mast_cache/",
+    "reports/*.csv",
+    "reports/LABEL_REVIEW.md",
+    "reports/CYCLE4_SOURCE.md",
+    "reports/k6_summary.json",
+    "docs/assets/**",
+    ".guard.toml",
+    ".guard-allow",
+    "scripts/guard_changes.py",
+    ".github/workflows/guard.yml",
+    ".pre-commit-config.yaml",
+    ".agent/PLAN.md",
+]
+
+# Files that can NEVER be bypassed by .guard-allow
+guard_self_files = [
+    "scripts/guard_changes.py",
+    ".guard.toml",
+    ".guard-allow",
+    ".github/workflows/guard.yml",
+    ".pre-commit-config.yaml",
+]
+
+[data]
+reference_csv = "backend/data/reference/jwst_transmission_targets.csv"
+cycle4_csv = "backend/data/reference/jwst_cycle4_targets.csv"
+label_review_md = "reports/LABEL_REVIEW.md"
+cycle4_source_md = "reports/CYCLE4_SOURCE.md"
+mast_cache_dir = "reports/.mast_cache"
+
+[tests]
+test_roots = [
+    "backend/tests",
+    "frontend/src/test",
+]
+
+[honesty]
+watched_paths = [
+    "frontend/src",
+    "README.md",
+    "docs",
+    "reports",
+]
+buzzwords = [
+    "verified",
+    "production-grade",
+    "real-time",
+    "state-of-the-art",
+    "guarantee",
+]
+units = [
+    "%",
+    "ms",
+    "RPS",
+    "x faster",
+]

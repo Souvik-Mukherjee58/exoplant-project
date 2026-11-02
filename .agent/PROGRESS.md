@@ -31,6 +31,6 @@
 
 ### Section A: Setup
 - **Status**: Completed
-- **Commit**: (Pending Section A commit)
+- **Commit**: a438cd1
 - **Verified**: Saved verbatim prompt to `.agent/PLAN.md`, initialized `.agent/PROGRESS.md`.
 - **Unresolved**: None

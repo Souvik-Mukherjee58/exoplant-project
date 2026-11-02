@@ -1,0 +1,3 @@
+# SYNTHETIC TEST DATA - Guard Invalid Test Fixture
+planet_name,program_id,source_url,observation_type,verified,needs_review,notes
+Synthetic-Invalid b,,https://example.com/bad,phase_curve,True,False,Invalid type and missing program ID

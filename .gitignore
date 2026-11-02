@@ -31,6 +31,9 @@ docker-compose.override.yml
 # Model registry (auto-generated, re-buildable)
 backend/artifacts/registry.json
 
+# Change Guard local runs
+.guard/
+
 # Editors and operating systems
 .vscode/
 .idea/
