@@ -23,6 +23,7 @@ dist/
 # Environment variables and local configuration
 .env
 .env.*
+!.env.example
 
 # Docker
 *.tar

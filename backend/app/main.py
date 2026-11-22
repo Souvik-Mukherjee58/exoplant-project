@@ -140,16 +140,35 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 # ---------------------------------------------------------------------------
 
 app.add_middleware(RequestTracingMiddleware)
-app.add_middleware(RateLimitingMiddleware, requests_per_minute=settings.RATE_LIMIT_PER_MINUTE)
+app.add_middleware(
+    RateLimitingMiddleware,
+    requests_per_minute=settings.RATE_LIMIT_PER_MINUTE,
+    trusted_proxy_hops=settings.TRUSTED_PROXY_HOPS,
+)
 app.add_middleware(ETagCacheMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-is_wildcard = "*" in settings.CORS_ORIGINS
+
+def validate_cors_origins(origins: list) -> list:
+    """Fail fast on origin patterns Starlette does not support.
+
+    allow_origins is matched literally, so "https://*.vercel.app" never matches and the deployed frontend
+    would be blocked by the browser. Only "*" alone or exact origins are accepted.
+    """
+    bad = [o for o in origins if "*" in o and o != "*"]
+    if bad:
+        raise ValueError(
+            f"Unsupported CORS_ORIGINS entries {bad}: wildcard subdomains are not matched. "
+            """Set exact origins, e.g. CORS_ORIGINS='["https://your-app.vercel.app"]'."""
+        )
+    return origins
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=not is_wildcard,
-    allow_methods=["*"],
+    allow_origins=validate_cors_origins(settings.CORS_ORIGINS),
+    allow_credentials=False,  # public read-only API: no cookies are used
+    allow_methods=["GET", "HEAD", "OPTIONS"],  # browsers never need the admin POST endpoints
     allow_headers=["*"],
 )
 

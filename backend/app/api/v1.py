@@ -2,10 +2,11 @@
 
 import ast
 import logging
+import secrets
 from typing import Dict, List, Optional
 
 import pandas as pd
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel, Field, field_validator
 
 from app.ml.explainability import SHAPExplainer
@@ -827,7 +828,25 @@ def compare_model_versions(
         )
 
 
-@router.post("/models/registry/promote/{version}")
+def require_admin(authorization: Optional[str] = Header(None)) -> None:
+    """Gate for operations that change the live model.
+
+    Disabled (403) unless ADMIN_TOKEN is configured; then a matching 'Authorization: Bearer <token>' is
+    required. The default deployment sets no token: a model goes live by deploying a new artifact version.
+    """
+    from app.config import settings
+
+    token = settings.ADMIN_TOKEN
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Model promotion over HTTP is disabled (ADMIN_TOKEN not set). Deploy a new artifact version.",
+        )
+    if not authorization or not secrets.compare_digest(authorization, f"Bearer {token}"):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing admin token.")
+
+
+@router.post("/models/registry/promote/{version}", dependencies=[Depends(require_admin)])
 def promote_model_version(version: str, req: Optional[PromoteRequest] = None):
     """
     Promote a registered model version to active production status.
@@ -853,7 +872,7 @@ def promote_model_version(version: str, req: Optional[PromoteRequest] = None):
         )
 
 
-@router.post("/models/registry/rollback")
+@router.post("/models/registry/rollback", dependencies=[Depends(require_admin)])
 def rollback_model_version(req: Optional[RollbackRequest] = None):
     """
     Instant rollback: restore the previous active production model version

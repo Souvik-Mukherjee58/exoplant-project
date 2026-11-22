@@ -25,6 +25,12 @@ class Settings(BaseSettings):
 
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = 120
+    # Number of reverse proxies in front of the app that append to X-Forwarded-For (Fly.io: 1).
+    # 0 = ignore the header (safe default: a client can put anything in it).
+    TRUSTED_PROXY_HOPS: int = 0
+
+    # Enables the model promote/rollback endpoints when set (Bearer token). Unset = disabled.
+    ADMIN_TOKEN: Optional[str] = None
 
     # Base directory
     BASE_DIR: Path = Path(__file__).resolve().parent.parent

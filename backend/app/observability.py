@@ -190,13 +190,39 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
     Exempts liveness/readiness probes (/health, /ready, /metrics) and API documentation.
     """
 
-    def __init__(self, app, requests_per_minute: int = 120):
+    # Known limits of this design (documented, not hidden): state is per process, so N workers or
+    # instances allow N x limit; a shared store (e.g. Redis) or the edge/CDN is needed for a global limit.
+    MAX_TRACKED_CLIENTS = 10_000
+
+    def __init__(self, app, requests_per_minute: int = 120, trusted_proxy_hops: int = 0):
         super().__init__(app)
         self.limit = requests_per_minute
+        self.trusted_proxy_hops = max(0, trusted_proxy_hops)
         self.window_seconds = 60.0
         self._history: Dict[str, List[float]] = {}
         self._lock = threading.Lock()
         self._exempt_paths = {"/health", "/ready", "/metrics", "/docs", "/redoc", "/openapi.json"}
+
+    def client_ip(self, request: Request) -> str:
+        """Client address that the operator's proxies vouch for.
+
+        X-Forwarded-For is client-controlled except for the entries appended by our own proxies, so with
+        N trusted hops the client is the N-th entry from the right. With 0 hops the header is ignored
+        (otherwise anyone could bypass the limit by sending a random X-Forwarded-For).
+        """
+        direct = request.client.host if request.client else "unknown"
+        if self.trusted_proxy_hops == 0:
+            return direct
+        hops = [h.strip() for h in request.headers.get("x-forwarded-for", "").split(",") if h.strip()]
+        if len(hops) >= self.trusted_proxy_hops:
+            return hops[-self.trusted_proxy_hops]
+        return direct
+
+    def _evict_stale(self, cutoff: float) -> None:
+        """Drop clients with no request inside the window; called under the lock when the map is large."""
+        stale = [ip for ip, ts in self._history.items() if not ts or ts[-1] <= cutoff]
+        for ip in stale:
+            del self._history[ip]
 
     async def dispatch(self, request: Request, call_next) -> Response:
         path = request.url.path
@@ -207,17 +233,14 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
         if path in self._exempt_paths or limit <= 0:
             return await call_next(request)
 
-        # Extract client IP (respecting reverse-proxy X-Forwarded-For if available)
-        forwarded = request.headers.get("x-forwarded-for")
-        if forwarded:
-            client_ip = forwarded.split(",")[0].strip()
-        else:
-            client_ip = request.client.host if request.client else "127.0.0.1"
+        client_ip = self.client_ip(request)
 
         now = time.monotonic()
         cutoff = now - self.window_seconds
 
         with self._lock:
+            if len(self._history) >= self.MAX_TRACKED_CLIENTS:
+                self._evict_stale(cutoff)
             timestamps = self._history.get(client_ip, [])
             valid = [t for t in timestamps if t > cutoff]
 
@@ -230,7 +253,7 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
                         "Retry-After": "60",
                         "X-RateLimit-Limit": str(limit),
                         "X-RateLimit-Remaining": "0",
-                        "X-RateLimit-Reset": str(int(now + 60)),
+                        "X-RateLimit-Reset": str(int(time.time() + (valid[0] + self.window_seconds - now))),
                         "X-Request-ID": req_id,
                     },
                     content={
