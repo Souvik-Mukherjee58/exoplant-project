@@ -2,7 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-10-28
-- **Deciders**: ML & Astronomical Engineering Team
+- **Deciders**: Souvik Mukherjee (project owner; solo project, drafted with AI coding assistants)
 
 ---
 
@@ -29,10 +29,11 @@ When evaluating machine learning ranking models on astronomical catalogs, two cr
 ## Consequences
 
 ### Positive
+
 - Completely eliminates astronomical feature leakage across multi-planet systems.
 - Provides statistically sound, narrow 95% bootstrap confidence intervals for ranker comparison.
 - Evaluates true generalized performance on newly discovered planetary systems around unseen stars.
 
 ### Negative / Trade-offs
-- Group cross-validation is computationally more intensive than a single static split, requiring training and evaluating 25 separate fold models per candidate algorithm.
 
+- Group cross-validation is computationally more intensive than a single static split, requiring training and evaluating 25 separate fold models per candidate algorithm.

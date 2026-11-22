@@ -2,15 +2,16 @@
 
 - **Status**: Accepted
 - **Date**: 2026-10-28
-- **Deciders**: Architecture & Infrastructure Team
+- **Deciders**: Souvik Mukherjee (project owner; solo project, drafted with AI coding assistants)
 
 ---
 
 ## Context & Problem Statement
 
-ExoSignal serves analytical queries with sub-10ms response times over an astronomical catalog of 5,821 exoplanets ($N = 4,643$ transmission-eligible targets) with 40+ numerical physical parameters, machine learning ranking scores, and observational metrics.
+ExoSignal serves analytical queries with low-latency reads over the archive catalog (6,451 planets in the current artifact ($N = 4,643$ transmission-eligible targets) with 40+ numerical physical parameters, machine learning ranking scores, and observational metrics.
 
 Workload Characteristics:
+
 - **Read-Heavy / Analytical**: Endpoints filter on continuous physical bounds (`min_priority`, `hz_status`, `radius`, `distance`), perform multi-key ordering, and execute single-target point lookups.
 - **Data Updates per Release**: Catalog updates occur offline when a new version artifact is built by the data pipeline, not via continuous OLTP row inserts.
 - **Resource Constraints**: Free-tier cloud deployments (Render, Fly.io) provide 512–1024 MB RAM without dedicated managed database instances.
@@ -28,25 +29,22 @@ We use an **in-process DuckDB engine querying immutable, versioned Parquet stora
 
 ---
 
-## Performance Benchmark Comparison
+## Performance comparison (correction, 2026-11-22)
 
-| Metric | Embedded DuckDB + Parquet | Traditional PostgreSQL (Containerized) |
-|:---|:---:|:---:|
-| **$p_{50}$ Query Latency** | **3.6 ms** | 18.4 ms (network + serialization) |
-| **$p_{95}$ Query Latency** | **7.8 ms** | 34.2 ms |
-| **Memory Footprint** | **~85 MB** | 250 MB+ (Engine + Client Pool) |
-| **Operational Complexity** | **Zero-config** (single Docker image) | Requires Postgres daemon, migrations, volume mounts |
-| **Cloud Deployability** | Free-tier eligible (Render / Fly.io) | Requires external database add-on |
-
----
+An earlier version of this ADR showed a latency table comparing DuckDB with PostgreSQL (p50/p95, memory).
+Those numbers were never measured: there is no PostgreSQL setup in this repository. They were removed.
+Measured latency comes only from `reports/LOADTEST.md` (k6) and the capacity curve, with hardware stated.
+The decision itself rests on the qualitative points above: a read-only catalog of a few thousand rows that
+changes only when a new artifact ships needs no database server.
 
 ## Consequences
 
 ### Positive
-- Sub-10ms $p_{95}$ response times without database network hops.
+
+- No database network hop on the read path (latency to be measured; see reports/LOADTEST.md).
 - Docker containers run completely self-contained with no external dependencies.
 - Rollbacks and canary promotions operate atomically via filesystem pointers.
 
 ### Negative / Trade-offs
-- DuckDB does not support concurrent write transactions across multiple distributed nodes (acceptable for an immutable, read-only analytical catalog).
 
+- DuckDB does not support concurrent write transactions across multiple distributed nodes (acceptable for an immutable, read-only analytical catalog).

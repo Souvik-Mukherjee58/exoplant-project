@@ -2,7 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-10-31
-- **Deciders**: Astrophysical Machine Learning & Systems Architecture Team
+- **Deciders**: Souvik Mukherjee (project owner; solo project, drafted with AI coding assistants)
 
 ---
 
@@ -11,14 +11,15 @@
 Supervised machine learning for exoplanet spectroscopic follow-up prioritizes targets for atmospheric transmission spectroscopy with the James Webb Space Telescope (JWST). The fidelity of this prioritization depends entirely on the accuracy and physical consistency of the ground-truth positive label set.
 
 ### 1. Why Hand-Curated Lists Failed
+
 Initial versions of the reference catalog relied on hand-compiled lists of JWST exoplanet targets. Technical auditing revealed two critical failure modes in this approach:
 
 1. **Human Transcription and Attribution Errors**:
-   - **GJ 1132 b**: Listed with Program ID `1995`. When audited against Space Telescope Science Institute (STScI) records, Program 1995 was revealed to be an unrelated extragalactic cosmology study (*"Answering the Most Important Problem in Cosmology Today: Is the Tension in the Hubble Constant Real?"*, PI: Riess).
-   - **WASP-80 b**: Listed with Program ID `2114`. STScI records show Program 2114 is a supernova investigation (*"MIR Spectroscopy of Type Ia Supernovae: The Key to Unlocking their Explosions and Element Production"*, PI: Johansson).
-   - **HAT-P-26 b**: Listed with Program ID `1743`, which actually targets the terrestrial exoplanet Gl 486 b (*"Constraining the Atmosphere of the Terrestrial Exoplanet Gl486b"*, PI: Mansfield).
+   - **GJ 1132 b**: Listed with Program ID `1995`. When audited against Space Telescope Science Institute (STScI) records, Program 1995 was revealed to be an unrelated extragalactic cosmology study (_"Answering the Most Important Problem in Cosmology Today: Is the Tension in the Hubble Constant Real?"_, PI: Riess).
+   - **WASP-80 b**: Listed with Program ID `2114`. STScI records show Program 2114 is a supernova investigation (_"MIR Spectroscopy of Type Ia Supernovae: The Key to Unlocking their Explosions and Element Production"_, PI: Johansson).
+   - **HAT-P-26 b**: Listed with Program ID `1743`, which actually targets the terrestrial exoplanet Gl 486 b (_"Constraining the Atmosphere of the Terrestrial Exoplanet Gl486b"_, PI: Mansfield).
 2. **Astrophysical Regime Conflation (Label Pollution)**:
-   - Hand-curated lists treated *any* JWST exoplanet observation as a positive label.
+   - Hand-curated lists treated _any_ JWST exoplanet observation as a positive label.
    - JWST exoplanet characterization spans distinct observational techniques:
      - **Primary Transit (Transmission Spectroscopy)**: Measures starlight filtering through the planetary terminator annulus. Detectability scales with atmospheric scale height:
        $$\Delta \delta \propto \frac{2 R_p H}{R_*^2} = \frac{2 R_p k_B T_{eq}}{\mu g R_*^2}$$
@@ -60,10 +61,12 @@ We replace unverified hand-curated lists with an automated verification harness 
 ## Consequences
 
 ### Positive
+
 - **Zero Label Hallucination**: Eliminates phantom program IDs (such as cosmology and supernova proposals).
 - **Physical Purity**: Ensures supervised ranking models optimize strictly for atmospheric transit detectability.
 - **Fail-Safe Operation**: Prevents the ML pipeline from silently training on an empty or inadequately verified label set.
 - **Full Traceability**: Every verified label traces directly to a specific STScI approved program URL and human audit log entry.
 
 ### Trade-offs & Mitigations
+
 - In the initial unreviewed state, live reference targets default to `verified=False`, halting the pipeline until domain review is completed. Test fixtures (`fixture_jwst_reference.csv`) are isolated to test algorithmic execution without weakening live production auditing.
