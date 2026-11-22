@@ -1,0 +1,25 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: proposal_id, datatype: string}
+# - {name: obs_id, datatype: string}
+# - {name: target_name, datatype: string}
+# - {name: instrument_name, datatype: string}
+# - {name: filters, datatype: string}
+# - {name: t_min, datatype: float64}
+# - {name: t_max, datatype: float64}
+# - {name: obs_title, datatype: string}
+# - {name: s_ra, datatype: float64}
+# - {name: s_dec, datatype: float64}
+# meta: !!omap
+# - comments: [SYNTHETIC TEST DATA - fictional JWST time-series observations for unit tests]
+# schema: astropy-2.0
+proposal_id obs_id target_name instrument_name filters t_min t_max obs_title s_ra s_dec
+90001 syn-o001-transit SYN-1 NIRSPEC/SLIT CLEAR;PRISM 59200.0123 59200.2877 "Transmission spectroscopy of SYN-1 b: a test, with comma" 150.25 -20.5
+90002 syn-o002-eclipse "SYN 1" NIRSPEC/SLIT F290LP;G395H 59201.0123 59201.2877 "Dayside emission of SYN-1 b" 150.25 -20.5
+90003 syn-o003-noevent ALIAS-STAR NIRISS/SOSS CLEAR;GR700XD 59202.5123 59202.6877 "Stellar variability monitoring" 150.2503 -20.5002
+90001 syn-o004-image SYN-1 NIRCAM/IMAGE F210M;WLP8 59200.0123 59200.2877 Imaging 150.25 -20.5
+90001 syn-o005-ta SYN-1 MIRI/SLITLESS F1000W 59200.0051 59200.0052 "Target acquisition" 150.25 -20.5
+90004 syn-o006-unmatched SOME-BROWN-DWARF NIRSPEC/SLIT CLEAR;PRISM 59300.1234 59300.4321 "Brown dwarf variability" 10.0 10.0
+90005 syn-o007-nouncert SYN-3 NIRSPEC/SLIT CLEAR;PRISM 59400.1503 59400.4497 "Transit of SYN-3 b" 200.0 30.0
+90006 syn-o008-eccentric SYN2B MIRI/SLITLESS P750L 59301.7823 59302.0177 "Eclipse of SYN-2 b" 250.0 -40.0

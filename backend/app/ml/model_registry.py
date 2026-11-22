@@ -202,8 +202,17 @@ class ModelRegistry:
         return None
 
     def get_version(self, version: str) -> Optional[Dict[str, Any]]:
-        """Get metadata for a specific registered version."""
-        return cast(Optional[Dict[str, Any]], self._registry["versions"].get(version))
+        """Get metadata for a specific registered version.
+
+        The central registry.json is a local, git-ignored index. A clean clone (CI, a fresh deploy)
+        only has the committed per-version artifacts/<version>/registry_entry.json, so fall back to it.
+        """
+        entry = self._registry["versions"].get(version)
+        if entry is None:
+            per_version = self.artifacts_dir / version / "registry_entry.json"
+            if per_version.exists():
+                entry = json.loads(per_version.read_text(encoding="utf-8"))
+        return cast(Optional[Dict[str, Any]], entry)
 
     def get_active_version(self) -> Optional[str]:
         """Get the currently active (production) version tag."""

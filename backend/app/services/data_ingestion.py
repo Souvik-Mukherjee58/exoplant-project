@@ -18,7 +18,8 @@ class DataIngestion:
         self.processed_dir = Path(processed_dir or settings.PROCESSED_DATA_DIR)
         self.exoplanet_archive_url = (
             "https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query="
-            "select+pl_name,hostname,pl_rade,pl_bmasse,pl_orbper,pl_orbsmax,pl_eqt,pl_orbeccen,"
+            "select+pl_name,hostname,pl_rade,pl_bmasse,pl_orbper,pl_orbpererr1,pl_orbpererr2,"
+            "pl_tranmid,pl_tranmiderr1,pl_tranmiderr2,pl_orbsmax,pl_eqt,pl_orbeccen,"
             "st_teff,st_rad,st_mass,st_met,st_lum,sy_dist,sy_jmag,sy_kmag,"
             "discoverymethod,disc_year,tran_flag+from+pscomppars&format=csv"
         )
