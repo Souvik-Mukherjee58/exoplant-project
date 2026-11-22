@@ -46,9 +46,7 @@ def check_staged_mast_cache(repo_root: Path) -> List[str]:
     return failures
 
 
-def check_transmission_targets(
-    ref_csv_path: Path, review_md_path: Path
-) -> Tuple[List[str], int, int]:
+def check_transmission_targets(ref_csv_path: Path, review_md_path: Path) -> Tuple[List[str], int, int]:
     failures: List[str] = []
     verified_count = 0
     total_count = 0
@@ -79,34 +77,62 @@ def check_transmission_targets(
 
         # Rule 1: observation_type must be transmission
         if obs_type != "transmission":
-            failures.append(
-                f"Planet '{planet}' is verified=True but observation_type='{obs_type}' != 'transmission'"
-            )
+            failures.append(f"Planet '{planet}' is verified=True but observation_type='{obs_type}' != 'transmission'")
 
         # Rule 2: non-empty program_id and source_url
         if not pid or pid.lower() in ("n/a", "none", "nan", "todo"):
-            failures.append(
-                f"Planet '{planet}' is verified=True but program_id is missing or invalid: '{pid}'"
-            )
+            failures.append(f"Planet '{planet}' is verified=True but program_id is missing or invalid: '{pid}'")
         if not url or url.lower() in ("n/a", "none", "nan", "todo"):
-            failures.append(
-                f"Planet '{planet}' is verified=True but source_url is missing or invalid: '{url}'"
-            )
+            failures.append(f"Planet '{planet}' is verified=True but source_url is missing or invalid: '{url}'")
 
         # Rule 3: Must match APPROVED row with checked_by and ISO date in LABEL_REVIEW.md
         if not review_md_path.exists():
+            failures.append(f"Planet '{planet}' is verified=True but reports/LABEL_REVIEW.md does not exist")
+        elif not has_approval_row(review_text, planet, pid):
             failures.append(
-                f"Planet '{planet}' is verified=True but reports/LABEL_REVIEW.md does not exist"
+                f"Planet '{planet}' (program {pid}) is verified=True in CSV but has no matching APPROVED review row "
+                "in reports/LABEL_REVIEW.md (one table line with planet, program_id, APPROVED, reviewer and ISO date)"
             )
-        else:
-            planet_escaped = re.escape(planet)
-            pattern = rf"{planet_escaped}.*?(APPROVED|approved).*?(\d{{4}}-\d{{2}}-\d{{2}})"
-            if not re.search(pattern, review_text, re.DOTALL):
-                failures.append(
-                    f"Planet '{planet}' is verified=True in CSV but has no matching APPROVED review row in reports/LABEL_REVIEW.md"
-                )
 
     return failures, verified_count, total_count
+
+
+ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def table_cells(line: str) -> List[str]:
+    """Cells of a markdown table line ('| a | b |' -> ['a', 'b']); [] for non-table lines."""
+    s = line.strip()
+    if not (s.startswith("|") and s.endswith("|")) or len(s) < 2:
+        return []
+    return [c.strip() for c in s[1:-1].split("|")]
+
+
+def has_approval_row(review_text: str, planet: str, program_id: str) -> bool:
+    """True if ONE table line approves this (planet, program_id).
+
+    The line must have the planet as its first cell, a cell equal to program_id, a cell starting with
+    'APPROVED', a cell that is an ISO date and at least one further non-empty cell (the reviewer).
+    Matching is per line on purpose: an approval of another planet elsewhere in the file must never
+    count (an earlier DOTALL regex let any later APPROVED row validate every planet above it).
+    """
+    want_planet = planet.strip().casefold()
+    want_pid = program_id.strip()
+    for line in review_text.splitlines():
+        cells = table_cells(line)
+        if len(cells) < 5 or cells[0].casefold() != want_planet:
+            continue
+        if want_pid not in cells[1:]:
+            continue
+        decision = [c for c in cells if c.upper().startswith("APPROVED")]
+        dates = [c for c in cells if ISO_DATE.match(c)]
+        if not decision or not dates:
+            continue
+        used = {cells[0], want_pid, decision[0], dates[0]}
+        others = [c for c in cells[1:] if c and c not in used and not c.lower().startswith("http")]
+        if others:
+            return True
+    return False
 
 
 def check_mast_cache_files(mast_cache_dir: Path) -> List[str]:
@@ -130,9 +156,7 @@ def check_mast_cache_files(mast_cache_dir: Path) -> List[str]:
         expected_sha = meta.get("sha256")
         actual_sha = hashlib.sha256(ecsv_file.read_bytes()).hexdigest()
         if not expected_sha or expected_sha.lower() != actual_sha.lower():
-            failures.append(
-                f"SHA-256 mismatch for {ecsv_file.name}: expected {expected_sha}, computed {actual_sha}"
-            )
+            failures.append(f"SHA-256 mismatch for {ecsv_file.name}: expected {expected_sha}, computed {actual_sha}")
 
         # Check for round whole-number dates
         ecsv_text = ecsv_file.read_text(encoding="utf-8", errors="replace")
@@ -159,13 +183,14 @@ def check_cycle4_targets(cycle4_csv: Path, cycle4_source_md: Path) -> List[str]:
         return failures
 
     lines = [
-        line.strip()
-        for line in cycle4_csv.read_text(encoding="utf-8", errors="replace").splitlines()
-        if line.strip()
+        line.strip() for line in cycle4_csv.read_text(encoding="utf-8", errors="replace").splitlines() if line.strip()
     ]
     # Header line only means empty/clean
     if len(lines) > 1:
-        if not cycle4_source_md.exists() or len(cycle4_source_md.read_text(encoding="utf-8", errors="replace").strip()) == 0:
+        if (
+            not cycle4_source_md.exists()
+            or len(cycle4_source_md.read_text(encoding="utf-8", errors="replace").strip()) == 0
+        ):
             failures.append(
                 f"{cycle4_csv} contains {len(lines) - 1} data rows, but {cycle4_source_md} is missing or empty"
             )
