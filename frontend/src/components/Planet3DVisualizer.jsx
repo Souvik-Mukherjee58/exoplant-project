@@ -459,6 +459,11 @@ const Planet3DVisualizer = ({
           </div>
 
           {/* Quick Parameters Grid */}
+          {!customPlanet && (
+            <p className="text-[10px] text-exosignal-text-muted font-mono mb-1">
+              Illustrative preset values; open a planet page for archive data.
+            </p>
+          )}
           <div className="grid grid-cols-3 gap-2 text-center font-mono text-xs bg-space-void/70 p-2.5 rounded-xl border border-exosignal-cyan/15">
             <div>
               <span className="text-[10px] text-exosignal-text-muted block">Radius</span>

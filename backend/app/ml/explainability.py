@@ -210,7 +210,7 @@ def get_plain_english_reasons_for_planet(
 
 class SHAPExplainer:
     """
-    Computes exact instance-level TreeSHAP feature attributions and waterfall breakdowns.
+    Computes exact instance-level SHAP attributions (Linear SHAP for the logistic regression; TreeSHAP only for tree models).
     """
 
     _instance: Optional["SHAPExplainer"] = None
@@ -290,7 +290,7 @@ class SHAPExplainer:
 
     def explain_planet(self, planet_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Compute TreeSHAP feature attributions and waterfall breakdown for a single planet.
+        Compute SHAP feature attributions and waterfall breakdown for a single planet.
 
         Args:
             planet_data: Dictionary of planet attributes
@@ -409,7 +409,7 @@ class SHAPExplainer:
 
     def explain_comparison(self, planet_a_data: Dict[str, Any], planet_b_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Explain the ranking delta between two planets using differential TreeSHAP attributions:
+        Explain the ranking delta between two planets using differential SHAP attributions:
         Delta_phi_i = phi_i(A) - phi_i(B).
 
         Identifies the exact physical drivers explaining why Planet A is ranked higher than Planet B.

@@ -271,7 +271,7 @@ const ModelRegistry = () => {
                       Astrophysical Features:
                     </span>
                     <span className="text-white font-semibold text-xs">
-                      {activeVersionData.training?.n_features || 21} features
+                      {activeVersionData.training?.n_features ?? '—'} features
                     </span>
                   </div>
                   <div className="bg-space-void/60 p-3 rounded-xl border border-exosignal-cyan/10">
@@ -401,7 +401,11 @@ const ModelRegistry = () => {
                 </div>
                 {validationResult && (
                   <span
-                    className={`px-3 py-1 rounded-full text-xs font-mono font-bold ${validationResult.valid ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-rose-500/20 text-rose-400 border border-rose-500/40'}`}
+                    className={`px-3 py-1 rounded-full text-xs font-mono font-bold ${
+                      validationResult.valid
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                        : 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                    }`}
                   >
                     {validationResult.valid ? 'VERIFIED INTACT' : 'INTEGRITY COMPROMISED'}
                   </span>
@@ -429,7 +433,11 @@ const ModelRegistry = () => {
                                 {key} Artifact
                               </span>
                               <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold ${check.status === 'OK' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  check.status === 'OK'
+                                    ? 'bg-emerald-500/20 text-emerald-400'
+                                    : 'bg-rose-500/20 text-rose-400'
+                                }`}
                               >
                                 {check.status}
                               </span>
@@ -625,7 +633,11 @@ const ModelRegistry = () => {
                         </div>
                         <div className="mt-3 pt-2 border-t border-exosignal-cyan/15 text-right">
                           <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${data.winner === versionA ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-300'}`}
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              data.winner === versionA
+                                ? 'bg-emerald-500/20 text-emerald-400'
+                                : 'bg-amber-500/20 text-amber-300'
+                            }`}
                           >
                             Winner: {data.winner || 'Tie'} (
                             {data.delta >= 0

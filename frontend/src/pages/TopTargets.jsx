@@ -80,13 +80,14 @@ const TopTargets = () => {
     return activePlanets.slice(0, 10).map((p, idx) => {
       const rankNum =
         activeTab === 'validation'
-          ? (p.oof_ml_rank ?? idx + 1)
+          ? p.oof_ml_rank ?? idx + 1
           : includeObserved
-            ? (p.priority_rank ?? idx + 1)
-            : (p.unobserved_rank ?? p.priority_rank ?? idx + 1);
-      const tsmVal = Number((p.tsm || 0).toFixed(1));
+            ? p.priority_rank ?? idx + 1
+            : p.unobserved_rank ?? p.priority_rank ?? idx + 1;
+      const tsmVal = p.tsm != null ? Number(p.tsm.toFixed(1)) : null;
       const isExtrapolated = Number(p.planet_radius) > 10.0;
-      const tsmThresh = isExtrapolated ? null : Number((p.tsm_threshold || 10).toFixed(1));
+      const tsmThresh =
+        isExtrapolated || p.tsm_threshold == null ? null : Number(p.tsm_threshold.toFixed(1));
       return {
         name: p.planet_name,
         rank: `#${rankNum}`,
@@ -94,7 +95,7 @@ const TopTargets = () => {
         threshold: tsmThresh,
         isExtrapolated,
         anomaly: Number(((p.anomaly_score || 0) * 100).toFixed(1)),
-        percentile: p.percentile_rank || 1.0,
+        percentile: p.percentile_rank ?? null,
       };
     });
   }, [activePlanets, activeTab, includeObserved]);
@@ -108,9 +109,16 @@ const TopTargets = () => {
         </span>
       );
     }
-    const threshold = planet.tsm_threshold ?? 10;
-    const tsm = planet.tsm ?? 0;
-    const passes = tsm >= threshold;
+    const threshold = planet.tsm_threshold;
+    if (threshold == null) {
+      return (
+        <span className="text-slate-500 italic text-[10px]">size-class threshold unavailable</span>
+      );
+    }
+    if (planet.tsm == null) {
+      return <span className="text-slate-500 italic text-[10px]">TSM not computable</span>;
+    }
+    const passes = planet.tsm >= threshold;
     return (
       <span className={passes ? 'text-emerald-400 font-bold' : 'text-slate-400'}>
         ≥ {threshold} ({passes ? 'Passes' : 'Under'})
@@ -269,14 +277,14 @@ const TopTargets = () => {
               const isFav = isFavorite(planet.planet_name);
               const displayRank =
                 activeTab === 'validation'
-                  ? (planet.oof_ml_rank ?? idx + 1)
+                  ? planet.oof_ml_rank ?? idx + 1
                   : includeObserved
-                    ? (planet.priority_rank ?? idx + 1)
-                    : (planet.unobserved_rank ?? planet.priority_rank ?? idx + 1);
+                    ? planet.priority_rank ?? idx + 1
+                    : planet.unobserved_rank ?? planet.priority_rank ?? idx + 1;
               const currentScore =
                 activeTab === 'validation'
-                  ? (planet.oof_priority_score ?? planet.priority_score ?? 0)
-                  : (planet.priority_score ?? planet.ml_priority_score ?? 0);
+                  ? planet.oof_priority_score ?? planet.priority_score ?? 0
+                  : planet.priority_score ?? planet.ml_priority_score ?? 0;
 
               return (
                 <div
@@ -357,7 +365,8 @@ const TopTargets = () => {
                         className="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 cursor-help"
                         title={`Raw score: ${formatRawScore(currentScore)}`}
                       >
-                        {planet.percentile_rank_string || `Top ${planet.percentile_rank || 0.1}% of 4,643 eligible`}
+                        {planet.percentile_rank_string ||
+                          `Top ${planet.percentile_rank || 0.1}% of 4,643 eligible`}
                       </span>
                     </div>
 
@@ -379,7 +388,8 @@ const TopTargets = () => {
                         className="text-[10px] font-mono text-exosignal-text-muted cursor-help"
                         title={`Raw score: ${formatRawScore(currentScore)}`}
                       >
-                        Score: <span className="text-white font-bold">{formatPriority(currentScore)}</span>
+                        Score:{' '}
+                        <span className="text-white font-bold">{formatPriority(currentScore)}</span>
                       </span>
                       <Link
                         to={`/planet/${encodeURIComponent(planet.planet_name)}`}
@@ -557,14 +567,14 @@ const TopTargets = () => {
                     const isFav = isFavorite(planet.planet_name);
                     const pRank =
                       activeTab === 'validation'
-                        ? (planet.oof_ml_rank ?? index + 1)
+                        ? planet.oof_ml_rank ?? index + 1
                         : includeObserved
-                          ? (planet.priority_rank ?? index + 1)
-                          : (planet.unobserved_rank ?? planet.priority_rank ?? index + 1);
+                          ? planet.priority_rank ?? index + 1
+                          : planet.unobserved_rank ?? planet.priority_rank ?? index + 1;
                     const currentScore =
                       activeTab === 'validation'
-                        ? (planet.oof_priority_score ?? planet.priority_score ?? 0)
-                        : (planet.priority_score ?? planet.ml_priority_score ?? 0);
+                        ? planet.oof_priority_score ?? planet.priority_score ?? 0
+                        : planet.priority_score ?? planet.ml_priority_score ?? 0;
 
                     return (
                       <tr
@@ -606,7 +616,8 @@ const TopTargets = () => {
                           </div>
                           <div className="text-[10px] text-exosignal-text-muted">
                             Threshold: {renderKemptonThreshold(planet)}{' '}
-                            {!(Number(planet.planet_radius) > 10.0) && `(${planet.kempton_size_class || 'Terrestrial'})`}
+                            {!(Number(planet.planet_radius) > 10.0) &&
+                              `(${planet.kempton_size_class || 'Terrestrial'})`}
                           </div>
                         </td>
                         <td className="py-3.5 px-4 text-exosignal-text-secondary">

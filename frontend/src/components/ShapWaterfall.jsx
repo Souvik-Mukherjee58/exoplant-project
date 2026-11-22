@@ -7,11 +7,7 @@ import { explainabilityApi } from '../services/api';
  * contributions in log-odds units (Δ log-odds), alongside the base value, final logit,
  * and converted percentile rank score.
  */
-export const ShapWaterfall = ({
-  planetName,
-  mlRank,
-  rankDelta,
-}) => {
+export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
   const [explanation, setExplanation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -74,8 +70,10 @@ export const ShapWaterfall = ({
 
   const baseLogit = mathematical_invariants?.base_margin ?? explanation.base_logit ?? 0;
   const sumShap = mathematical_invariants?.sum_shap_margin ?? 0;
-  const finalLogit = mathematical_invariants?.predicted_margin ?? explanation.final_logit ?? (baseLogit + sumShap);
-  const residual = mathematical_invariants?.reconstruction_error ?? Math.abs(sumShap + baseLogit - finalLogit);
+  const finalLogit =
+    mathematical_invariants?.predicted_margin ?? explanation.final_logit ?? baseLogit + sumShap;
+  const residual =
+    mathematical_invariants?.reconstruction_error ?? Math.abs(sumShap + baseLogit - finalLogit);
   const convertedPercentile = ml_priority_score;
 
   const displayedItems =
@@ -85,10 +83,7 @@ export const ShapWaterfall = ({
         )
       : full_waterfall;
 
-  const maxAbsShap = Math.max(
-    ...full_waterfall.map((i) => Math.abs(i.shap_value || 0)),
-    0.01
-  );
+  const maxAbsShap = Math.max(...full_waterfall.map((i) => Math.abs(i.shap_value || 0)), 0.01);
 
   // Formatter guaranteed never to display as 0.0 when |phi| > 0.01
   const formatLogOdds = (val) => {
@@ -112,7 +107,9 @@ export const ShapWaterfall = ({
             </span>
           </div>
           <p className="text-exosignal-text/70 text-sm mt-1">
-            Exact local feature attribution decomposing the regularized logistic regression model's decision in log-odds units (Δ log-odds) into physical positive drivers and negative barriers.
+            Exact local feature attribution decomposing the regularized logistic regression model's
+            decision in log-odds units (Δ log-odds) into physical positive drivers and negative
+            barriers.
           </p>
         </div>
 
@@ -126,9 +123,17 @@ export const ShapWaterfall = ({
           )}
           {rankDelta !== null && rankDelta !== undefined && (
             <div className="px-3 py-1.5 rounded-lg bg-space-dark border border-exosignal-blue/30 text-right">
-              <span className="text-xs text-exosignal-text/60 block font-mono">Rank Shift vs Heuristic</span>
+              <span className="text-xs text-exosignal-text/60 block font-mono">
+                Rank Shift vs Heuristic
+              </span>
               <span
-                className={`text-base font-bold font-mono ${rankDelta > 0 ? 'text-emerald-400' : rankDelta < 0 ? 'text-rose-400' : 'text-gray-400'}`}
+                className={`text-base font-bold font-mono ${
+                  rankDelta > 0
+                    ? 'text-emerald-400'
+                    : rankDelta < 0
+                      ? 'text-rose-400'
+                      : 'text-gray-400'
+                }`}
               >
                 {rankDelta > 0 ? `▲ +${rankDelta}` : rankDelta < 0 ? `▼ ${rankDelta}` : '— 0'}
               </span>
@@ -144,13 +149,17 @@ export const ShapWaterfall = ({
           <p className="text-xl font-bold font-mono text-exosignal-text mt-1">
             {baseLogit > 0 ? `+${baseLogit.toFixed(3)}` : baseLogit.toFixed(3)}
           </p>
-          <p className="text-[11px] text-exosignal-text/50 mt-1 font-mono">Global intercept (log-odds)</p>
+          <p className="text-[11px] text-exosignal-text/50 mt-1 font-mono">
+            Global intercept (log-odds)
+          </p>
         </div>
 
         <div className="bg-space-dark rounded-lg p-4 border border-exosignal-blue/20">
           <p className="text-xs text-exosignal-text/60 font-mono">Net Feature Shift (Σ φᵢ)</p>
           <p
-            className={`text-xl font-bold font-mono mt-1 ${sumShap >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+            className={`text-xl font-bold font-mono mt-1 ${
+              sumShap >= 0 ? 'text-emerald-400' : 'text-rose-400'
+            }`}
           >
             {sumShap >= 0 ? `+${sumShap.toFixed(3)}` : sumShap.toFixed(3)}
           </p>
@@ -158,19 +167,25 @@ export const ShapWaterfall = ({
         </div>
 
         <div className="bg-space-dark rounded-lg p-4 border border-exosignal-blue/30 bg-exosignal-blue/5">
-          <p className="text-xs text-exosignal-accent font-semibold font-mono">Final Logit (w·x + w₀)</p>
+          <p className="text-xs text-exosignal-accent font-semibold font-mono">
+            Final Logit (w·x + w₀)
+          </p>
           <p className="text-xl font-extrabold font-mono text-exosignal-accent mt-1">
             {finalLogit > 0 ? `+${finalLogit.toFixed(3)}` : finalLogit.toFixed(3)}
           </p>
-          <p className="text-[11px] text-exosignal-text/50 mt-1 font-mono">Predicted model margin</p>
+          <p className="text-[11px] text-exosignal-text/50 mt-1 font-mono">
+            Predicted model margin
+          </p>
         </div>
 
         <div className="bg-space-dark rounded-lg p-4 border border-emerald-500/20 bg-emerald-500/5">
-          <p className="text-xs text-emerald-400 font-semibold font-mono">Converted Percentile</p>
+          <p className="text-xs text-emerald-400 font-semibold font-mono">Model Score</p>
           <p className="text-xl font-extrabold font-mono text-emerald-400 mt-1">
             {convertedPercentile.toFixed(1)} / 100
           </p>
-          <p className="text-[11px] text-exosignal-text/50 mt-1 font-mono">σ(logit) · 100 calibrated score</p>
+          <p className="text-[11px] text-exosignal-text/50 mt-1 font-mono">
+            σ(logit) × 100: a ranking score, not a calibrated probability
+          </p>
         </div>
       </div>
 
@@ -183,6 +198,11 @@ export const ShapWaterfall = ({
           Reconstruction residual: {residual.toExponential(2)}
         </span>
       </div>
+      <p className="text-[11px] text-exosignal-text/50 font-mono -mt-3 mb-6">
+        This explains the production model fitted on all labels. For planets that are themselves
+        labels, the rank shown elsewhere uses an out-of-fold score (model not trained on that
+        planet), so the two scores can differ.
+      </p>
 
       {/* Toggle View Mode */}
       <div className="flex items-center justify-between mt-6 mb-4">
@@ -194,13 +214,21 @@ export const ShapWaterfall = ({
         <div className="flex items-center bg-space-dark p-1 rounded-lg border border-exosignal-blue/20">
           <button
             onClick={() => setViewMode('summary')}
-            className={`px-3 py-1 rounded text-xs font-medium font-mono transition ${viewMode === 'summary' ? 'bg-exosignal-blue text-space-darker font-bold' : 'text-exosignal-text/70 hover:text-white'}`}
+            className={`px-3 py-1 rounded text-xs font-medium font-mono transition ${
+              viewMode === 'summary'
+                ? 'bg-exosignal-blue text-space-darker font-bold'
+                : 'text-exosignal-text/70 hover:text-white'
+            }`}
           >
             Key Drivers (10)
           </button>
           <button
             onClick={() => setViewMode('full')}
-            className={`px-3 py-1 rounded text-xs font-medium font-mono transition ${viewMode === 'full' ? 'bg-exosignal-blue text-space-darker font-bold' : 'text-exosignal-text/70 hover:text-white'}`}
+            className={`px-3 py-1 rounded text-xs font-medium font-mono transition ${
+              viewMode === 'full'
+                ? 'bg-exosignal-blue text-space-darker font-bold'
+                : 'text-exosignal-text/70 hover:text-white'
+            }`}
           >
             Full Waterfall ({full_waterfall.length})
           </button>
@@ -234,7 +262,9 @@ export const ShapWaterfall = ({
 
                 <div className="flex items-center gap-4 text-right">
                   <span
-                    className={`text-sm font-bold font-mono min-w-[130px] ${isPos ? 'text-emerald-400' : 'text-rose-400'}`}
+                    className={`text-sm font-bold font-mono min-w-[130px] ${
+                      isPos ? 'text-emerald-400' : 'text-rose-400'
+                    }`}
                   >
                     {formatLogOdds(item.shap_value)}
                   </span>
@@ -286,4 +316,3 @@ export const ShapWaterfall = ({
 
 export const TreeSHAPWaterfall = ShapWaterfall;
 export default ShapWaterfall;
-

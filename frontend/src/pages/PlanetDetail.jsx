@@ -18,6 +18,25 @@ import SectionDivider from '../components/SectionDivider';
 import SegmentedTabs from '../components/SegmentedTabs';
 import Planet3DVisualizer from '../components/Planet3DVisualizer';
 
+/**
+ * Mass label from the provenance recorded by the backend. Never claims "Measured" without evidence:
+ * most archive masses of transiting planets come from a mass-radius relation, not a measurement.
+ */
+export const massLabel = (planet) => {
+  switch (planet?.mass_source) {
+    case 'measured':
+      return 'Measured Mass';
+    case 'archive_mr_relation':
+      return 'Estimated Mass (archive mass-radius relation)';
+    case 'chen_kipping_2017':
+      return 'Estimated Mass (Chen & Kipping 2017)';
+    default:
+      if (planet?.mass_is_estimated === true) return 'Estimated Mass (mass-radius relation)';
+      if (planet?.mass_is_estimated === false) return 'Measured Mass';
+      return 'Mass (provenance not recorded)';
+  }
+};
+
 const PlanetDetail = () => {
   const { planetName } = useParams();
   const { planet, loading, error } = usePlanetDetail(planetName);
@@ -65,9 +84,17 @@ const PlanetDetail = () => {
           : 'It orbits outside the circumstellar habitable zone.';
 
     if (planet.priority_score != null) {
-      return `${planet.planet_name} achieves an overall priority score of ${formatPriority(planet.priority_score)}/100 under the multi-criteria ranking model. ${hzDesc} Its estimated distance is ${formatDistance(planet.distance)} with an equilibrium temperature of ~${Math.round(planet.equilibrium_temperature || 0)} K.`;
+      return `${planet.planet_name} achieves an overall priority score of ${formatPriority(
+        planet.priority_score
+      )}/100 under the multi-criteria ranking model. ${hzDesc} Its estimated distance is ${formatDistance(
+        planet.distance
+      )} with an equilibrium temperature of ~${Math.round(planet.equilibrium_temperature || 0)} K.`;
     }
-    return `${planet.planet_name} is currently not eligible for priority ranking (${planet.exclusion_reason || 'non-transiting or missing parameter'}). ${hzDesc} Its estimated distance is ${formatDistance(planet.distance)} with an equilibrium temperature of ~${Math.round(planet.equilibrium_temperature || 0)} K.`;
+    return `${planet.planet_name} is currently not eligible for priority ranking (${
+      planet.exclusion_reason || 'non-transiting or missing parameter'
+    }). ${hzDesc} Its estimated distance is ${formatDistance(
+      planet.distance
+    )} with an equilibrium temperature of ~${Math.round(planet.equilibrium_temperature || 0)} K.`;
   };
 
   const getSuggestedObservations = () => {
@@ -86,7 +113,9 @@ const PlanetDetail = () => {
     if (teq && teq > 600) {
       list.push({
         title: 'Secondary Eclipse / Thermal Emission',
-        desc: `With an equilibrium temperature of ~${Math.round(teq)} K, secondary eclipse measurements can probe dayside thermal emission and atmospheric albedo.`,
+        desc: `With an equilibrium temperature of ~${Math.round(
+          teq
+        )} K, secondary eclipse measurements can probe dayside thermal emission and atmospheric albedo.`,
       });
     }
 
@@ -98,7 +127,9 @@ const PlanetDetail = () => {
     if (sma && sma > 1.5) {
       list.push({
         title: 'High-Contrast Direct Imaging (Roman CGI / ELT)',
-        desc: `With a semi-major axis of ${sma.toFixed(2)} AU, this planet has sufficient angular separation for coronagraphic direct imaging follow-up.`,
+        desc: `With a semi-major axis of ${sma.toFixed(
+          2
+        )} AU, this planet has sufficient angular separation for coronagraphic direct imaging follow-up.`,
       });
     }
 
@@ -192,10 +223,7 @@ const PlanetDetail = () => {
                     }
                   >
                     {currentScore != null ? (
-                      planet.percentile_rank_string ||
-                      (planet.percentile_rank
-                        ? `Top ${planet.percentile_rank}% of 4,643 eligible`
-                        : `Top 0.1% of 4,643 eligible`)
+                      planet.percentile_rank_string || 'Percentile not available'
                     ) : (
                       <span
                         className="cursor-help text-slate-400"
@@ -223,7 +251,9 @@ const PlanetDetail = () => {
                       #{currentRank}{' '}
                       {planet.rank_delta !== undefined && (
                         <span
-                          className={`text-xs ${planet.rank_delta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+                          className={`text-xs ${
+                            planet.rank_delta >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                          }`}
                         >
                           (
                           {planet.rank_delta >= 0
@@ -285,17 +315,22 @@ const PlanetDetail = () => {
                         : planet.planet_radius > 1.8
                           ? 'Sub-Neptune'
                           : 'Terrestrial',
-                  radius: planet.planet_radius ? `${planet.planet_radius.toFixed(2)} R⊕` : '1.0 R⊕',
+                  radius: planet.planet_radius
+                    ? `${planet.planet_radius.toFixed(2)} R⊕`
+                    : 'not in archive',
                   teq: planet.equilibrium_temperature
                     ? `${Math.round(planet.equilibrium_temperature)} K`
-                    : '280 K',
+                    : 'not in archive',
                   period: planet.orbital_period
                     ? `${planet.orbital_period.toFixed(1)} days`
-                    : '10 days',
+                    : 'not in archive',
                   transitDepth:
                     planet.planet_radius && planet.stellar_radius
-                      ? `${(((planet.planet_radius / (planet.stellar_radius * 109.1)) ** 2) * 100).toFixed(3)}%`
-                      : '0.25%',
+                      ? `${(
+                          (planet.planet_radius / (planet.stellar_radius * 109.1)) ** 2 *
+                          100
+                        ).toFixed(3)}%`
+                      : 'not computable',
                   atmosphereColor:
                     planet.hz_status === 'Inside HZ'
                       ? 'rgba(16, 185, 129, 0.45)'
@@ -370,10 +405,15 @@ const PlanetDetail = () => {
                   <div className="bg-space-void/80 p-3.5 rounded-xl border border-exosignal-cyan/15">
                     <span className="text-exosignal-text-muted block text-[10px]">Radius</span>
                     <span className="text-white font-bold text-sm">
-                      {planet.planet_radius !== null && planet.planet_radius !== undefined && !isNaN(planet.planet_radius) ? (
+                      {planet.planet_radius !== null &&
+                      planet.planet_radius !== undefined &&
+                      !isNaN(planet.planet_radius) ? (
                         formatRadius(planet.planet_radius)
                       ) : (
-                        <span title="Parameter not reported in NASA Exoplanet Archive" className="text-slate-500 italic text-xs cursor-help">
+                        <span
+                          title="Parameter not reported in NASA Exoplanet Archive"
+                          className="text-slate-500 italic text-xs cursor-help"
+                        >
                           not in archive
                         </span>
                       )}
@@ -381,13 +421,18 @@ const PlanetDetail = () => {
                   </div>
                   <div className="bg-space-void/80 p-3.5 rounded-xl border border-exosignal-cyan/15">
                     <span className="text-exosignal-text-muted block text-[10px]">
-                      {planet.mass_is_estimated ? 'Estimated Mass (Chen & Kipping 2017)' : 'Measured Mass'}
+                      {massLabel(planet)}
                     </span>
                     <span className="text-white font-bold text-sm">
-                      {planet.planet_mass !== null && planet.planet_mass !== undefined && !isNaN(planet.planet_mass) ? (
+                      {planet.planet_mass !== null &&
+                      planet.planet_mass !== undefined &&
+                      !isNaN(planet.planet_mass) ? (
                         formatMass(planet.planet_mass)
                       ) : (
-                        <span title="Parameter not reported in NASA Exoplanet Archive" className="text-slate-500 italic text-xs cursor-help">
+                        <span
+                          title="Parameter not reported in NASA Exoplanet Archive"
+                          className="text-slate-500 italic text-xs cursor-help"
+                        >
                           not in archive
                         </span>
                       )}
@@ -398,10 +443,15 @@ const PlanetDetail = () => {
                       Orbital Period
                     </span>
                     <span className="text-white font-bold text-sm">
-                      {planet.orbital_period !== null && planet.orbital_period !== undefined && !isNaN(planet.orbital_period) ? (
+                      {planet.orbital_period !== null &&
+                      planet.orbital_period !== undefined &&
+                      !isNaN(planet.orbital_period) ? (
                         formatPeriod(planet.orbital_period)
                       ) : (
-                        <span title="Parameter not reported in NASA Exoplanet Archive" className="text-slate-500 italic text-xs cursor-help">
+                        <span
+                          title="Parameter not reported in NASA Exoplanet Archive"
+                          className="text-slate-500 italic text-xs cursor-help"
+                        >
                           not in archive
                         </span>
                       )}
@@ -412,10 +462,15 @@ const PlanetDetail = () => {
                       Equilibrium Temp
                     </span>
                     <span className="text-white font-bold text-sm">
-                      {planet.equilibrium_temperature !== null && planet.equilibrium_temperature !== undefined && !isNaN(planet.equilibrium_temperature) ? (
+                      {planet.equilibrium_temperature !== null &&
+                      planet.equilibrium_temperature !== undefined &&
+                      !isNaN(planet.equilibrium_temperature) ? (
                         formatTemperature(planet.equilibrium_temperature)
                       ) : (
-                        <span title="Parameter not reported in NASA Exoplanet Archive" className="text-slate-500 italic text-xs cursor-help">
+                        <span
+                          title="Parameter not reported in NASA Exoplanet Archive"
+                          className="text-slate-500 italic text-xs cursor-help"
+                        >
                           not in archive
                         </span>
                       )}
@@ -448,7 +503,10 @@ const PlanetDetail = () => {
                       {planet.stellar_radius ? (
                         `${planet.stellar_radius.toFixed(2)} R☉`
                       ) : (
-                        <span title="Parameter not reported in NASA Exoplanet Archive" className="text-slate-500 italic text-xs cursor-help">
+                        <span
+                          title="Parameter not reported in NASA Exoplanet Archive"
+                          className="text-slate-500 italic text-xs cursor-help"
+                        >
                           not in archive
                         </span>
                       )}
@@ -462,7 +520,10 @@ const PlanetDetail = () => {
                       {planet.stellar_teff ? (
                         `${Math.round(planet.stellar_teff)} K`
                       ) : (
-                        <span title="Parameter not reported in NASA Exoplanet Archive" className="text-slate-500 italic text-xs cursor-help">
+                        <span
+                          title="Parameter not reported in NASA Exoplanet Archive"
+                          className="text-slate-500 italic text-xs cursor-help"
+                        >
                           not in archive
                         </span>
                       )}

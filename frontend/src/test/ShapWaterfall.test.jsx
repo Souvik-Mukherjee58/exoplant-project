@@ -71,12 +71,12 @@ describe('ShapWaterfall Component (Linear SHAP)', () => {
   it('renders Linear SHAP explanation for Kepler-452 b with log-odds units and Lundberg & Lee citation', async () => {
     explainabilityApi.getPlanetExplanation.mockResolvedValueOnce(mockKepler452bExplanation);
 
-    render(
-      <ShapWaterfall planetName="Kepler-452 b" mlRank={5} rankDelta={2} />
-    );
+    render(<ShapWaterfall planetName="Kepler-452 b" mlRank={5} rankDelta={2} />);
 
     // Initial loading indicator
-    expect(screen.getByText(/Computing exact Linear SHAP feature attributions/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Computing exact Linear SHAP feature attributions/i)
+    ).toBeInTheDocument();
 
     // Await async fetch resolution
     await waitFor(() => {
@@ -98,9 +98,11 @@ describe('ShapWaterfall Component (Linear SHAP)', () => {
     expect(screen.getByText('+1.766')).toBeInTheDocument();
     expect(screen.getByText('Final Logit (w·x + w₀)')).toBeInTheDocument();
 
-    // 5. Converted Percentile
+    // 5. Model score: sigma(logit) x 100 is a ranking score, never presented as a percentile or calibrated
     expect(screen.getByText(/85\.4/)).toBeInTheDocument();
-    expect(screen.getByText(/Converted Percentile/i)).toBeInTheDocument();
+    expect(screen.getByText('Model Score')).toBeInTheDocument();
+    expect(screen.getByText(/not a calibrated probability/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Converted Percentile/i)).not.toBeInTheDocument();
 
     // 6. No contribution displays as 0.0 when |phi| > 0.01
     // The value 0.014 must render as +0.014 Δ log-odds, never 0.0 or 0.00

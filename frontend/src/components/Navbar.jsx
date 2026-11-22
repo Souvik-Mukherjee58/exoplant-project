@@ -156,7 +156,9 @@ const Navbar = () => {
               <span className={`pulsing-dot ${systemStatus.ok ? 'emerald' : 'cyan'}`}></span>
               <span>DuckDB In-Memory</span>
               <span className="text-exosignal-cyan/60">•</span>
-              <span className="text-exosignal-cyan">&lt; 10ms P50</span>
+              <span className="text-exosignal-cyan">
+                {systemStatus.ok ? 'API online' : 'API status unknown'}
+              </span>
             </div>
 
             {/* Favorites Counter Pill */}

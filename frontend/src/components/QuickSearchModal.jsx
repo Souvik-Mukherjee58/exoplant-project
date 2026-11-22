@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { planetsApi } from '../services/api';
 import ShapWaterfall from './ShapWaterfall';
-import { getIneligibleTooltip } from '../utils/formatters';
+import { formatPriority, getIneligibleTooltip } from '../utils/formatters';
 
 const SUGGESTED_QUERIES = ['kepler 452 b', 'TRAPPIST-1 e', 'TOI-700 d', 'K2-18 b', 'WASP-96 b'];
 
@@ -289,7 +289,7 @@ export const QuickSearchModal = ({ isOpen, onClose }) => {
                               Score:{' '}
                               {planet.priority_score != null ? (
                                 <strong className="text-amber-300">
-                                  {Number(planet.priority_score).toFixed(1)}
+                                  {formatPriority(planet.priority_score)}
                                 </strong>
                               ) : (
                                 <span

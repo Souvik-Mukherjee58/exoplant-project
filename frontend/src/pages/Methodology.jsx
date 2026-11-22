@@ -135,7 +135,7 @@ const Methodology = () => {
                 </span>
                 <p className="text-exosignal-text-muted">
                   Serializes processed tables to columnar Snappy-compressed Parquet, queried
-                  directly in memory with 6.8ms P50 latency (170ms P50 under concurrent load per
+                  directly in memory. Latency under load is not yet measured (see
                   reports/LOADTEST.md).
                 </p>
               </div>
@@ -162,7 +162,8 @@ const Methodology = () => {
                   Mathematical Component Hierarchy (0–100 Scale)
                 </h3>
                 <span className="text-[11px] font-mono text-exosignal-text-muted">
-                  Dynamic weights synchronized from priority_scorer.py config via GET /api/v1/methodology/weights
+                  Dynamic weights synchronized from priority_scorer.py config via GET
+                  /api/v1/methodology/weights
                 </span>
               </div>
               <span className="text-xs font-mono text-emerald-400">
@@ -173,33 +174,43 @@ const Methodology = () => {
               {/* Category Weight Pills */}
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5 font-mono text-xs">
                 <div className="bg-space-void/90 p-3 rounded-xl border border-exosignal-cyan/30 text-center">
-                  <span className="text-[10px] text-exosignal-text-muted block uppercase">Planetary</span>
+                  <span className="text-[10px] text-exosignal-text-muted block uppercase">
+                    Planetary
+                  </span>
                   <span className="text-lg font-bold text-exosignal-cyan">
-                    {weightsData?.percentages?.planetary_relevance ?? 35}%
+                    {weightsData?.percentages?.planetary_relevance ?? '—'}%
                   </span>
                 </div>
                 <div className="bg-space-void/90 p-3 rounded-xl border border-blue-500/30 text-center">
-                  <span className="text-[10px] text-exosignal-text-muted block uppercase">Transmission</span>
+                  <span className="text-[10px] text-exosignal-text-muted block uppercase">
+                    Transmission
+                  </span>
                   <span className="text-lg font-bold text-blue-400">
-                    {weightsData?.percentages?.observational_accessibility ?? 30}%
+                    {weightsData?.percentages?.observational_accessibility ?? '—'}%
                   </span>
                 </div>
                 <div className="bg-space-void/90 p-3 rounded-xl border border-amber-500/30 text-center">
-                  <span className="text-[10px] text-exosignal-text-muted block uppercase">Stellar</span>
+                  <span className="text-[10px] text-exosignal-text-muted block uppercase">
+                    Stellar
+                  </span>
                   <span className="text-lg font-bold text-amber-400">
-                    {weightsData?.percentages?.stellar_characteristics ?? 15}%
+                    {weightsData?.percentages?.stellar_characteristics ?? '—'}%
                   </span>
                 </div>
                 <div className="bg-space-void/90 p-3 rounded-xl border border-purple-500/30 text-center">
-                  <span className="text-[10px] text-exosignal-text-muted block uppercase">Completeness</span>
+                  <span className="text-[10px] text-exosignal-text-muted block uppercase">
+                    Completeness
+                  </span>
                   <span className="text-lg font-bold text-purple-400">
-                    {weightsData?.percentages?.data_quality ?? 10}%
+                    {weightsData?.percentages?.data_quality ?? '—'}%
                   </span>
                 </div>
                 <div className="bg-space-void/90 p-3 rounded-xl border border-rose-500/30 text-center col-span-2 sm:col-span-1">
-                  <span className="text-[10px] text-exosignal-text-muted block uppercase">Anomaly</span>
+                  <span className="text-[10px] text-exosignal-text-muted block uppercase">
+                    Anomaly
+                  </span>
                   <span className="text-lg font-bold text-rose-400">
-                    {weightsData?.percentages?.anomaly_score ?? 10}%
+                    {weightsData?.percentages?.anomaly_score ?? '—'}%
                   </span>
                 </div>
               </div>
@@ -207,22 +218,24 @@ const Methodology = () => {
               <div className="bg-space-void/90 rounded-xl p-5 border border-exosignal-cyan/20">
                 <pre className="text-xs font-mono text-exosignal-cyan leading-relaxed overflow-x-auto">
                   {`Target Priority Score (0–100)
-├── Planetary Relevance (${weightsData?.percentages?.planetary_relevance ?? 35}%)
+├── Planetary Relevance (${weightsData?.percentages?.planetary_relevance ?? '—'}%)
 │   ├── Earth Similarity Index (ESI) (Schulze-Makuch et al. 2011)
 │   ├── Circumstellar Habitable Zone Position (Kopparapu et al. 2013/2014)
 │   ├── Planetary Radius Envelope (Terrestrial / Super-Earth regime)
 │   └── Equilibrium Temperature temperate window
-├── Observational Transmission Yield (${weightsData?.percentages?.observational_accessibility ?? 30}%)
+├── Observational Transmission Yield (${
+                    weightsData?.percentages?.observational_accessibility ?? '—'
+                  }%)
 │   ├── Transmission Spectroscopy Metric (TSM) (Kempton et al. 2018)
 │   ├── Atmospheric Scale Height (H = k·T / (μ·g))
 │   └── Distance Attenuation (parsec dilution)
-├── Stellar Characteristics (${weightsData?.percentages?.stellar_characteristics ?? 15}%)
+├── Stellar Characteristics (${weightsData?.percentages?.stellar_characteristics ?? '—'}%)
 │   ├── Host Star Effective Temperature (Teff)
 │   ├── Stellar Radius (R☉) — smaller dwarfs maximize transit depth
 │   └── 2MASS Near-Infrared K-Magnitude (stellar flux in spectroscopy bands)
-├── Data Quality & Completeness (${weightsData?.percentages?.data_quality ?? 10}%)
+├── Data Quality & Completeness (${weightsData?.percentages?.data_quality ?? '—'}%)
 │   └── Non-missing parameter coverage across critical orbital elements
-└── Anomaly Index (${weightsData?.percentages?.anomaly_score ?? 10}%)
+└── Anomaly Index (${weightsData?.percentages?.anomaly_score ?? '—'}%)
     ├── Isolation Forest Outlier Score
     └── Local Outlier Factor (LOF) density deviation`}
                 </pre>

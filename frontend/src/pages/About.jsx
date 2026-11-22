@@ -88,8 +88,8 @@ const About = () => {
                 <ul className="text-xs font-mono space-y-2 text-exosignal-text-secondary">
                   <li>• FastAPI (Python 3.11) asynchronous REST microservice</li>
                   <li>
-                    • DuckDB in-memory analytical query engine (6.8ms P50 query latency, 170ms P50
-                    under concurrent load per reports/LOADTEST.md)
+                    • DuckDB in-memory analytical query engine (latency under load not yet measured;
+                    see reports/LOADTEST.md)
                   </li>
                   <li>
                     • Regularized Logistic Regression (Variant A) prioritizing transmission

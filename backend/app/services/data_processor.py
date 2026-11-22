@@ -312,7 +312,7 @@ class DataProcessor:
             return {
                 "artifact_version": version,
                 "model_name": models_info.get("ltr_model", "ltr_model.joblib"),
-                "algorithm": models_info.get("ltr_algorithm", "LightGBM Supervised Learning-to-Rank GBDT"),
+                "algorithm": models_info.get("ltr_algorithm", "unknown (algorithm missing from manifest)"),
                 "top_features": models_info.get("ltr_top_features", []),
                 "benchmark_leaderboard": bench_info.get("leaderboard", []),
             }
@@ -320,7 +320,7 @@ class DataProcessor:
         return {
             "artifact_version": version,
             "model_name": "ltr_model.joblib",
-            "algorithm": "LightGBM Supervised Learning-to-Rank GBDT",
+            "algorithm": "unknown (algorithm missing from manifest)",
             "status": "Available via pipeline build",
         }
 

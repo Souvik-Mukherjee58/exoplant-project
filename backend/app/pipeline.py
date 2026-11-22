@@ -125,9 +125,7 @@ def build_artifacts(
     print("      Computing Out-Of-Fold predictions across host star groups...")
     from app.ml.ltr_model import compute_out_of_fold_predictions
 
-    oof_preds = compute_out_of_fold_predictions(
-        eligible_df, feature_variant="A", random_state=settings.RANDOM_STATE
-    )
+    oof_preds = compute_out_of_fold_predictions(eligible_df, feature_variant="A", random_state=settings.RANDOM_STATE)
 
     # Production Model: Regularized Logistic Regression (Variant A) selected by 25-fold CV
     prod_model = ExoSignalLTRModel(model_type="logistic", feature_variant="A", random_state=settings.RANDOM_STATE)

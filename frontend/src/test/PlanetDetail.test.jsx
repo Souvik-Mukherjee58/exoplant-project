@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import PlanetDetail from '../pages/PlanetDetail';
+import PlanetDetail, { massLabel } from '../pages/PlanetDetail';
 
 // Mock 3D Visualizer and SHAP Waterfall for JSDOM
 vi.mock('../components/Planet3DVisualizer', () => ({
@@ -45,6 +45,9 @@ describe('PlanetDetail Component', () => {
         anomaly_score: 0.18,
         discovery_method: 'Transit',
         target_priority_score: 82.0,
+        percentile_rank_string: 'Top 0.1% of 4,643 eligible',
+        mass_is_estimated: false,
+        mass_source: 'measured',
       },
       loading: false,
       error: null,
@@ -72,8 +75,9 @@ describe('PlanetDetail Component', () => {
     // Asserts habitability heuristic is strictly labelled
     expect(screen.getByText('Habitability heuristic (not used for ranking)')).toBeInTheDocument();
 
-    // Asserts default measured mass label when mass_is_estimated is false
+    // Measured mass label only when the backend says the mass is measured
     expect(screen.getByText('Measured Mass')).toBeInTheDocument();
+    expect(screen.queryByText(/Estimated Mass/)).not.toBeInTheDocument();
   });
 
   it('renders "Estimated Mass (Chen & Kipping 2017)" when mass_is_estimated is true', () => {
@@ -86,6 +90,7 @@ describe('PlanetDetail Component', () => {
         planet_radius: 0.92,
         planet_mass: 0.77,
         mass_is_estimated: true,
+        mass_source: 'chen_kipping_2017',
         orbital_period: 6.1,
         equilibrium_temperature: 251,
         distance: 12.1,
@@ -180,5 +185,44 @@ describe('PlanetDetail Component', () => {
 
     // Habitability heuristic must be labelled strictly as not used for ranking
     expect(screen.getByText('Habitability heuristic (not used for ranking)')).toBeInTheDocument();
+  });
+
+  it('never invents a percentile when the backend does not provide one', () => {
+    mockPlanetState = {
+      planet: {
+        planet_name: 'Syn-Percentile b',
+        hostname: 'Syn-Percentile',
+        priority_score: 42.0,
+        priority_rank: 900,
+        planet_radius: 2.0,
+        planet_mass: 5.0,
+        discovery_method: 'Transit',
+      },
+      loading: false,
+      error: null,
+    };
+    render(
+      <MemoryRouter initialEntries={['/planet/Syn-Percentile%20b']}>
+        <Routes>
+          <Route path="/planet/:planetName" element={<PlanetDetail />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    expect(screen.getByText('Percentile not available')).toBeInTheDocument();
+    expect(screen.queryByText(/Top 0\.1%/)).not.toBeInTheDocument();
+  });
+
+  it('labels mass provenance from the backend and never defaults to "Measured"', () => {
+    expect(massLabel({ mass_source: 'archive_mr_relation', mass_is_estimated: true })).toBe(
+      'Estimated Mass (archive mass-radius relation)'
+    );
+    expect(massLabel({ mass_source: 'chen_kipping_2017' })).toBe(
+      'Estimated Mass (Chen & Kipping 2017)'
+    );
+    expect(massLabel({ mass_source: 'measured' })).toBe('Measured Mass');
+    expect(massLabel({ planet_mass: 3.29 })).toBe('Mass (provenance not recorded)');
+    expect(massLabel({ planet_mass: 3.29, mass_is_estimated: null })).toBe(
+      'Mass (provenance not recorded)'
+    );
   });
 });

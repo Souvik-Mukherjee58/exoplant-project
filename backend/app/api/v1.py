@@ -32,7 +32,7 @@ class PlanetResponse(BaseModel):
     ml_priority_score: Optional[float] = Field(
         None, ge=0.0, le=100.0, description="Supervised LTR priority score (0-100)"
     )
-    ml_rank: Optional[int] = Field(None, ge=1, description="Rank under supervised Learning-to-Rank model")
+    ml_rank: Optional[int] = Field(None, ge=1, description="Rank under the supervised ranking model")
     rank_delta: Optional[int] = Field(
         None, description="Rank shift between heuristic and ML (positive = ML ranks higher)"
     )
@@ -60,7 +60,11 @@ class PlanetResponse(BaseModel):
     unobserved_rank: Optional[int] = Field(None, description="Rank among unobserved candidates")
     is_jwst_target: Optional[bool] = Field(None, description="Whether target is a confirmed JWST target")
     mass_is_estimated: Optional[bool] = Field(
-        None, description="Whether planetary mass is estimated (Chen & Kipping 2017) vs measured"
+        None, description="True if the mass is estimated from a mass-radius relation; None if provenance unknown"
+    )
+    mass_source: Optional[str] = Field(
+        None,
+        description="measured | archive_mr_relation | chen_kipping_2017 | unknown_provenance | unavailable",
     )
 
     @field_validator("target_priority_score")
@@ -161,14 +165,10 @@ class PlanetExplanationResponse(BaseModel):
     base_logit: Optional[float] = Field(None, description="Base value margin in log-odds units")
     final_logit: Optional[float] = Field(None, description="Final predicted logit margin in log-odds units")
     converted_percentile: Optional[float] = Field(None, description="Converted percentile score from logit via sigmoid")
-    mathematical_invariants: MathematicalInvariants = Field(
-        ..., description="Linear SHAP additive conservation proof"
-    )
+    mathematical_invariants: MathematicalInvariants = Field(..., description="Linear SHAP additive conservation proof")
     top_positive_drivers: List[WaterfallItem] = Field(..., description="Top 5 features elevating priority")
     top_negative_barriers: List[WaterfallItem] = Field(..., description="Top 5 features lowering priority")
-    full_waterfall: List[WaterfallItem] = Field(
-        ..., description="All feature contributions ordered by absolute impact"
-    )
+    full_waterfall: List[WaterfallItem] = Field(..., description="All feature contributions ordered by absolute impact")
 
 
 class DifferentialWaterfallItem(BaseModel):
@@ -176,7 +176,7 @@ class DifferentialWaterfallItem(BaseModel):
     display_name: str = Field(..., description="Human-readable physical title")
     planet_a_value: str = Field(..., description="Target A formatted physical value")
     planet_b_value: str = Field(..., description="Target B formatted physical value")
-    diff_shap: float = Field(..., description="Delta TreeSHAP (phi_A - phi_B)")
+    diff_shap: float = Field(..., description="Delta Linear SHAP (phi_A - phi_B)")
     diff_score_impact: float = Field(..., description="Net score impact difference in points")
     advantage: str = Field(..., description="Favored target ('Planet A' or 'Planet B')")
     abs_diff: float = Field(..., description="Absolute differential magnitude")
@@ -270,47 +270,28 @@ def _row_to_planet_response(row: pd.Series) -> PlanetResponse:
         is_jwst_target=bool(row.get("is_jwst_target") or row.get("already_observed_jwst"))
         if pd.notna(row.get("is_jwst_target")) or pd.notna(row.get("already_observed_jwst"))
         else False,
-        mass_is_estimated=bool(row.get("mass_is_estimated"))
-        if pd.notna(row.get("mass_is_estimated"))
-        else (pd.isna(row.get("planet_mass")) or float(row.get("planet_mass") or 0.0) <= 0.0),
+        mass_is_estimated=_mass_is_estimated(row),
+        mass_source=_clean_val(row.get("mass_source")),
     )
 
 
+def _mass_is_estimated(row: pd.Series) -> Optional[bool]:
+    """True/False only when the artifact records mass provenance; None (unknown) otherwise.
+
+    Older artifacts have no provenance column. Inferring "measured" from the presence of a mass was wrong:
+    most archive masses for transiting planets are themselves estimates from a mass-radius relation.
+    """
+    value = row.get("mass_is_estimated")
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+    return bool(value)
+
+
 def _row_to_planet_detail_response(row: pd.Series) -> PlanetDetailResponse:
-    """Convert a DataFrame row to PlanetDetailResponse with unified One Score, One Rank."""
-    p_score = _clean_val(row.get("priority_score"))
-    if p_score is None:
-        p_score = _clean_val(row.get("ml_priority_score"))
-    if p_score is None:
-        p_score = float(row.get("target_priority_score", 0.0))
-
-    ml_r = int(row["ml_rank"]) if pd.notna(row.get("ml_rank")) else None
-    p_rank = int(row["priority_rank"]) if pd.notna(row.get("priority_rank")) else ml_r
-
-    heur_score = _clean_val(row.get("heuristic_habitability_score"))
-    if heur_score is None:
-        heur_score = float(row.get("target_priority_score", 0.0))
-
+    """Detail response = the list response (single source of truth) plus detail-only fields."""
+    base = _row_to_planet_response(row).model_dump()
     return PlanetDetailResponse(
-        planet_name=row.get("planet_name", ""),
-        priority_score=p_score,
-        priority_rank=p_rank,
-        heuristic_habitability_score=heur_score,
-        target_priority_score=float(row.get("target_priority_score", heur_score or 0.0)),
-        ml_priority_score=_clean_val(row.get("ml_priority_score")) or p_score,
-        ml_rank=ml_r or p_rank,
-        rank_delta=int(row["rank_delta"]) if pd.notna(row.get("rank_delta")) else None,
-        planet_radius=_clean_val(row.get("planet_radius")),
-        planet_mass=_clean_val(row.get("planet_mass")),
-        orbital_period=_clean_val(row.get("orbital_period")),
-        equilibrium_temperature=_clean_val(row.get("equilibrium_temperature")),
-        distance=_clean_val(row.get("distance")),
-        hz_status=_clean_val(row.get("hz_status")),
-        anomaly_score=_clean_val(row.get("anomaly_score")),
-        discovery_method=_clean_val(row.get("discovery_method")),
-        is_transiting=_clean_val(row.get("is_transiting")),
-        eligible_for_transmission=_clean_val(row.get("eligible_for_transmission")),
-        exclusion_reason=_clean_val(row.get("exclusion_reason")),
+        **base,
         priority_components=_parse_components(row.get("priority_components", {})),
         stellar_effective_temperature=_clean_val(row.get("stellar_effective_temperature")),
         stellar_radius=_clean_val(row.get("stellar_radius")),
@@ -320,15 +301,6 @@ def _row_to_planet_detail_response(row: pd.Series) -> PlanetDetailResponse:
         earth_similarity=_clean_val(row.get("earth_similarity")),
         observational_accessibility=_clean_val(row.get("observational_accessibility")),
         data_quality=_clean_val(row.get("data_quality")),
-        is_jwst_target=bool(row.get("is_jwst_target") or row.get("already_observed_jwst"))
-        if pd.notna(row.get("is_jwst_target")) or pd.notna(row.get("already_observed_jwst"))
-        else False,
-        mass_is_estimated=bool(row.get("mass_is_estimated"))
-        if pd.notna(row.get("mass_is_estimated"))
-        else (pd.isna(row.get("planet_mass")) or float(row.get("planet_mass") or 0.0) <= 0.0),
-        oof_ml_rank=int(row["oof_ml_rank"]) if pd.notna(row.get("oof_ml_rank")) else None,
-        oof_priority_score=_clean_val(row.get("oof_priority_score")),
-        unobserved_rank=int(row["unobserved_rank"]) if pd.notna(row.get("unobserved_rank")) else None,
     )
 
 
@@ -388,7 +360,7 @@ def get_comparison_explanation(
     planet_b: str = Query(..., description="Target name of second exoplanet"),
 ):
     """
-    Differential TreeSHAP attribution: explains ranking differentials between two planets.
+    Differential Linear SHAP attribution: explains ranking differentials between two planets.
 
     Computes Delta_phi_i = phi_i(A) - phi_i(B) to isolate why Planet A ranks higher or lower than Planet B.
     """
@@ -420,7 +392,7 @@ def get_comparison_explanation(
         logger.error(f"Error comparing planets {planet_a} vs {planet_b}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to compute differential TreeSHAP explanation: {str(e)}",
+            detail=f"Failed to compute differential Linear SHAP explanation: {str(e)}",
         )
 
 
@@ -428,7 +400,7 @@ def get_comparison_explanation(
 @router.get("/explain/{planet_name}", response_model=PlanetExplanationResponse)
 def get_planet_explanation(planet_name: str):
     """
-    Compute exact TreeSHAP feature attribution waterfall and ranking drivers for an individual exoplanet.
+    Compute exact Linear SHAP feature attribution waterfall and ranking drivers for an individual exoplanet.
 
     Guarantees the mathematical conservation invariant: sum(phi_i) + base_margin = predicted_margin.
     """
@@ -453,7 +425,7 @@ def get_planet_explanation(planet_name: str):
         logger.error(f"Error explaining planet {planet_name}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to compute TreeSHAP explanation: {str(e)}",
+            detail=f"Failed to compute Linear SHAP explanation: {str(e)}",
         )
 
 
@@ -597,9 +569,7 @@ def get_recommendations(
                     hz_status=_clean_val(p.get("hz_status")),
                     anomaly_score=_clean_val(p.get("anomaly_score")),
                     is_jwst_target=bool(p.get("already_observed_jwst") or p.get("is_jwst_target")),
-                    mass_is_estimated=bool(p.get("mass_is_estimated"))
-                    if pd.notna(p.get("mass_is_estimated"))
-                    else (pd.isna(p.get("planet_mass")) or float(p.get("planet_mass") or 0.0) <= 0.0),
+                    mass_is_estimated=_mass_is_estimated(pd.Series(p)),
                 )
             )
         return results
@@ -714,7 +684,7 @@ def get_evaluation_benchmark(
 @router.get("/models/ltr/info")
 def get_ltr_info():
     """
-    Get Learning-to-Rank (LTR) model metadata, hyperparameters, and test benchmarks from in-memory manifest.
+    Get the supervised ranking model's metadata, hyperparameters and benchmarks from the artifact manifest.
     """
     try:
         engine = CatalogQueryEngine.get_instance()
@@ -729,7 +699,7 @@ def get_ltr_info():
 @router.get("/models/ltr/feature-importance")
 def get_ltr_feature_importance():
     """
-    Get ranked feature importances (information gain and split counts) for the LTR model from in-memory artifact.
+    Get ranked feature importances for the supervised ranking model (for the logistic regression: standardized coefficients).
     """
     try:
         engine = CatalogQueryEngine.get_instance()

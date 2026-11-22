@@ -2,11 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTopTargets } from '../hooks/usePlanets';
 import { useAnalytics } from '../hooks/useAnalytics';
-import {
-  formatPriority,
-  getIneligibleTooltip,
-  getCleanHostStar,
-} from '../utils/formatters';
+import { formatPriority, getIneligibleTooltip, getCleanHostStar } from '../utils/formatters';
 import { calculateHzPieData } from '../utils/hzDonut';
 import { modelsApi, planetsApi } from '../services/api';
 import {
@@ -78,7 +74,7 @@ const Home = () => {
   const featureChartData = useMemo(() => {
     if (featureImportances?.top_features && Array.isArray(featureImportances.top_features)) {
       return featureImportances.top_features.slice(0, 8).map((f) => {
-        const coef = typeof f.coefficient === 'number' ? f.coefficient : (f.gain || 0);
+        const coef = typeof f.coefficient === 'number' ? f.coefficient : f.gain || 0;
         return {
           feature: FEATURE_LABEL_MAP[f.feature] || f.feature,
           coefficient: Number(Number(coef).toFixed(3)),
@@ -99,7 +95,11 @@ const Home = () => {
     const top = featureChartData[0];
     const signWord = top.coefficient >= 0 ? 'positive' : 'negative';
     const effectWord = top.coefficient >= 0 ? 'elevates' : 'penalizes';
-    return `Model weights isolate ${top.feature} as the primary factor (${signWord} standardized coefficient: ${top.coefficient > 0 ? '+' : ''}${top.coefficient.toFixed(2)}), which strongly ${effectWord} target ranking.`;
+    return `Model weights isolate ${
+      top.feature
+    } as the primary factor (${signWord} standardized coefficient: ${
+      top.coefficient > 0 ? '+' : ''
+    }${top.coefficient.toFixed(2)}), which strongly ${effectWord} target ranking.`;
   }, [featureChartData]);
 
   // 2. Population Priority Histogram Data for Recharts Bar Chart (No fake fallbacks)
@@ -144,12 +144,16 @@ const Home = () => {
     }
 
     return knownTargets
-      .filter((planet) => Boolean(planet.is_jwst_target || planet.already_observed_jwst) && planet.already_observed_jwst !== false)
+      .filter(
+        (planet) =>
+          Boolean(planet.is_jwst_target || planet.already_observed_jwst) &&
+          planet.already_observed_jwst !== false
+      )
       .slice(0, 4)
       .map((planet, index) => {
         const priorityScore =
           planet.oof_priority_score ?? planet.ml_priority_score ?? planet.priority_score ?? 0;
-        const oofRank = planet.oof_ml_rank ?? planet.priority_rank ?? (index + 1);
+        const oofRank = planet.oof_ml_rank ?? planet.priority_rank ?? index + 1;
         const hzStatus = planet.hz_status || 'Insufficient data';
 
         return {
@@ -166,7 +170,9 @@ const Home = () => {
           hz: hzStatus,
           hzColor: hzStatus === 'Inside HZ' ? 'emerald' : hzStatus === 'Near HZ' ? 'amber' : 'gray',
           mlScore: Number(Number(priorityScore).toFixed(1)),
-          featureNote: `${planet.kempton_size_class || 'Spectroscopic'} candidate with confirmed JWST transmission observation`,
+          featureNote: `${
+            planet.kempton_size_class || 'Spectroscopic'
+          } candidate with confirmed JWST transmission observation`,
           type: 'Confirmed JWST Target',
         };
       });
@@ -184,7 +190,7 @@ const Home = () => {
       .map((planet, index) => {
         const priorityScore =
           planet.ml_priority_score ?? planet.priority_score ?? planet.target_priority_score ?? 0;
-        const rank = planet.unobserved_rank ?? planet.priority_rank ?? (index + 1);
+        const rank = planet.unobserved_rank ?? planet.priority_rank ?? index + 1;
         const hzStatus = planet.hz_status || 'Insufficient data';
 
         return {
@@ -201,7 +207,9 @@ const Home = () => {
           hz: hzStatus,
           hzColor: hzStatus === 'Inside HZ' ? 'emerald' : hzStatus === 'Near HZ' ? 'amber' : 'gray',
           mlScore: Number(Number(priorityScore).toFixed(1)),
-          featureNote: `${planet.kempton_size_class || 'Spectroscopic'} unobserved candidate prioritized for characterization`,
+          featureNote: `${
+            planet.kempton_size_class || 'Spectroscopic'
+          } unobserved candidate prioritized for characterization`,
           type: 'New Recommendation',
         };
       });
@@ -272,8 +280,7 @@ const Home = () => {
               <Link to="/explorer" className="btn-primary-glow font-orbitron text-sm">
                 <span>
                   🪐 Explore{' '}
-                  {stats?.total_planets ? `${stats.total_planets.toLocaleString()}` : '6,451'}{' '}
-                  Targets
+                  {stats?.total_planets ? `${stats.total_planets.toLocaleString()} ` : ''}Targets
                 </span>
               </Link>
               <Link to="/top-targets" className="btn-secondary-glass font-orbitron text-xs">
@@ -348,7 +355,9 @@ const Home = () => {
             <div className="text-xl sm:text-2xl font-black font-mono text-exosignal-cyan">
               {productionModel
                 ? productionModel.mean_ap !== undefined
-                  ? `${productionModel.mean_ap.toFixed(4)} ± ${(productionModel.mean_ap_std || 0).toFixed(4)}`
+                  ? `${productionModel.mean_ap.toFixed(4)} ± ${(
+                      productionModel.mean_ap_std || 0
+                    ).toFixed(4)}`
                   : productionModel['precision@10']
                     ? `${productionModel['precision@10'].toFixed(4)}`
                     : '—'
@@ -358,31 +367,35 @@ const Home = () => {
               {productionModel ? (
                 <>
                   {productionModel.ap_ci95
-                    ? `95% CI: [${productionModel.ap_ci95[0].toFixed(4)}, ${productionModel.ap_ci95[1].toFixed(4)}] • `
+                    ? `95% CI: [${productionModel.ap_ci95[0].toFixed(
+                        4
+                      )}, ${productionModel.ap_ci95[1].toFixed(4)}] • `
                     : ''}
                   Recall@50:{' '}
-                  {(productionModel.mean_recall50 ?? productionModel['recall@50'] ?? 0.746).toFixed(
-                    3
-                  )}
+                  {productionModel.mean_recall50 ?? productionModel['recall@50']
+                    ? (productionModel.mean_recall50 ?? productionModel['recall@50']).toFixed(3)
+                    : '—'}
                   <span className="text-white ml-1.5 font-bold">
-                    ({benchmark?.n_positives ?? 32} positives)
+                    ({benchmark?.n_positives ?? '—'} positives)
                   </span>
                 </>
               ) : (
-                'Test Set Evaluation (32 positives)'
+                'Evaluation results not loaded'
               )}
             </div>
           </div>
 
           <div className="glass-panel p-5 border-exosignal-purple/30">
             <div className="flex items-center justify-between text-xs font-mono text-exosignal-text-muted mb-2">
-              <span>QUERY P50 LATENCY</span>
+              <span>API LATENCY</span>
               <span className="text-exosignal-purple">DuckDB</span>
             </div>
-            <div className="text-3xl font-black font-mono text-exosignal-purple">
-              &lt; 10 <span className="text-lg">ms</span>
+            <div className="text-xl font-black font-mono text-exosignal-purple">
+              Not yet measured
             </div>
-            <div className="text-[11px] text-emerald-400 mt-1">In-Process Columnar Parquet</div>
+            <div className="text-[11px] text-exosignal-text-muted mt-1">
+              Load test pending; results will come from reports/LOADTEST.md
+            </div>
           </div>
 
           <div className="glass-panel p-5 border-emerald-500/30">
@@ -391,7 +404,7 @@ const Home = () => {
               <span className="text-emerald-400">Linear SHAP</span>
             </div>
             <div className="text-3xl font-black font-mono text-emerald-400">
-              {featureImportances?.top_features ? featureImportances.top_features.length : 21}{' '}
+              {featureImportances?.top_features ? featureImportances.top_features.length : '—'}{' '}
               <span className="text-lg">Features</span>
             </div>
             <div className="text-[11px] text-exosignal-text-muted mt-1">
@@ -502,7 +515,9 @@ const Home = () => {
                     <span>|Standardized Coefficient| (Signed Bars: Positive vs Negative)</span>
                     <span className="text-emerald-400 font-semibold">
                       {featureChartData[0]
-                        ? `${featureChartData[0].feature}: ${featureChartData[0].coefficient > 0 ? '+' : ''}${featureChartData[0].coefficient} (${featureChartData[0].direction})`
+                        ? `${featureChartData[0].feature}: ${
+                            featureChartData[0].coefficient > 0 ? '+' : ''
+                          }${featureChartData[0].coefficient} (${featureChartData[0].direction})`
                         : 'Physical Parameters'}
                     </span>
                   </div>
@@ -543,14 +558,13 @@ const Home = () => {
                               boxShadow: '0 0 20px rgba(0, 212, 255, 0.25)',
                             }}
                             formatter={(value, name, item) => [
-                              `${item.payload.coefficient > 0 ? '+' : ''}${item.payload.coefficient} (${item.payload.direction})`,
+                              `${item.payload.coefficient > 0 ? '+' : ''}${
+                                item.payload.coefficient
+                              } (${item.payload.direction})`,
                               '|Standardized Coefficient|',
                             ]}
                           />
-                          <Bar
-                            dataKey="abs_coefficient"
-                            radius={[0, 6, 6, 0]}
-                          >
+                          <Bar dataKey="abs_coefficient" radius={[0, 6, 6, 0]}>
                             {featureChartData.map((entry, index) => (
                               <Cell
                                 key={`cell-${index}`}
@@ -667,7 +681,9 @@ const Home = () => {
                     <span>Holdout split benchmark (&ge; 2022 discoveries)</span>
                     <span className="text-emerald-400 font-semibold">
                       {productionModel
-                        ? `Variant A: NDCG@25 = ${(productionModel.mean_ndcg25 ?? 0.602).toFixed(3)}`
+                        ? `Variant A: NDCG@25 = ${(productionModel.mean_ndcg25 ?? 0.602).toFixed(
+                            3
+                          )}`
                         : 'Holdout Split Evaluation'}
                     </span>
                   </div>
@@ -989,11 +1005,15 @@ const Home = () => {
               </h2>
             </div>
             <p className="text-xs text-exosignal-text-muted font-mono max-w-md">
-              Evaluated strictly with out-of-fold ranks from Stratified Group Cross-Validation on verified transmission targets.
+              Out-of-fold ranks from Stratified Group Cross-Validation on the current JWST
+              transmission-target labels. Label review status: see reports/LABEL_REVIEW.md.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5" data-testid="golden-targets-grid">
+          <div
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5"
+            data-testid="golden-targets-grid"
+          >
             {verifiedGoldenTargets.map((t) => (
               <div
                 key={t.name}
@@ -1079,11 +1099,15 @@ const Home = () => {
               </h2>
             </div>
             <p className="text-xs text-exosignal-text-muted font-mono max-w-md">
-              Transiting candidates with high predicted transmission spectroscopic yield that have not yet been observed.
+              Transiting candidates with high predicted transmission spectroscopic yield that have
+              not yet been observed.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5" data-testid="unobserved-targets-grid">
+          <div
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5"
+            data-testid="unobserved-targets-grid"
+          >
             {unobservedRecommendations.map((t) => (
               <div
                 key={t.name}
@@ -1153,7 +1177,7 @@ const Home = () => {
         <SectionDivider
           number="05"
           title="End-to-End ML Systems Pipeline"
-          subtitle="From noisy archive ingestion through supervised ranking and 6.8ms P50 columnar querying"
+          subtitle="From archive ingestion through supervised ranking to in-process columnar queries"
           badge="ARCHITECTURE"
           accent="purple"
         />
@@ -1168,7 +1192,7 @@ const Home = () => {
             </h2>
             <p className="text-sm text-exosignal-text-secondary leading-relaxed">
               ExoSignal solves the full exoplanet discovery-to-observation workflow: from noisy
-              archive ingestion through supervised ranking and 6.8ms P50 analytical querying.
+              archive ingestion through supervised ranking and in-process analytical queries.
             </p>
           </div>
 
@@ -1212,8 +1236,8 @@ const Home = () => {
               </div>
               <h4 className="font-bold text-white text-sm">DuckDB Parquet Engine</h4>
               <p className="text-xs text-exosignal-text-muted leading-relaxed">
-                Columnar analytical query engine with predicate pushdown achieving 6.8ms P50
-                latency (170ms P50 under concurrent load per reports/LOADTEST.md).
+                Columnar analytical query engine with predicate pushdown over the Parquet artifact.
+                Latency under load: not yet measured (see reports/LOADTEST.md).
               </p>
             </div>
 
