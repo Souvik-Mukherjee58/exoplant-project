@@ -1,20 +1,22 @@
-# Guard patches for the owner's human-override commit
+# Proposed guard changes for the owner's human-override commit
 
 The guard's own files (`scripts/guard_changes.py`, `.github/workflows/guard.yml`, ...) are protected, so an
-AI agent cannot commit changes to them. These patches are applied and committed by the owner only.
-Both are made against the working tree that contains the uncommitted "Section 0" repair.
+AI agent cannot commit changes to them. The complete proposed files are stored here as `.txt` (so no
+formatter or whitespace hook rewrites them). They are based on the working tree that contains the
+uncommitted "Section 0" repair, and were tested with its `backend/tests/test_guard.py` (18 passed).
 
-| patch                                       | what it fixes                                                                                                                                                                                                                                                                                                                                                                                 |
-| :------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `0001-guard-row-level-label-approval.patch` | The label check used a DOTALL regex (`planet.*?APPROVED.*?date`) that matched across lines, so one approval anywhere below a pending planet validated it. Now one table line must hold planet, program_id, APPROVED, reviewer and ISO date (same rule as `scripts/check_data_integrity.py`).                                                                                                  |
-| `0002-guard-ci-human-approved-label.patch`  | CI never sees `.guard-allow`, so every legitimate human data commit (e.g. checkpoint H2) would fail CI forever, and on push only `HEAD~1` was checked. Adds `--human-approved` (honoured only when `GITHUB_ACTIONS=true`), passed by the workflow when the PR has the owner's `human-approved` label; pushes compare with `github.event.before`. See `docs/adr/0007-human-approval-in-ci.md`. |
+| file                            | what it changes                                                                                                                                                                                                                                                                                                                                                       |
+| :------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `guard_changes.py.proposed.txt` | 1) The label check used a DOTALL regex (`planet.*?APPROVED.*?date`) that matched across lines, so one approval anywhere below a pending planet validated it. Now one table line must hold planet, program_id, APPROVED, reviewer and ISO date (same rule as `scripts/check_data_integrity.py`). 2) Adds `--human-approved`, honoured only when `GITHUB_ACTIONS=true`. |
+| `guard.yml.proposed.txt`        | Passes `--human-approved` only for PRs labelled `human-approved` by the owner (and for pushes to `main`, which must come from merged PRs); pushes compare with `github.event.before` instead of `HEAD~1`. See `docs/adr/0007-human-approval-in-ci.md`.                                                                                                                |
 
-Apply (in the main working tree, after reviewing each diff):
+Review, then copy (in the main working tree, after the Section 0 changes are present):
 
 ```bash
-git apply --check .agent/patches/0001-guard-row-level-label-approval.patch
-git apply .agent/patches/0001-guard-row-level-label-approval.patch
-git apply .agent/patches/0002-guard-ci-human-approved-label.patch
+git diff --no-index scripts/guard_changes.py .agent/patches/guard_changes.py.proposed.txt
+git diff --no-index .github/workflows/guard.yml .agent/patches/guard.yml.proposed.txt
+cp .agent/patches/guard_changes.py.proposed.txt scripts/guard_changes.py
+cp .agent/patches/guard.yml.proposed.txt .github/workflows/guard.yml
 ```
 
 Then, on GitHub: create a label named `human-approved`, and enable branch protection on `main`
