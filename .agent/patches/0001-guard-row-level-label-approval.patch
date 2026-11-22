@@ -1,0 +1,54 @@
+--- a/scripts/guard_changes.py	2026-11-22 22:57:57.858821000 +0530
++++ b/scripts/guard_changes.py	2026-11-22 22:58:15.180225600 +0530
+@@ -112,6 +112,27 @@
+     return norm_path == norm_pattern
+
+
++def review_line_approves(review_text: str, planet: str, program_id: str) -> bool:
++    """True if ONE markdown table line approves (planet, program_id) with a reviewer and an ISO date."""
++    want_planet = planet.strip().casefold()
++    want_pid = program_id.strip()
++    for line in review_text.splitlines():
++        s = line.strip()
++        if not (s.startswith("|") and s.endswith("|")):
++            continue
++        cells = [c.strip() for c in s[1:-1].split("|")]
++        if len(cells) < 5 or cells[0].casefold() != want_planet or want_pid not in cells[1:]:
++            continue
++        decision = [c for c in cells if c.upper().startswith("APPROVED")]
++        dates = [c for c in cells if re.match(r"^\d{4}-\d{2}-\d{2}$", c)]
++        if not decision or not dates:
++            continue
++        used = {cells[0], want_pid, decision[0], dates[0]}
++        if any(c and c not in used and not c.lower().startswith("http") for c in cells[1:]):
++            return True
++    return False
++
++
+ class GuardRunner:
+     def __init__(self, base: Optional[str] = None, staged_only: bool = False, full: bool = False):
+         self.repo_root = get_repo_root()
+@@ -321,16 +342,13 @@
+                     self.failures.append(
+                         f"DATA INTEGRITY FAIL: Planet '{planet}' is verified=True but reports/LABEL_REVIEW.md does not exist."
+                     )
+-                else:
+-                    # Match planet in review markdown with APPROVED
+-                    # Case insensitive check for planet and APPROVED
+-                    planet_escaped = re.escape(planet)
+-                    # Look for pattern where planet line has APPROVED, checked_by, and ISO date
+-                    pattern = rf"{planet_escaped}.*?(APPROVED|approved).*?(\d{{4}}-\d{{2}}-\d{{2}})"
+-                    if not re.search(pattern, review_text, re.DOTALL):
+-                        self.failures.append(
+-                            f"DATA INTEGRITY FAIL: Planet '{planet}' is verified=True in CSV but has no matching 'APPROVED' entry with date and reviewer in reports/LABEL_REVIEW.md."
+-                        )
++                elif not review_line_approves(review_text, planet, pid):
++                    # Per-line match: one table line must hold planet (first cell), program_id, APPROVED,
++                    # an ISO date and a reviewer. The old DOTALL regex let any later APPROVED row
++                    # validate every planet mentioned above it.
++                    self.failures.append(
++                        f"DATA INTEGRITY FAIL: Planet '{planet}' is verified=True in CSV but has no matching 'APPROVED' entry with date and reviewer in reports/LABEL_REVIEW.md."
++                    )
+
+         # 2. Check that no files under reports/.mast_cache/ are committed or staged
+         for filepath in self.staged_files:
