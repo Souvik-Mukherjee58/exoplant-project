@@ -48,11 +48,13 @@ fi
 # 2. Check if Docker is available to run grafana/k6
 if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
     echo "[+] Running k6 inside Docker container (grafana/k6)..."
-    docker run --rm -i --net=host \
+    # Docker Desktop: 'localhost' inside the container is the container itself
+    DOCKER_BASE_URL="$(echo "${BASE_URL}" | sed -e 's#//localhost#//host.docker.internal#' -e 's#//127.0.0.1#//host.docker.internal#')"
+    docker run --rm -i \
         -v "${WORKSPACE_ROOT}/loadtest:/loadtest" \
         -v "${WORKSPACE_ROOT}/reports:/reports" \
         grafana/k6 run \
-        -e BASE_URL="${BASE_URL}" \
+        -e BASE_URL="${DOCKER_BASE_URL}" \
         --summary-export /reports/k6_summary.json \
         /loadtest/api.js
     echo "[+] Docker load test complete. Summary exported to reports/k6_summary.json"

@@ -43,7 +43,9 @@ def find_manifest(workspace_root: Path, manifest_arg: Optional[str] = None) -> P
 
 
 def get_dataset_size_str(manifest_data: Dict[str, Any]) -> str:
-    total = manifest_data.get("catalog", {}).get("total_planets") or manifest_data.get("raw_data", {}).get("raw_rows", 6451)
+    total = manifest_data.get("catalog", {}).get("total_planets") or manifest_data.get("raw_data", {}).get(
+        "raw_rows", 6451
+    )
     eligible = manifest_data.get("models", {}).get("score_diversity", {}).get("total_candidates", 4643)
     return f"{eligible:,} eligible / {total:,} total exoplanets"
 
@@ -159,7 +161,9 @@ python scripts/render_readme_results.py
     http_reqs = metrics.get("http_reqs", {}).get("values", {})
     duration = metrics.get("http_req_duration", {}).get("values", {})
     failed = metrics.get("http_req_failed", {}).get("values", {})
-    vus_max = metrics.get("vus_max", {}).get("values", {}).get("max") or metrics.get("vus", {}).get("values", {}).get("max", 200)
+    vus_max = metrics.get("vus_max", {}).get("values", {}).get("max") or metrics.get("vus", {}).get("values", {}).get(
+        "max", 200
+    )
 
     total_requests = int(http_reqs.get("count", 0))
     rps = float(http_reqs.get("rate", 0.0))
@@ -270,10 +274,10 @@ python scripts/render_readme_results.py
 
 | Endpoint | $p_{{50}}$ (ms) | $p_{{95}}$ (ms) | $p_{{99}}$ (ms) | Error Rate (%) |
 |:---|:---:|:---:|:---:|:---:|
-| `GET /api/v1/planets` | {planets_t['p50']:.2f} | {planets_t['p95']:.2f} | {planets_t['p99']:.2f} | {error_rate:.2f}% |
-| `GET /api/v1/top-targets` | {top_t['p50']:.2f} | {top_t['p95']:.2f} | {top_t['p99']:.2f} | {error_rate:.2f}% |
-| `GET /api/v1/planets/{{name}}` | {detail_t['p50']:.2f} | {detail_t['p95']:.2f} | {detail_t['p99']:.2f} | {error_rate:.2f}% |
-| `GET /api/v1/explain/{{name}}` | {explain_t['p50']:.2f} | {explain_t['p95']:.2f} | {explain_t['p99']:.2f} | {error_rate:.2f}% |
+| `GET /api/v1/planets` | {planets_t["p50"]:.2f} | {planets_t["p95"]:.2f} | {planets_t["p99"]:.2f} | {error_rate:.2f}% |
+| `GET /api/v1/top-targets` | {top_t["p50"]:.2f} | {top_t["p95"]:.2f} | {top_t["p99"]:.2f} | {error_rate:.2f}% |
+| `GET /api/v1/planets/{{name}}` | {detail_t["p50"]:.2f} | {detail_t["p95"]:.2f} | {detail_t["p99"]:.2f} | {error_rate:.2f}% |
+| `GET /api/v1/explain/{{name}}` | {explain_t["p50"]:.2f} | {explain_t["p95"]:.2f} | {explain_t["p99"]:.2f} | {error_rate:.2f}% |
 
 ---
 
@@ -285,13 +289,70 @@ python scripts/render_readme_results.py
 """
 
 
+SLO_P95_MS = 150.0
+SLO_MAX_ERROR_RATE = 0.01
+MIN_ACHIEVED_FRACTION = 0.95
+
+
+def capacity_section(cap: dict) -> str:
+    """Markdown for a capacity curve (scripts/run_capacity_curve.py). Every number comes from the file."""
+    lines = [
+        "",
+        "## Capacity curve (open model, fixed arrival rate)",
+        "",
+        f"- Server: {cap.get('hardware')}",
+        f"- Load generator location: {cap.get('client_location')}",
+        f"- Target: `{cap.get('base_url')}`, {cap.get('duration_per_rate')} per rate, script `{cap.get('script')}`",
+        f"- Generated: {cap.get('generated_at')}",
+        "",
+        "| offered req/s | achieved req/s | p50 ms | p95 ms | p99 ms | error rate | dropped | meets SLO |",
+        "|---:|---:|---:|---:|---:|---:|---:|:---:|",
+    ]
+    best = None
+    for s in cap.get("stages", []):
+        achieved = s.get("achieved_rps") or 0.0
+        ok = (
+            s.get("p95_ms") is not None
+            and s["p95_ms"] < SLO_P95_MS
+            and (s.get("error_rate") or 0.0) < SLO_MAX_ERROR_RATE
+            and achieved >= MIN_ACHIEVED_FRACTION * s["target_rate_rps"]
+        )
+        if ok:
+            best = s
+        fmt = lambda v, d=1: "—" if v is None else f"{v:.{d}f}"  # noqa: E731
+        lines.append(
+            f"| {s['target_rate_rps']} | {fmt(achieved)} | {fmt(s.get('p50_ms'))} | {fmt(s.get('p95_ms'))} | "
+            f"{fmt(s.get('p99_ms'))} | {fmt((s.get('error_rate') or 0.0) * 100, 2)}% | {s.get('dropped_iterations', 0)} | "
+            f"{'yes' if ok else 'no'} |"
+        )
+    lines += [
+        "",
+        f"SLO used: p95 < {SLO_P95_MS:.0f} ms, errors < {SLO_MAX_ERROR_RATE:.0%}, achieved >= "
+        f"{MIN_ACHIEVED_FRACTION:.0%} of offered rate.",
+        "",
+        (
+            f"**Highest measured rate meeting the SLO: {best['target_rate_rps']} req/s** on this server."
+            if best
+            else "**No measured rate met the SLO.**"
+        ),
+        "",
+    ]
+    return "\n".join(lines)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Render load test report from k6 summary JSON")
     parser.add_argument("--summary", type=str, default="reports/k6_summary.json", help="Path to k6 summary JSON")
-    parser.add_argument("--hardware", type=str, default="Local Host (16 logical cores, 32GB RAM)", help="Host hardware description")
+    parser.add_argument(
+        "--hardware",
+        type=str,
+        default=None,
+        help="Server hardware/config. Required when rendering measured data (no default: it must be true).",
+    )
     parser.add_argument("--manifest", type=str, default=None, help="Path to active artifact manifest.json")
     parser.add_argument("--report", type=str, default="reports/LOADTEST.md", help="Output path for LOADTEST.md")
     parser.add_argument("--placeholders", action="store_true", help="Force placeholder rendering")
+    parser.add_argument("--capacity", type=str, default=None, help="Path to reports/k6_capacity.json to append")
     args = parser.parse_args()
 
     workspace_root = Path(__file__).resolve().parent.parent
@@ -315,7 +376,17 @@ def main():
         except Exception as e:
             print(f"[!] Note: Could not parse {summary_path}: {e}. Falling back to placeholder template.")
 
-    report_content = build_report_markdown(k6_data, args.hardware, dataset_size_str)
+    if k6_data is not None and not args.hardware:
+        parser.error("--hardware is required when rendering measured k6 data (describe the real server)")
+
+    report_content = build_report_markdown(k6_data, args.hardware or "not recorded", dataset_size_str)
+
+    if args.capacity:
+        cap_path = Path(args.capacity) if Path(args.capacity).is_absolute() else workspace_root / args.capacity
+        cap = json.loads(cap_path.read_text(encoding="utf-8"))
+        if cap.get("kind") != "capacity_curve":
+            parser.error(f"{cap_path} is not a capacity_curve file")
+        report_content = report_content.rstrip() + "\n" + capacity_section(cap)
 
     report_path = workspace_root / args.report if not Path(args.report).is_absolute() else Path(args.report)
     report_path.parent.mkdir(parents=True, exist_ok=True)
