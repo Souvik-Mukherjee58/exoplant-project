@@ -1,5 +1,5 @@
 -r requirements.txt
 pytest-cov>=5.0.0
-ruff>=0.8.0
+ruff==0.8.4  # must match the ruff-pre-commit rev in .pre-commit-config.yaml (CI and hook must format identically)
 mypy>=1.13.0
 astroquery>=0.4.7

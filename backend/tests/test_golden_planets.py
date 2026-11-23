@@ -192,9 +192,9 @@ def test_one_score_one_rank_consistency():
         detail_data = detail_resp.json()
 
         assert detail_data["priority_score"] == p["priority_score"], f"Score mismatch on {name}"
-        assert detail_data["priority_rank"] == p["priority_rank"], (
-            f"Rank mismatch on {name}: list={p['priority_rank']}, detail={detail_data['priority_rank']}"
-        )
+        assert (
+            detail_data["priority_rank"] == p["priority_rank"]
+        ), f"Rank mismatch on {name}: list={p['priority_rank']}, detail={detail_data['priority_rank']}"
 
     # 3. Check ineligible planets in general planets list have priority_rank is None
     planets_resp = client.get("/api/v1/planets?limit=200")

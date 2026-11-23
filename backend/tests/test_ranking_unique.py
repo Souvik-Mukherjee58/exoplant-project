@@ -30,12 +30,12 @@ def test_priority_rank_is_strictly_unique_and_contiguous(processed_catalog):
     assert n_eligible > 0, "Eligible candidates catalog must not be empty"
 
     priority_ranks = eligible["priority_rank"].dropna().astype(int)
-    assert len(priority_ranks) == n_eligible, (
-        f"All {n_eligible} eligible candidates must have non-null priority_rank (got {len(priority_ranks)})"
-    )
-    assert priority_ranks.nunique() == n_eligible, (
-        f"priority_rank must be strictly unique across eligible candidates: expected {n_eligible}, got {priority_ranks.nunique()}"
-    )
+    assert (
+        len(priority_ranks) == n_eligible
+    ), f"All {n_eligible} eligible candidates must have non-null priority_rank (got {len(priority_ranks)})"
+    assert (
+        priority_ranks.nunique() == n_eligible
+    ), f"priority_rank must be strictly unique across eligible candidates: expected {n_eligible}, got {priority_ranks.nunique()}"
 
     sorted_ranks = priority_ranks.sort_values().to_numpy()
     expected_ranks = np.arange(1, n_eligible + 1)
@@ -54,12 +54,12 @@ def test_unobserved_rank_is_strictly_unique_and_separate(processed_catalog):
     assert n_unobs > 0, "Unobserved eligible candidates must exist"
 
     unobs_ranks = unobs["unobserved_rank"].dropna().astype(int)
-    assert len(unobs_ranks) == n_unobs, (
-        f"All {n_unobs} unobserved eligible candidates must have non-null unobserved_rank (got {len(unobs_ranks)})"
-    )
-    assert unobs_ranks.nunique() == n_unobs, (
-        f"unobserved_rank must be strictly unique across unobserved candidates: expected {n_unobs}, got {unobs_ranks.nunique()}"
-    )
+    assert (
+        len(unobs_ranks) == n_unobs
+    ), f"All {n_unobs} unobserved eligible candidates must have non-null unobserved_rank (got {len(unobs_ranks)})"
+    assert (
+        unobs_ranks.nunique() == n_unobs
+    ), f"unobserved_rank must be strictly unique across unobserved candidates: expected {n_unobs}, got {unobs_ranks.nunique()}"
 
     sorted_unobs = unobs_ranks.sort_values().to_numpy()
     expected_unobs = np.arange(1, n_unobs + 1)
@@ -72,9 +72,9 @@ def test_unobserved_rank_is_strictly_unique_and_separate(processed_catalog):
     # Observed planets must have NaN unobserved_rank
     observed = eligible[eligible["already_observed_jwst"] == True]
     assert len(observed) > 0, "Observed JWST targets must exist in catalog"
-    assert observed["unobserved_rank"].isna().all(), (
-        "Observed JWST targets must have NaN unobserved_rank (reserved strictly for unobserved)"
-    )
+    assert (
+        observed["unobserved_rank"].isna().all()
+    ), "Observed JWST targets must have NaN unobserved_rank (reserved strictly for unobserved)"
 
 
 def test_rank_order_matches_score_order(processed_catalog):
@@ -82,7 +82,9 @@ def test_rank_order_matches_score_order(processed_catalog):
     eligible = processed_catalog[processed_catalog["eligible_for_transmission"] == True].copy()
 
     # Reconstruct tie-breaking keys
-    tsm_col = eligible.get("tsm", eligible.get("transmission_spectroscopy_metric", pd.Series(0.0, index=eligible.index)))
+    tsm_col = eligible.get(
+        "tsm", eligible.get("transmission_spectroscopy_metric", pd.Series(0.0, index=eligible.index))
+    )
     dist_col = eligible.get("distance", pd.Series(9999.0, index=eligible.index))
     eligible["_tsm_sort"] = pd.to_numeric(tsm_col, errors="coerce").fillna(0.0)
     eligible["_dist_sort"] = pd.to_numeric(dist_col, errors="coerce").fillna(9999.0)
@@ -94,14 +96,16 @@ def test_rank_order_matches_score_order(processed_catalog):
 
     sorted_by_rank = eligible.sort_values("priority_rank").reset_index(drop=True)
 
-    assert sorted_by_rank["planet_name"].tolist() == expected_sorted["planet_name"].tolist(), (
-        "Order induced by priority_rank must match exact score order with tie-breakers"
-    )
+    assert (
+        sorted_by_rank["planet_name"].tolist() == expected_sorted["planet_name"].tolist()
+    ), "Order induced by priority_rank must match exact score order with tie-breakers"
 
     # Score monotonicity check: every rank r must have score >= score at rank r+1
     scores = sorted_by_rank["priority_score"].to_numpy()
     diffs = np.diff(scores)
-    assert (diffs <= 1e-4).all(), f"Scores must be non-increasing along priority_rank order (max violation: {diffs.max()})"
+    assert (
+        diffs <= 1e-4
+    ).all(), f"Scores must be non-increasing along priority_rank order (max violation: {diffs.max()})"
 
 
 def test_labelled_planets_use_oof_scores(processed_catalog):

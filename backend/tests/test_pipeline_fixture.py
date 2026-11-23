@@ -61,9 +61,9 @@ def test_pipeline_fixture_and_evaluation_schema(tmp_path: Path, fixture_raw_csv_
         assert key in eval_data, f"Required key '{key}' missing from evaluation.json"
 
     assert isinstance(eval_data["leaderboard"], list), "leaderboard must be a list"
-    assert len(eval_data["leaderboard"]) >= 5, (
-        f"Expected >= 5 models in leaderboard, got {len(eval_data['leaderboard'])}"
-    )
+    assert (
+        len(eval_data["leaderboard"]) >= 5
+    ), f"Expected >= 5 models in leaderboard, got {len(eval_data['leaderboard'])}"
 
     # Validate schema for every model in the leaderboard
     model_required_fields = ["model_name", "map", "pr_auc"]

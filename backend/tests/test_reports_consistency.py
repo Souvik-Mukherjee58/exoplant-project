@@ -20,9 +20,9 @@ def test_readme_results_table_is_up_to_date():
     cmd = [sys.executable, str(script_path), "--check"]
     proc = subprocess.run(cmd, cwd=str(repo_root), capture_output=True, text=True)
 
-    assert proc.returncode == 0, (
-        f"README.md results table is stale according to render_readme_results.py --check:\n{proc.stdout}\n{proc.stderr}"
-    )
+    assert (
+        proc.returncode == 0
+    ), f"README.md results table is stale according to render_readme_results.py --check:\n{proc.stdout}\n{proc.stderr}"
 
 
 def test_evaluation_json_matches_evaluation_md():
@@ -52,15 +52,11 @@ def test_evaluation_json_matches_evaluation_md():
     ap_str = f"{ap_val:.4f}"
 
     # Verify that the AP score appears in EVALUATION.md
-    assert ap_str in eval_md_content, (
-        f"Production AP {ap_str} from evaluation.json must appear in EVALUATION.md"
-    )
+    assert ap_str in eval_md_content, f"Production AP {ap_str} from evaluation.json must appear in EVALUATION.md"
 
     # Verify candidate pool size consistency
     n_eligible = eval_data.get("n_eligible", 4643)
-    assert str(n_eligible) in eval_md_content, (
-        f"Eligible count {n_eligible} must appear in EVALUATION.md"
-    )
+    assert str(n_eligible) in eval_md_content, f"Eligible count {n_eligible} must appear in EVALUATION.md"
 
 
 def test_manifest_population_matches_parquet():
@@ -79,21 +75,22 @@ def test_manifest_population_matches_parquet():
         manifest = json.load(f)
 
     import pandas as pd
+
     df = pd.read_parquet(parquet_path)
 
     total_manifest = manifest.get("total_planets", manifest.get("n_planets"))
     eligible_manifest = manifest.get("eligible_planets", manifest.get("n_eligible"))
 
     if total_manifest is not None:
-        assert len(df) == total_manifest, (
-            f"Parquet row count ({len(df)}) does not match manifest total_planets ({total_manifest})"
-        )
+        assert (
+            len(df) == total_manifest
+        ), f"Parquet row count ({len(df)}) does not match manifest total_planets ({total_manifest})"
 
     if eligible_manifest is not None and "eligible_for_transmission" in df.columns:
         actual_eligible = int((df["eligible_for_transmission"] == True).sum())
-        assert actual_eligible == eligible_manifest, (
-            f"Parquet eligible count ({actual_eligible}) does not match manifest ({eligible_manifest})"
-        )
+        assert (
+            actual_eligible == eligible_manifest
+        ), f"Parquet eligible count ({actual_eligible}) does not match manifest ({eligible_manifest})"
 
 
 def test_readme_contains_no_unrendered_template_tokens():
@@ -139,16 +136,20 @@ def test_model_selection_md_matches_evaluation_json():
 
         assert ap_str in model_sel_content, f"Model {m['model_name']} AP {ap_str} missing from MODEL_SELECTION.md"
         assert std_str in model_sel_content, f"Model {m['model_name']} std {std_str} missing from MODEL_SELECTION.md"
-        assert rec_str in model_sel_content, f"Model {m['model_name']} Recall@50 {rec_str} missing from MODEL_SELECTION.md"
-        assert ndcg_str in model_sel_content, f"Model {m['model_name']} NDCG@25 {ndcg_str} missing from MODEL_SELECTION.md"
+        assert (
+            rec_str in model_sel_content
+        ), f"Model {m['model_name']} Recall@50 {rec_str} missing from MODEL_SELECTION.md"
+        assert (
+            ndcg_str in model_sel_content
+        ), f"Model {m['model_name']} NDCG@25 {ndcg_str} missing from MODEL_SELECTION.md"
 
     # Assert distinct score count matches
     score_div = eval_data.get("score_diversity", {})
     distinct_scores = score_div.get("distinct_scores_total")
     if distinct_scores is not None:
-        assert str(distinct_scores) in model_sel_content, (
-            f"distinct_scores_total {distinct_scores} missing from MODEL_SELECTION.md"
-        )
+        assert (
+            str(distinct_scores) in model_sel_content
+        ), f"distinct_scores_total {distinct_scores} missing from MODEL_SELECTION.md"
 
 
 def test_distinct_score_count_in_report_equals_parquet():
@@ -165,6 +166,7 @@ def test_distinct_score_count_in_report_equals_parquet():
         eval_data = json.load(f)
 
     import pandas as pd
+
     df = pd.read_parquet(parquet_path)
     eligible = df[df["eligible_for_transmission"] == True]
 
@@ -201,12 +203,10 @@ def test_nested_cv_report_matches_evaluation_json():
     mean_nested_ap_str = f"{nested_data['mean_nested_ap']:.4f}"
     mean_nested_rec50_str = f"{nested_data['mean_nested_recall50']:.4f}"
 
-    assert mean_nested_ap_str in nested_md, (
-        f"Mean nested AP {mean_nested_ap_str} missing from NESTED_CV.md"
-    )
-    assert mean_nested_rec50_str in nested_md, (
-        f"Mean nested Recall@50 {mean_nested_rec50_str} missing from NESTED_CV.md"
-    )
+    assert mean_nested_ap_str in nested_md, f"Mean nested AP {mean_nested_ap_str} missing from NESTED_CV.md"
+    assert (
+        mean_nested_rec50_str in nested_md
+    ), f"Mean nested Recall@50 {mean_nested_rec50_str} missing from NESTED_CV.md"
 
     for r in nested_data.get("outer_results", []):
         ap_str = f"{r['ap']:.4f}"

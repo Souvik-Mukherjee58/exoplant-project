@@ -274,9 +274,9 @@ def test_production_top_50_has_no_ties():
 
     # Check that in the top 50, all 50 scores are distinct
     n_distinct_top_50 = len(np.unique(top_50_scores))
-    assert n_distinct_top_50 == 50, (
-        f"Score collapse detected: expected 50 distinct scores in top 50, but found only {n_distinct_top_50}."
-    )
+    assert (
+        n_distinct_top_50 == 50
+    ), f"Score collapse detected: expected 50 distinct scores in top 50, but found only {n_distinct_top_50}."
 
     # Check deterministic tie-breaking produces strictly ascending integer ranks
     ranks = top_50["ml_rank"].to_numpy()
@@ -334,9 +334,9 @@ def test_labelled_planets_scored_out_of_fold():
     for p_name in labelled_planets["planet_name"].head(10):
         expected_oof = round(oof_map[p_name] * 100.0, 4)
         catalog_score = float(catalog.loc[catalog["planet_name"] == p_name, "priority_score"].iloc[0])
-        assert abs(catalog_score - expected_oof) < 1e-3, (
-            f"Score mismatch on {p_name}: catalog={catalog_score}, oof={expected_oof}"
-        )
+        assert (
+            abs(catalog_score - expected_oof) < 1e-3
+        ), f"Score mismatch on {p_name}: catalog={catalog_score}, oof={expected_oof}"
 
 
 def test_recommendations_and_reasons_api():

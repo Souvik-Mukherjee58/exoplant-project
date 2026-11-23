@@ -24,8 +24,7 @@ def test_missing_columns_raise_value_error(tmp_path: Path):
     # Case 1: Missing verified column
     csv_missing_verified = tmp_path / "missing_verified.csv"
     csv_missing_verified.write_text(
-        "planet_name,program_id,observation_type\n"
-        "TRAPPIST-1 e,2589,transmission\n",
+        "planet_name,program_id,observation_type\n" "TRAPPIST-1 e,2589,transmission\n",
         encoding="utf-8",
     )
     with pytest.raises(ValueError, match="missing required columns 'verified' and/or 'observation_type'"):
@@ -34,8 +33,7 @@ def test_missing_columns_raise_value_error(tmp_path: Path):
     # Case 2: Missing observation_type column
     csv_missing_obs_type = tmp_path / "missing_obs_type.csv"
     csv_missing_obs_type.write_text(
-        "planet_name,program_id,verified\n"
-        "TRAPPIST-1 e,2589,True\n",
+        "planet_name,program_id,verified\n" "TRAPPIST-1 e,2589,True\n",
         encoding="utf-8",
     )
     with pytest.raises(ValueError, match="missing required columns 'verified' and/or 'observation_type'"):

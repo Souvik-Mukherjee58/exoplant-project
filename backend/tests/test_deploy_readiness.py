@@ -135,8 +135,10 @@ def test_render_loadtest_report(tmp_path):
     cmd = [
         sys.executable,
         str(script_path),
-        "--hardware", "Test Hardware (4 cores, 16GB)",
-        "--report", str(output_md),
+        "--hardware",
+        "Test Hardware (4 cores, 16GB)",
+        "--report",
+        str(output_md),
         "--placeholders",
     ]
     proc = subprocess.run(cmd, cwd=str(repo_root), capture_output=True, text=True)
@@ -165,9 +167,12 @@ def test_render_loadtest_report(tmp_path):
     cmd2 = [
         sys.executable,
         str(script_path),
-        "--summary", str(mock_summary),
-        "--hardware", "Test Cluster",
-        "--report", str(output_md),
+        "--summary",
+        str(mock_summary),
+        "--hardware",
+        "Test Cluster",
+        "--report",
+        str(output_md),
     ]
     proc2 = subprocess.run(cmd2, cwd=str(repo_root), capture_output=True, text=True)
     assert proc2.returncode == 0
@@ -176,5 +181,3 @@ def test_render_loadtest_report(tmp_path):
     assert "8.50 ms" in content2
     assert "15.20 ms" in content2
     assert "200 Concurrent Workers" in content2
-
-
