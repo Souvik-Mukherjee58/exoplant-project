@@ -2,13 +2,13 @@ name: ExoSignal CI/CD
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
 
 env:
-  PYTHON_VERSION: "3.11"
-  NODE_VERSION: "20"
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '22' # jsdom 30 / undici 8 / jest-dom 7 require Node >= 22; Node 20 is EOL
 
 jobs:
   # ──────────────────────────────────────────────────────────────
@@ -29,7 +29,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: "pip"
+          cache: 'pip'
           cache-dependency-path: backend/requirements-dev.txt
 
       - name: Install dependencies
@@ -77,7 +77,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: "pip"
+          cache: 'pip'
           cache-dependency-path: backend/requirements.txt
 
       - name: Install dependencies
@@ -108,7 +108,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: "pip"
+          cache: 'pip'
           cache-dependency-path: backend/requirements.txt
 
       - name: Install dependencies
@@ -116,38 +116,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run ML ranking benchmark
-        run: |
-          python -c "
-          import json
-          from app.services.data_processor import get_data_processor
-          from app.ml.evaluation import RankingBenchmarkSuite
-
-          processor = get_data_processor()
-          df = processor.get_processed_data()
-          suite = RankingBenchmarkSuite()
-          report = suite.run_benchmark(df, eval_split='test')
-
-          # Extract Model A (LightGBM) metrics
-          model_a = next((m for m in report['leaderboard'] if 'Model A' in m['model_name'] or 'LightGBM' in m['model_name']), None)
-          if model_a is None:
-              print('ERROR: Model A (LightGBM) not found in benchmark leaderboard')
-              exit(1)
-
-          print(f'Model:   {model_a[\"model_name\"]}')
-          print(f'NDCG@10: {model_a.get(\"ndcg@10\", model_a.get(\"ndcg@25\", 0.0)):.4f}')
-          print(f'MAP:     {model_a[\"map\"]:.4f}')
-
-          # Regression gates: verify benchmark structure and validity
-          assert len(report['leaderboard']) >= 7, f'Expected >= 7 benchmark models, got {len(report[\"leaderboard\"])}'
-          assert report['test_set_size'] > 0, 'Test split is empty'
-          assert 'map' in model_a
-
-          print('✅ All ML benchmark regression gates passed')
-
-          with open('benchmark-ci-report.json', 'w') as f:
-              json.dump(report, f, indent=2)
-          "
+      - name: Run ML ranking benchmark gate
+        # Runs the benchmark only with >= 15 human-verified labels; otherwise validates the committed
+        # evaluation report and emits a visible ::warning:: (never counts unverified labels).
+        run: python ../scripts/ci_benchmark_gate.py --require-metrics ap,ndcg@25
 
       - name: Upload benchmark report
         uses: actions/upload-artifact@v4
@@ -175,7 +147,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: "pip"
+          cache: 'pip'
           cache-dependency-path: backend/requirements.txt
 
       - name: Install dependencies
@@ -235,7 +207,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
+          cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies

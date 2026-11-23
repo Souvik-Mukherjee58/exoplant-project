@@ -2,6 +2,9 @@
   "name": "exosignal",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.22.2"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
