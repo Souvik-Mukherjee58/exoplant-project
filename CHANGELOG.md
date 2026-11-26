@@ -7,6 +7,10 @@ Format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), adh
 
 ## [Unreleased]
 
+### Added
+
+- `LICENSE`: MIT License, Copyright (c) 2026 Souvik Mukherjee.
+
 ### Fixed
 
 - API: size-class filter bypassed other filters (500 for gas giants); 500 when observed targets were included; wildcard search; `split=val` returned the test report; cached registry responses; internal error text in responses; unbounded request IDs; meaningless scores served for non-transiting planets.

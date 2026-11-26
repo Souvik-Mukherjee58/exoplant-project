@@ -198,4 +198,4 @@ _Details & execution instructions: [reports/LOADTEST.md](reports/LOADTEST.md)._
 
 ## License
 
-The project is intended to be MIT-licensed. The `LICENSE` file has not been added yet, so no license text is in force.
+MIT License, see [LICENSE](LICENSE). Copyright (c) 2026 Souvik Mukherjee.
