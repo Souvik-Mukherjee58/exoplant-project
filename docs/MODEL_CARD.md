@@ -9,9 +9,9 @@ Following the standardized model reporting framework (_Mitchell et al., FAT_ 201
 - **Model Identifier**: ExoSignal Production Ranker (Variant A)
 - **Model Version**: `v1_2026-10-29`
 - **Model Type**: Regularized Logistic Regression with Balanced Class Weighting ($L_2$, $C=1.0$) over standardized, log-transformed astrophysical features.
-- **Explainability Engine**: Exact Linear SHAP attribution via native analytic formulation, satisfying additive conservation $\sum_{i=1}^{21} \phi_i + \text{Base} = \text{Score}$ to machine precision.
+- **Explainability Engine**: Exact Linear SHAP attribution via native analytic formulation, with $\sum_{i=1}^{21} \phi_i + \text{Base} = \text{logit}$ to floating-point precision. The score is $100\,\sigma(\text{logit})$: a ranking score, not a calibrated probability.
 - **Maintainer**: Souvik Mukherjee (`Souvik-Mukherjee58`)
-- **License**: MIT / Research & Educational Use
+- **License**: not yet in force (no `LICENSE` file; MIT is intended)
 
 ---
 
@@ -35,17 +35,17 @@ Following the standardized model reporting framework (_Mitchell et al., FAT_ 201
 >
 > - **NOT an Extraterrestrial Life Detector**: High scores do **not** indicate evidence or probability of extraterrestrial life, biosignatures, or technological intelligence.
 > - **NOT a Habitability Index**: While habitability status is tracked as an auxiliary physical parameter, hot gas giants (e.g., WASP-121 b, HD 209458 b) often achieve the highest observational SNR while being completely uninhabitable.
-> - **NOT for Non-Transiting Targets**: Non-transiting planets discovered via radial velocity or direct imaging cannot undergo transmission spectroscopy and are strictly excluded.
+> - **NOT for Non-Transiting Targets**: Non-transiting planets discovered via radial velocity or direct imaging cannot undergo transmission spectroscopy. They have no rank, and the API serves no score for them (the artifact file does store meaningless model outputs for them).
 
 ---
 
 ## 4. Training Data & Preprocessing
 
-- **Data Source**: NASA Exoplanet Archive (`ps` composite parameters table).
+- **Data Source**: NASA Exoplanet Archive (`pscomppars`, composite parameters).
 - **Ground Truth Reference**: 32 **unverified** candidate JWST transmission targets across 24 host stars (prevalence 0.69%) in the current artifact; human review against STScI/MAST is pending (see `reports/LABEL_REVIEW.md`).
 - **Eligibility Filter**: Restricted strictly to transiting planets with valid stellar and planetary measurements ($N = 4,643$ eligible out of 6,451 raw catalog entries).
 - **Feature Space (21 Features)**:
-  - _Planetary parameters_: $R_p$ (planet radius), $M_p$ (planet mass, Chen & Kipping fallback), $P$ (orbital period), $a$ (semi-major axis), $T_{eq}$ (equilibrium temperature).
+  - _Planetary parameters_: $R_p$ (planet radius), $M_p$ (planet mass, with an empirical fallback that is **not** Chen & Kipping 2017 above 1.23 $R_\oplus$; see README), $P$ (orbital period), $a$ (semi-major axis), $T_{eq}$ (equilibrium temperature).
   - _Stellar parameters_: $T_{eff}$ (effective temperature), $R_*$ (stellar radius), $M_*$ (stellar mass), $[Fe/H]$ (metallicity), $d$ (distance), $J$ and $K$ band infrared magnitudes.
   - _Astrophysical proxies_: Geometric transit depth proxy $(R_p/R_*)^2$, atmospheric scale height proxy $(T_{eq}/g)$, bulk density, insolation flux, infrared brightness, distance attenuation, and transmission SNR proxy.
 - **Transformation**: Robust log-transformations on power-law physical quantities ($\log(d)$, $\log(R_p)$, $\log(T_{eq})$), median imputation on secondary missing values, and standard scaling.
@@ -54,7 +54,7 @@ Following the standardized model reporting framework (_Mitchell et al., FAT_ 201
 
 ## 5. Quantitative Evaluation & Metrics
 
-Evaluated across **25 host-grouped folds** (`StratifiedGroupKFold`, 5 seeds $\times$ 5 folds) grouped by host star (`hostname`):
+All values are **provisional**: they use unverified labels. Evaluated across **25 host-grouped folds** (`StratifiedGroupKFold`, 5 seeds $\times$ 5 folds) grouped by host star (`hostname`):
 
 | Evaluation Metric                   | Baseline (TSM-Only) | ExoSignal Production Model |   Improvement    |  95% Bootstrap CI  |
 | :---------------------------------- | :-----------------: | :------------------------: | :--------------: | :----------------: |
@@ -75,12 +75,19 @@ Evaluated across **25 host-grouped folds** (`StratifiedGroupKFold`, 5 seeds $\ti
 
 ---
 
+5. **Habitable Zone Extrapolation**: The Kopparapu et al. (2013) polynomials are valid for host stars of 2600–7200 K; 80 catalog planets orbit stars outside that range.
+6. **Earth Similarity Index**: Uses equilibrium instead of surface temperature and normalises the weights to sum to 1, unlike the published $w_i/n$ exponents.
+7. **Missing Values**: Median imputation (ranking and anomaly models) and neutral defaults (heuristic score) are modelling assumptions, not measurements.
+8. **Anomaly Scores**: Exploratory statistical outlier scores. They are not evidence of extraterrestrial activity.
+
+---
+
 ## 7. Model Maintenance & Artifact Regeneration
 
 To regenerate the end-to-end data pipeline, feature engineering, model training, evaluation metrics, and Parquet artifacts:
 
-`ash
+```bash
 cd backend && python -m app.pipeline build
-`
+```
 
-This ingests composite archival data, computes physical proxies, validates ground-truth reference labels against STScI criteria, performs grouped cross-validation, exports model weights (ltr_model.joblib), and saves the Parquet dataset (planets.parquet).
+This ingests composite archival data, computes physical proxies, requires at least 15 human-verified labels (there are none yet, so the build stops), performs grouped cross-validation, exports model weights (ltr_model.joblib), and saves the Parquet dataset (planets.parquet).

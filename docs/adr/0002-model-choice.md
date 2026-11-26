@@ -1,6 +1,6 @@
 # ADR 0002: Model Selection — Regularized Linear Ranking Over Complex GBDT
 
-- **Status**: Accepted
+- **Status**: Accepted (owner acceptance not recorded in the repository; see the revision below)
 - **Date**: 2026-10-28
 - **Deciders**: Souvik Mukherjee (project owner; solo project, drafted with AI coding assistants)
 
@@ -53,3 +53,16 @@ We select **Regularized Logistic Regression (Variant A - All Features, $L_2$, $C
 ### Negative / Trade-offs
 
 - Linear models cannot capture high-order nonlinear feature interactions without explicit feature engineering (mitigated by including composite physical interaction proxies such as transit depth and atmospheric scale height).
+
+## Revision 2026-11-24 (correction)
+
+The text above is kept as written. Corrections:
+
+- **Status.** "Accepted" has no recorded evidence of owner acceptance (no review, sign-off or approval is in git). It is
+  to be read as "implemented".
+- **"Confirmed" targets.** The 32 positive labels are unverified candidates (0 of 35 reference rows are human-verified),
+  so every metric and rank above is provisional.
+- **"p < 0.001", "statistically superior"** rest on correlated folds and unverified labels.
+- **Mass feature.** The mass fallback is not the Chen & Kipping (2017) relation (see README); TSM values of large planets
+  without a measured mass are affected.
+- **"< 0.1 ms" attribution time** was not measured.

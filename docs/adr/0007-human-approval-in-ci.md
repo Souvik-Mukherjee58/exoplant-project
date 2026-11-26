@@ -1,6 +1,6 @@
 # ADR 0007: How a human approves protected changes in CI
 
-- **Status**: Proposed (needs the owner's override commit and GitHub settings)
+- **Status**: Proposed, not adopted; superseded by the guard v3.3 proposal (see the revision below)
 - **Date**: 2026-11-22
 - **Decider**: Souvik Mukherjee (project owner)
 
@@ -40,3 +40,9 @@ Put the human approval where the agent has no access: the GitHub UI.
 - Rejected alternatives: a commit-message trailer ("human-override: ...") is trivially written by an
   agent; committing `.guard-allow` makes it permanent and invisible in review; signed commits do not help
   when the agent can use the same key.
+
+## Revision 2026-11-24
+
+The text above is kept as written. This design was never applied. A pull request label does not show who reviewed which
+commit, so the v3.3 proposal uses protected environments and checks the approver, the author and the exact head commit
+instead. v3.3 is tested locally only; nothing has been tested on GitHub.

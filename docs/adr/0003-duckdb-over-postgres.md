@@ -1,6 +1,6 @@
 # ADR 0003: In-Process DuckDB & Columnar Parquet Over External PostgreSQL
 
-- **Status**: Accepted
+- **Status**: Accepted (owner acceptance not recorded in the repository; see the revision below)
 - **Date**: 2026-10-28
 - **Deciders**: Souvik Mukherjee (project owner; solo project, drafted with AI coding assistants)
 
@@ -48,3 +48,11 @@ changes only when a new artifact ships needs no database server.
 ### Negative / Trade-offs
 
 - DuckDB does not support concurrent write transactions across multiple distributed nodes (acceptable for an immutable, read-only analytical catalog).
+
+## Revision 2026-11-24 (correction)
+
+The text above is kept as written. Corrections:
+
+- **Status.** "Accepted" has no recorded evidence of owner acceptance (no review, sign-off or approval is in git). It is
+  to be read as "implemented".
+- **"Zero disk I/O", "memory-mapped".** The catalog is loaded into an in-memory table at startup.

@@ -5,9 +5,32 @@ Format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), adh
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- API: size-class filter bypassed other filters (500 for gas giants); 500 when observed targets were included; wildcard search; `split=val` returned the test report; cached registry responses; internal error text in responses; unbounded request IDs; meaningless scores served for non-transiting planets.
+- Interface: the Explorer loads again (it asked for more rows than the API allows); distances were parsecs labelled as light-years; invented radar values for real planets removed; preset planet values now come from the API; unknown values are shown as unknown; labels are no longer called confirmed or verified.
+- Label review: only rows with a validated time system, known uncertainty and provenance can be approved (none today); an earlier rejection blocks approval. A row must equal the row computed again from the cached archive data. Training and the CI benchmark use a verified row only with its approval in the review log.
+- Artifact: the record of `planets.parquet` was out of date since 2026-11-02; corrected after reproducing the file (docs/ARTIFACT_PROVENANCE.md). Missing values no longer turn into 0.0 in a rebuild.
+- Interface: planets are called "not labelled" instead of "unobserved"; promotional wording removed.
+- Model registry: integrity check works on a clean clone; missing checksums no longer count as valid; host names are not recorded.
+- MAST label builder: write-path, dry-run, identity, uncertainty and timing repairs (ADR 0006 revision). Not run against live archives.
+
+### Corrections to earlier entries (kept below as written)
+
+- 0.2.0 "sub-millisecond", "p50 ~3.6 ms", "zero-downtime": not measured or tested.
+- 0.2.0 "TreeSHAP": the served model uses Linear SHAP.
+- 0.2.0 "+104.6 % ... p < 0.001": computed on unverified labels and correlated folds.
+- 0.3.0 "empirical load test": no load test has been run. `render.yaml` and the root `netlify.toml` no longer exist on `main`.
+- 0.1.0 "Chen & Kipping": the implemented relation differs (see README).
+
+---
+
 ## [0.3.0] - 2026-10-30
 
 ### Added
+
 - **Production Observability & Serving**:
   - Context-propagated structured JSON logging with `X-Request-ID` correlation.
   - Separate `/health` (system state liveness) and `/ready` (DuckDB index & in-memory artifact query) operational probes.
@@ -40,6 +63,7 @@ Format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), adh
 ## [0.2.0] - 2026-10-28
 
 ### Added
+
 - **Learning-to-Rank (LTR) Machine Learning Framework**:
   - 21 physically motivated astrophysical features spanning transit depth, scale height, insolation flux, bulk density, and infrared attenuation.
   - 25-fold `StratifiedGroupKFold` cross-validation grouped by host star to eliminate multi-planet sibling leakage.
@@ -65,6 +89,7 @@ Format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), adh
 ## [0.1.0] - 2026-10-22
 
 ### Added
+
 - Initial release of ExoSignal.
 - Automated data ingestion from NASA Exoplanet Archive composite parameters table.
 - Astronomical data cleaning, normalization, and outlier detection (Isolation Forest & Local Outlier Factor).
@@ -72,4 +97,3 @@ Format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), adh
 - Heuristic composite scoring engine for exoplanet spectroscopic follow-up utility.
 - FastAPI backend REST endpoints and Vite React web application.
 - Comprehensive automated test suite with pytest and vitest.
-

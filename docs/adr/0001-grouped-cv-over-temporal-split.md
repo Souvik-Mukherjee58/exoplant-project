@@ -1,6 +1,6 @@
 # ADR 0001: Grouped Cross-Validation Over Temporal Split for Model Selection
 
-- **Status**: Accepted
+- **Status**: Accepted (owner acceptance not recorded in the repository; see the revision below)
 - **Date**: 2026-10-28
 - **Deciders**: Souvik Mukherjee (project owner; solo project, drafted with AI coding assistants)
 
@@ -37,3 +37,15 @@ When evaluating machine learning ranking models on astronomical catalogs, two cr
 ### Negative / Trade-offs
 
 - Group cross-validation is computationally more intensive than a single static split, requiring training and evaluating 25 separate fold models per candidate algorithm.
+
+## Revision 2026-11-24 (correction)
+
+The text above is kept as written. Corrections:
+
+- **Status.** "Accepted" has no recorded evidence of owner acceptance (no review, sign-off or approval is in git). It is
+  to be read as "implemented".
+- **"Confirmed" targets.** The 32 positive labels are unverified candidates (0 of 35 reference rows are human-verified),
+  so every metric and rank above is provisional.
+- **"AP > 0.85" under random splits** is not backed by a log or artifact in this repository.
+- **Intervals.** The 25 folds repeat the same data, so their bootstrap intervals are approximate and too narrow to be
+  called statistically sound; `reports/NESTED_CV.md` has the nested estimate.

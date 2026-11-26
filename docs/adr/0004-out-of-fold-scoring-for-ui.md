@@ -1,6 +1,6 @@
 # ADR 0004: Out-of-Fold (OOF) Scoring for Known Targets in the User Interface
 
-- **Status**: Accepted
+- **Status**: Accepted (owner acceptance not recorded in the repository; see the revision below)
 - **Date**: 2026-10-28
 - **Deciders**: Souvik Mukherjee (project owner; solo project, drafted with AI coding assistants)
 
@@ -38,3 +38,16 @@ If a single global production model trained on the entire dataset scores these c
 ### Negative / Trade-offs
 
 - Requires maintaining dual scoring columns (`priority_score` vs `oof_priority_score`) in the catalog schema and frontend types.
+
+## Revision 2026-11-24 (correction)
+
+The text above is kept as written. Corrections:
+
+- **Status.** "Accepted" has no recorded evidence of owner acceptance (no review, sign-off or approval is in git). It is
+  to be read as "implemented".
+- **"Confirmed" targets.** The 32 positive labels are unverified candidates (0 of 35 reference rows are human-verified),
+  so every metric and rank above is provisional.
+- **"Guarantees complete transparency", "true out-of-sample discovery ability"** are overstated: the ranks depend on
+  unverified labels.
+- **Scores of unranked planets.** The artifact also stores model outputs for planets that cannot be observed in transit
+  (for example Proxima Cen b, 99.99). The API no longer serves them.

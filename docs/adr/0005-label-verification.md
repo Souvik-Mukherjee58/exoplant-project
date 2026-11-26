@@ -1,6 +1,6 @@
 # ADR 0005: Systematic Ground-Truth Label Verification and Non-Transmission Exclusion
 
-- **Status**: Accepted
+- **Status**: Accepted (owner acceptance not recorded in the repository; see the revision below)
 - **Date**: 2026-10-31
 - **Deciders**: Souvik Mukherjee (project owner; solo project, drafted with AI coding assistants)
 
@@ -70,3 +70,15 @@ We replace unverified hand-curated lists with an automated verification harness 
 ### Trade-offs & Mitigations
 
 - In the initial unreviewed state, live reference targets default to `verified=False`, halting the pipeline until domain review is completed. Test fixtures (`fixture_jwst_reference.csv`) are isolated to test algorithmic execution without weakening live production auditing.
+
+## Revision 2026-11-24 (correction)
+
+The text above is kept as written. Corrections:
+
+- **Status.** "Accepted" has no recorded evidence of owner acceptance (no review, sign-off or approval is in git). It is
+  to be read as "implemented".
+- **"Zero Label Hallucination", "every verified label traces ..."** describe the intended process. No label has been
+  verified, and fabricated program IDs did reach the repository before this process existed.
+- **"Severely degraded learning-to-rank performance"** is not backed by a recorded experiment.
+- The statements about program titles and investigators were not rechecked against STScI in this review.
+- ADR 0006 describes the MAST pipeline that replaced the scraping step; it currently approves nothing.
