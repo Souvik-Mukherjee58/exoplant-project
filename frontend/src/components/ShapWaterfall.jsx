@@ -7,6 +7,10 @@ import { explainabilityApi } from '../services/api';
  * contributions in log-odds units (Δ log-odds), alongside the base value, final logit,
  * and converted percentile rank score.
  */
+// A missing value is shown as missing; 0.000 is a value.
+const logit = (value) =>
+  Number.isFinite(value) ? `${value > 0 ? '+' : ''}${value.toFixed(3)}` : '—';
+
 export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
   const [explanation, setExplanation] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -61,19 +65,17 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
   }
 
   const {
-    ml_priority_score = explanation.priority_score ?? 0,
+    ml_priority_score = explanation.priority_score,
     mathematical_invariants = {},
     top_positive_drivers = [],
     top_negative_barriers = [],
     full_waterfall = [],
   } = explanation;
 
-  const baseLogit = mathematical_invariants?.base_margin ?? explanation.base_logit ?? 0;
-  const sumShap = mathematical_invariants?.sum_shap_margin ?? 0;
-  const finalLogit =
-    mathematical_invariants?.predicted_margin ?? explanation.final_logit ?? baseLogit + sumShap;
-  const residual =
-    mathematical_invariants?.reconstruction_error ?? Math.abs(sumShap + baseLogit - finalLogit);
+  const baseLogit = mathematical_invariants?.base_margin ?? explanation.base_logit ?? null;
+  const sumShap = mathematical_invariants?.sum_shap_margin ?? null;
+  const finalLogit = mathematical_invariants?.predicted_margin ?? explanation.final_logit ?? null;
+  const residual = mathematical_invariants?.reconstruction_error ?? null;
   const convertedPercentile = ml_priority_score;
 
   const displayedItems =
@@ -87,7 +89,7 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
 
   // Formatter guaranteed never to display as 0.0 when |phi| > 0.01
   const formatLogOdds = (val) => {
-    if (val === null || val === undefined || isNaN(val)) return '0.000 Δ log-odds';
+    if (val === null || val === undefined || isNaN(val)) return '—';
     const num = Number(val);
     const sign = num > 0 ? '+' : '';
     return `${sign}${num.toFixed(3)} Δ log-odds`;
@@ -146,9 +148,7 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 my-6">
         <div className="bg-space-dark rounded-lg p-4 border border-exosignal-blue/20">
           <p className="text-xs text-exosignal-text/60 font-mono">Base Value (w₀)</p>
-          <p className="text-xl font-bold font-mono text-exosignal-text mt-1">
-            {baseLogit > 0 ? `+${baseLogit.toFixed(3)}` : baseLogit.toFixed(3)}
-          </p>
+          <p className="text-xl font-bold font-mono text-exosignal-text mt-1">{logit(baseLogit)}</p>
           <p className="text-[11px] text-exosignal-text/50 mt-1 font-mono">
             Global intercept (log-odds)
           </p>
@@ -161,7 +161,7 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
               sumShap >= 0 ? 'text-emerald-400' : 'text-rose-400'
             }`}
           >
-            {sumShap >= 0 ? `+${sumShap.toFixed(3)}` : sumShap.toFixed(3)}
+            {logit(sumShap)}
           </p>
           <p className="text-[11px] text-exosignal-text/50 mt-1 font-mono">Sum of Δ log-odds</p>
         </div>
@@ -171,7 +171,7 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
             Final Logit (w·x + w₀)
           </p>
           <p className="text-xl font-extrabold font-mono text-exosignal-accent mt-1">
-            {finalLogit > 0 ? `+${finalLogit.toFixed(3)}` : finalLogit.toFixed(3)}
+            {logit(finalLogit)}
           </p>
           <p className="text-[11px] text-exosignal-text/50 mt-1 font-mono">
             Predicted model margin
@@ -181,7 +181,7 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
         <div className="bg-space-dark rounded-lg p-4 border border-emerald-500/20 bg-emerald-500/5">
           <p className="text-xs text-emerald-400 font-semibold font-mono">Model Score</p>
           <p className="text-xl font-extrabold font-mono text-emerald-400 mt-1">
-            {convertedPercentile.toFixed(1)} / 100
+            {typeof convertedPercentile === 'number' ? convertedPercentile.toFixed(1) : '—'} / 100
           </p>
           <p className="text-[11px] text-exosignal-text/50 mt-1 font-mono">
             σ(logit) × 100: a ranking score, not a calibrated probability
@@ -195,7 +195,7 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
           Additive Invariant: Σ φᵢ + Base Value = Final Logit
         </span>
         <span className="text-[11px] text-exosignal-text/50">
-          Reconstruction residual: {residual.toExponential(2)}
+          Reconstruction residual: {Number.isFinite(residual) ? residual.toExponential(2) : '—'}
         </span>
       </div>
       <p className="text-[11px] text-exosignal-text/50 font-mono -mt-3 mb-6">

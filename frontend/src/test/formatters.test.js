@@ -37,8 +37,8 @@ describe('formatters', () => {
   });
 
   describe('formatDistance', () => {
-    it('formats light-years', () => {
-      expect(formatDistance(39.46)).toBe('39.5 ly');
+    it('treats the API value as parsecs and also shows light-years', () => {
+      expect(formatDistance(12.43)).toBe('12.4 pc (40.5 ly)'); // TRAPPIST-1
       expect(formatDistance(null)).toBe('—');
     });
   });

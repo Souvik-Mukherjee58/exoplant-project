@@ -28,6 +28,9 @@ from app.services.feature_engineering import FeatureEngineering
 
 ARTIFACTS_ROOT = Path("artifacts")
 
+# Leaderboard metrics copied to the model registry (names as in evaluation.json; the registry page reads them).
+REGISTRY_METRICS = ("ap", "ap_ci95", "ndcg@10", "ndcg@25", "map", "precision@10", "recall@50", "pr_auc")
+
 
 def compute_sha256(filepath: Path) -> str:
     """Compute SHA256 hash of a file."""
@@ -118,8 +121,8 @@ def build_artifacts(
     if n_pos < 15:
         raise RuntimeError(
             f"Pipeline stopped: Fewer than 15 verified labels exist (found {n_pos}). "
-            "Please finish the label review in backend/data/reference/jwst_transmission_targets.csv "
-            "(set verified=True and observation_type='transmission') before running the pipeline."
+            "Please finish the label review with scripts/review_labels.py before running the pipeline. "
+            "A row counts only with its approval in reports/LABEL_REVIEW.md."
         )
 
     print("      Computing Out-Of-Fold predictions across host star groups...")
@@ -356,7 +359,7 @@ def build_artifacts(
                 "algorithm": prod_model.training_metadata["algorithm"],
                 "model_type": prod_model.model_type,
                 "hyperparameters": prod_model.hyperparameters,
-                "n_features": len(prod_model.feature_importances.get("top_features", [])),
+                "n_features": len(prod_model.feature_importances.get("all_features", [])),
                 "top_features": [f["feature"] for f in prod_model.feature_importances.get("top_features", [])[:5]],
                 "random_state": settings.RANDOM_STATE,
                 "evaluation_protocol": bench_report["evaluation_split"],
@@ -364,10 +367,7 @@ def build_artifacts(
                 "calibration": bench_report.get("calibration", {}),
             },
             evaluation_metrics={
-                "mean_ap": prod_entry.get("mean_ap"),
-                "mean_ap_ci95": prod_entry.get("ap_ci95"),
-                "mean_recall@50": prod_entry.get("mean_recall@50"),
-                "mean_ndcg@25": prod_entry.get("mean_ndcg@25"),
+                **{k: prod_entry.get(k) for k in REGISTRY_METRICS},
                 "eval_split": bench_report["evaluation_split"],
             },
             dataset_stats={

@@ -1,10 +1,10 @@
-"""High-performance vectorized analytical query engine using DuckDB and Parquet.
+"""In-process analytical query engine using DuckDB and Parquet.
 
 Provides:
 1. Zero-copy / in-process vectorized SQL execution over immutable Parquet artifacts.
 2. Thread-safe concurrent read operations releasing Python's GIL.
 3. Predicate pushdown for range queries, parametric filtering, and case-insensitive search.
-4. B-Tree indexed in-memory analytical table with sub-10ms latency guarantees.
+4. Indexed in-memory analytical table (latency depends on the host; nothing is guaranteed).
 5. Decoupled read-only serving architecture separating pipeline builds from API requests.
 """
 
@@ -21,6 +21,13 @@ import numpy as np
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _rounded_or_none(df: Any, column: str, digits: int) -> List[Optional[float]]:
+    """Column values rounded for display; None (never 0.0) where a value or the whole column is missing."""
+    if column not in df:
+        return [None] * len(df)
+    return [None if v is None or np.isnan(float(v)) else round(float(v), digits) for v in df[column]]
 
 
 class CatalogQueryEngine:
@@ -120,7 +127,7 @@ class CatalogQueryEngine:
         # Create in-memory table directly from Parquet
         self.conn.execute(f"CREATE TABLE planets AS SELECT * FROM read_parquet('{parquet_posix}');")
 
-        # Create secondary B-Tree indexes for sub-10ms filtering
+        # Secondary indexes for the common filters
         self.conn.execute("CREATE INDEX IF NOT EXISTS idx_ml_priority ON planets(ml_priority_score);")
         self.conn.execute("CREATE INDEX IF NOT EXISTS idx_heuristic_priority ON planets(target_priority_score);")
         self.conn.execute("CREATE INDEX IF NOT EXISTS idx_hz_status ON planets(hz_status);")
@@ -213,16 +220,8 @@ class CatalogQueryEngine:
             "planets": df_sample["planet_name"].tolist(),
             "pca_x": [round(float(v), 3) for v in X_pca[:, 0]],
             "pca_y": [round(float(v), 3) for v in X_pca[:, 1]],
-            "anomaly_score": (
-                [round(float(v), 3) for v in df_sample["anomaly_score"]]
-                if "anomaly_score" in df_sample
-                else [0.0] * len(df_sample)
-            ),
-            "target_priority_score": (
-                [round(float(v), 1) for v in df_sample["target_priority_score"]]
-                if "target_priority_score" in df_sample
-                else [0.0] * len(df_sample)
-            ),
+            "anomaly_score": _rounded_or_none(df_sample, "anomaly_score", 3),
+            "target_priority_score": _rounded_or_none(df_sample, "target_priority_score", 1),
             "hz_status": (
                 df_sample["hz_status"].tolist() if "hz_status" in df_sample else ["Unknown"] * len(df_sample)
             ),
@@ -240,7 +239,8 @@ class CatalogQueryEngine:
                 "selected_production_model", models_info.get("ltr_model", "ltr_model.joblib")
             ),
             "algorithm": models_info.get(
-                "production_algorithm", models_info.get("ltr_algorithm", "LightGBM Supervised Learning-to-Rank GBDT")
+                "production_algorithm",
+                models_info.get("ltr_algorithm", "unknown (algorithm missing from manifest)"),
             ),
             "top_features": models_info.get("top_features", models_info.get("ltr_top_features", [])),
             "benchmark_leaderboard": bench_info.get("leaderboard", []),
@@ -253,10 +253,8 @@ class CatalogQueryEngine:
         return {"error": "LTR feature importance not available."}
 
     def get_benchmark_report(self, split: str = "test") -> Dict[str, Any]:
-        """Return offline evaluation benchmark report from in-memory preloaded artifact."""
+        """Return the preloaded benchmark report, and only for the split it was computed on."""
         if self.benchmark_report and self.benchmark_report.get("evaluation_split") == split:
-            return self.benchmark_report
-        if self.benchmark_report:
             return self.benchmark_report
         return {"error": f"Evaluation benchmark report for split '{split}' not available."}
 
@@ -302,7 +300,7 @@ class CatalogQueryEngine:
                 else "target_priority_score"
             )
         elif sort_by == "ml":
-            sort_order = "ml_priority_score DESC"
+            sort_order = "ml_rank ASC NULLS LAST"  # ineligible planets have a score but no rank
             filter_col = "ml_priority_score"
         elif sort_by == "priority":
             sort_order = "priority_rank ASC NULLS LAST" if "priority_rank" in table_cols else "priority_score DESC"
@@ -311,8 +309,14 @@ class CatalogQueryEngine:
             sort_order = "target_priority_score DESC"
             filter_col = "target_priority_score"
 
-        where_clauses = [f"{filter_col} >= ?", f"{filter_col} <= ?"]
-        params: List[Any] = [float(min_priority), float(max_priority)]
+        where_clauses: List[str] = []
+        params: List[Any] = []
+        if sort_by == "heuristic" or min_priority > 0.0 or max_priority < 100.0:
+            where_clauses += [f"{filter_col} >= ?", f"{filter_col} <= ?"]
+            params += [float(min_priority), float(max_priority)]
+            if sort_by in ("priority", "ml") and "eligible_for_transmission" in table_cols:
+                # A model score of an ineligible planet means nothing, so no score range can select it.
+                where_clauses.append("eligible_for_transmission = true")
 
         if eligible_only:
             if "eligible_for_transmission" in table_cols:
@@ -334,12 +338,12 @@ class CatalogQueryEngine:
                 elif "large" in sc:
                     where_clauses.append("lower(kempton_size_class) = 'large sub-neptune'")
                 elif "giant" in sc or "jovian" in sc:
-                    where_clauses.append(
-                        "lower(kempton_size_class) LIKE '%giant%' OR lower(kempton_size_class) LIKE '%jovian%'"
+                    where_clauses.append(  # parenthesised: a bare OR would bypass every other filter
+                        "(lower(kempton_size_class) LIKE '%giant%' OR lower(kempton_size_class) LIKE '%jovian%')"
                     )
                 else:
-                    where_clauses.append("lower(kempton_size_class) LIKE ?")
-                    params.append(f"%{sc}%")
+                    where_clauses.append("contains(lower(kempton_size_class), ?)")
+                    params.append(sc)
             else:
                 # Radius thresholds fallback
                 if "terrestrial" in sc or "rocky" in sc:
@@ -352,24 +356,26 @@ class CatalogQueryEngine:
                     where_clauses.append("planet_radius >= 4.0")
 
         if q and q.strip():
+            # contains() is a literal match: '%' and '_' in user input are not wildcards. A variant that is
+            # empty after normalisation would match every row, so it is left out.
             clean_q = q.strip().lower()
-            q_variants = [
-                f"%{clean_q}%",
-                f"%{clean_q.replace('-', ' ')}%",
-                f"%{clean_q.replace('-', '').replace(' ', '')}%",
-            ]
-            where_clauses.append(
-                "(lower(planet_name) LIKE ? OR "
-                "replace(lower(planet_name), '-', ' ') LIKE ? OR "
-                "replace(replace(lower(planet_name), '-', ''), ' ', '') LIKE ?)"
-            )
-            params.extend(q_variants)
+            name_matches = ["contains(lower(planet_name), ?)"]
+            params.append(clean_q)
+            spaced = clean_q.replace("-", " ").strip()
+            if spaced:
+                name_matches.append("contains(replace(lower(planet_name), '-', ' '), ?)")
+                params.append(spaced)
+            compact = clean_q.replace("-", "").replace(" ", "")
+            if compact:
+                name_matches.append("contains(replace(replace(lower(planet_name), '-', ''), ' ', ''), ?)")
+                params.append(compact)
+            where_clauses.append("(" + " OR ".join(name_matches) + ")")
 
         if hz_status and hz_status.strip():
             where_clauses.append("lower(hz_status) = ?")
             params.append(hz_status.strip().lower())
 
-        where_sql = " AND ".join(where_clauses)
+        where_sql = " AND ".join(where_clauses) or "true"
         params.extend([int(limit), int(offset)])
 
         extra_selects = []
@@ -399,6 +405,8 @@ class CatalogQueryEngine:
             "j_magnitude",
             "k_magnitude",
             "earth_similarity",
+            "mass_source",
+            "mass_is_estimated",
         ]:
             if c in table_cols:
                 extra_selects.append(c)
@@ -464,7 +472,7 @@ class CatalogQueryEngine:
         )
 
     def get_known_jwst_targets(self) -> List[Dict[str, Any]]:
-        """Retrieve confirmed JWST program targets ordered by out-of-fold rank."""
+        """Planets labelled as JWST targets in the artifact (unverified labels), by out-of-fold rank."""
         cursor = self.get_cursor()
         try:
             table_cols = {c[0] for c in cursor.execute("DESCRIBE planets").fetchall()}
@@ -581,9 +589,9 @@ class CatalogQueryEngine:
 
     def benchmark_latency(self, iterations: int = 100) -> Dict[str, Any]:
         """
-        Execute latency benchmark over simulated concurrent analytical queries.
+        Time a fixed set of queries, one after another, in this process.
 
-        Measures P50, P95, and P99 query latency in milliseconds.
+        This is neither an HTTP measurement nor a concurrency test; see reports/LOADTEST.md for those.
         """
         cursor = self.get_cursor()
         latencies_ms = []
@@ -608,14 +616,14 @@ class CatalogQueryEngine:
         return {
             "iterations": iterations,
             "engine": f"DuckDB {duckdb.__version__} (In-Memory Vectorized)",
-            "catalog_records": self.conn.execute("SELECT COUNT(*) FROM planets").fetchone()[0],
+            "catalog_records": cursor.execute("SELECT COUNT(*) FROM planets").fetchone()[0],
             "min_ms": round(float(latencies_ms[0]), 3),
             "max_ms": round(float(latencies_ms[-1]), 3),
             "mean_ms": round(float(np.mean(latencies_ms)), 3),
             "p50_ms": round(float(latencies_ms[int(n * 0.50)]), 3),
             "p95_ms": round(float(latencies_ms[int(n * 0.95)]), 3),
             "p99_ms": round(float(latencies_ms[int(n * 0.99)]), 3),
-            "sub_10ms_guarantee": bool(latencies_ms[int(n * 0.95)] < 10.0),
+            "p95_below_10ms_in_this_run": bool(latencies_ms[int(n * 0.95)] < 10.0),
         }
 
     def close(self) -> None:

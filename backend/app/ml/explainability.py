@@ -46,7 +46,7 @@ FEATURE_METADATA: Dict[str, Dict[str, str]] = {
     },
     "planet_mass": {
         "display_name": "Planetary Mass",
-        "description": "Total mass (measured via RV/TTV or estimated via Chen & Kipping)",
+        "description": "Total mass (from the archive, or estimated from the radius; provenance not recorded)",
         "unit": "M⊕",
     },
     "stellar_radius": {

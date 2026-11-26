@@ -1,19 +1,33 @@
 import React, { useRef, useEffect, useState } from 'react';
+import { planetsApi } from '../services/api';
+
+const R_EARTH_PER_R_SUN = 0.009168;
+
+/** Display strings from an API planet; '—' for everything that is missing. */
+export function archiveValues(p) {
+  const num = (v, digits, unit) => (typeof v === 'number' ? `${v.toFixed(digits)} ${unit}` : '—');
+  return {
+    radius: num(p?.planet_radius, 2, 'R⊕'),
+    teq: num(p?.equilibrium_temperature, 0, 'K'),
+    period: num(p?.orbital_period, 1, 'days'),
+    transitDepth:
+      p?.planet_radius > 0 && p?.stellar_radius > 0
+        ? `${(((p.planet_radius * R_EARTH_PER_R_SUN) / p.stellar_radius) ** 2 * 100).toFixed(2)}%`
+        : '—',
+  };
+}
 
 /**
- * PLANETARY PRESETS with realistic astronomical parameters and color spectra
+ * Illustration styles. Colours and surfaces are artistic: none of these worlds has been imaged.
+ * Physical values are not stored here; they come from the API.
  */
 export const PLANET_PRESETS = {
   trappist1e: {
     name: 'TRAPPIST-1 e',
-    type: 'Temperate Terrestrial (Habitable Zone)',
-    radius: '0.92 R⊕',
-    teq: '251 K',
-    period: '6.10 days',
-    transitDepth: '0.55%',
+    type: 'Terrestrial size',
     atmosphereColor: 'rgba(56, 189, 248, 0.45)', // Cyan aura
-    baseColor: '#0a2342', // Deep oceanic blue
-    landColor: '#1d5a3a', // Lush vegetation/continent
+    baseColor: '#0a2342',
+    landColor: '#1d5a3a',
     cloudColor: 'rgba(255, 255, 255, 0.65)',
     rings: false,
     banding: false,
@@ -21,14 +35,10 @@ export const PLANET_PRESETS = {
   },
   toi700d: {
     name: 'TOI-700 d',
-    type: 'Super-Earth (Inside HZ)',
-    radius: '1.07 R⊕',
-    teq: '269 K',
-    period: '37.4 days',
-    transitDepth: '0.08%',
+    type: 'Terrestrial size',
     atmosphereColor: 'rgba(16, 185, 129, 0.45)', // Emerald aura
-    baseColor: '#083344', // Turquoise ocean
-    landColor: '#92400e', // Ochre iron-rich landmass
+    baseColor: '#083344',
+    landColor: '#92400e',
     cloudColor: 'rgba(240, 253, 250, 0.7)',
     rings: false,
     banding: false,
@@ -36,14 +46,10 @@ export const PLANET_PRESETS = {
   },
   k218b: {
     name: 'K2-18 b',
-    type: 'Hycean Sub-Neptune (Atmospheric Methane)',
-    radius: '2.61 R⊕',
-    teq: '255 K',
-    period: '32.9 days',
-    transitDepth: '0.28%',
-    atmosphereColor: 'rgba(168, 85, 247, 0.55)', // Violet methane glow
-    baseColor: '#1e1b4b', // Deep indigo water world
-    landColor: '#312e81', // Hydrogen-rich cloud deck
+    type: 'Sub-Neptune',
+    atmosphereColor: 'rgba(168, 85, 247, 0.55)',
+    baseColor: '#1e1b4b',
+    landColor: '#312e81',
     cloudColor: 'rgba(216, 180, 254, 0.55)',
     rings: false,
     banding: true,
@@ -51,14 +57,10 @@ export const PLANET_PRESETS = {
   },
   lhs1140b: {
     name: 'LHS 1140 b',
-    type: 'High-Density Rocky Super-Earth',
-    radius: '1.73 R⊕',
-    teq: '235 K',
-    period: '24.7 days',
-    transitDepth: '0.12%',
+    type: 'Super-Earth',
     atmosphereColor: 'rgba(56, 189, 248, 0.35)',
-    baseColor: '#451a03', // Dense silicate / iron crust
-    landColor: '#78350f', // Basaltic terrain
+    baseColor: '#451a03',
+    landColor: '#78350f',
     cloudColor: 'rgba(254, 243, 199, 0.45)',
     rings: false,
     banding: false,
@@ -66,14 +68,10 @@ export const PLANET_PRESETS = {
   },
   wasp96b: {
     name: 'WASP-96 b',
-    type: 'Hot Gas Giant (Cloud-Free Water Features)',
-    radius: '1.20 RJ',
-    teq: '1285 K',
-    period: '3.42 days',
-    transitDepth: '1.45%',
-    atmosphereColor: 'rgba(245, 158, 11, 0.55)', // Fiery golden sodium haze
-    baseColor: '#7c2d12', // Amber gas layers
-    landColor: '#b45309', // Atmospheric banded storms
+    type: 'Hot gas giant',
+    atmosphereColor: 'rgba(245, 158, 11, 0.55)',
+    baseColor: '#7c2d12',
+    landColor: '#b45309',
     cloudColor: 'rgba(254, 215, 170, 0.65)',
     rings: true,
     banding: true,
@@ -82,8 +80,7 @@ export const PLANET_PRESETS = {
 };
 
 /**
- * Real procedural 3D exoplanet visualizer with rotating surface, clouds,
- * Rayleigh scattering atmosphere aura, and interactive transit orbital beacon.
+ * Decorative procedural animation of a planet. It does not show an observed appearance.
  */
 const Planet3DVisualizer = ({
   initialPlanet = 'trappist1e',
@@ -109,7 +106,26 @@ const Planet3DVisualizer = ({
     }
   }, [initialPlanet]);
 
-  const planet = customPlanet || PLANET_PRESETS[selectedKey] || PLANET_PRESETS.trappist1e;
+  const preset = PLANET_PRESETS[selectedKey] || PLANET_PRESETS.trappist1e;
+  const planet = customPlanet || preset;
+  const presetName = customPlanet ? null : preset.name;
+  const [archive, setArchive] = useState(null);
+
+  // Preset values come from the API; nothing is shown until they arrive.
+  useEffect(() => {
+    if (!presetName || !showControls) return undefined;
+    let active = true;
+    setArchive(null);
+    planetsApi
+      .getByName(presetName)
+      .then((res) => active && setArchive(res))
+      .catch(() => active && setArchive(null));
+    return () => {
+      active = false;
+    };
+  }, [presetName, showControls]);
+
+  const values = customPlanet || archiveValues(archive);
 
   // Handle drag interaction
   const handleMouseDown = (e) => {
@@ -420,8 +436,8 @@ const Planet3DVisualizer = ({
         {/* Orbiting Transit Telemetry Chip - positioned cleanly in bottom-right */}
         {!isCompact && (
           <div className="absolute bottom-2 right-2 pointer-events-none bg-space-void/90 border border-exosignal-cyan/30 rounded-xl px-2.5 py-1 backdrop-blur-md font-mono text-[10px] text-right max-w-[40%] z-10">
-            <span className="text-exosignal-text-muted block text-[9px]">Transit Depth</span>
-            <span className="text-emerald-400 font-bold text-xs">{planet.transitDepth}</span>
+            <span className="text-exosignal-text-muted block text-[9px]">(Rp/R★)²</span>
+            <span className="text-emerald-400 font-bold text-xs">{values.transitDepth}</span>
           </div>
         )}
       </div>
@@ -461,21 +477,21 @@ const Planet3DVisualizer = ({
           {/* Quick Parameters Grid */}
           {!customPlanet && (
             <p className="text-[10px] text-exosignal-text-muted font-mono mb-1">
-              Illustrative preset values; open a planet page for archive data.
+              Artistic illustration. Values below: NASA Exoplanet Archive via the API.
             </p>
           )}
           <div className="grid grid-cols-3 gap-2 text-center font-mono text-xs bg-space-void/70 p-2.5 rounded-xl border border-exosignal-cyan/15">
             <div>
               <span className="text-[10px] text-exosignal-text-muted block">Radius</span>
-              <span className="text-white font-bold">{planet.radius}</span>
+              <span className="text-white font-bold">{values.radius}</span>
             </div>
             <div>
               <span className="text-[10px] text-exosignal-text-muted block">Equilibrium Temp</span>
-              <span className="text-exosignal-cyan font-bold">{planet.teq}</span>
+              <span className="text-exosignal-cyan font-bold">{values.teq}</span>
             </div>
             <div>
               <span className="text-[10px] text-exosignal-text-muted block">Period</span>
-              <span className="text-emerald-400 font-bold">{planet.period}</span>
+              <span className="text-emerald-400 font-bold">{values.period}</span>
             </div>
           </div>
         </div>

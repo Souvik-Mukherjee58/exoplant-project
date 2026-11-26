@@ -29,7 +29,7 @@ const About = () => {
           </p>
         </div>
         <div className="text-xs font-mono text-emerald-400 bg-space-void/90 px-3 py-1.5 rounded-xl border border-emerald-500/30">
-          Open Source Astronomical Tool
+          Public Source Code
         </div>
       </div>
 
@@ -44,20 +44,20 @@ const About = () => {
           <SectionDivider
             number="01"
             title="Project Mission & Objective"
-            subtitle="Maximizing discovery yield for James Webb Space Telescope and ELT spectroscopic campaigns"
+            subtitle="What the project ranks, and what it does not claim"
             badge="MISSION"
             accent="cyan"
           />
 
           <div className="divided-compartment p-8 space-y-4">
             <h3 className="text-lg font-bold text-white font-display">
-              Data-Driven Science Optimization
+              Exploratory Target Ranking
             </h3>
             <p className="text-sm text-exosignal-text-secondary leading-relaxed">
               ExoSignal is a data-driven exoplanet follow-up target prioritization system. Its goal
-              is to assist astronomers and research teams in optimizing telescope observation time
-              by identifying and ranking candidates for atmospheric characterization and
-              transmission spectroscopy.
+              is to explore how catalogue data can be used to rank targets. It has not been
+              validated by astronomers. The ranking concerns candidates for atmospheric
+              characterization and transmission spectroscopy.
             </p>
             <p className="text-sm text-exosignal-text-secondary leading-relaxed">
               The system evaluates measurable physical properties, insolation flux, stellar host
@@ -74,7 +74,7 @@ const About = () => {
           <SectionDivider
             number="02"
             title="Technical Architecture & Engine Stack"
-            subtitle="Modern high-performance MLOps stack built with DuckDB, Regularized Logistic Regression, and React"
+            subtitle="DuckDB, regularized logistic regression, FastAPI and React"
             badge="TECH STACK"
             accent="purple"
           />
@@ -106,7 +106,7 @@ const About = () => {
                 </h3>
                 <ul className="text-xs font-mono space-y-2 text-exosignal-text-secondary">
                   <li>• React 18 with modern modular component architecture</li>
-                  <li>• Vite ultra-fast build toolchain</li>
+                  <li>• Vite build toolchain</li>
                   <li>
                     • Recharts responsive scientific bar, pie, radar, and scatter visualizations
                   </li>
@@ -136,7 +136,7 @@ const About = () => {
           <SectionDivider
             number="03"
             title="Data Sources & Astronomical Provenance"
-            subtitle="Authoritative open science catalogs and calibration ground truth"
+            subtitle="Public catalogues, and labels that are not human-verified"
             badge="PROVENANCE"
             accent="emerald"
           />
@@ -157,8 +157,8 @@ const About = () => {
                 JWST Approved Targets & Literature
               </span>
               <p className="text-exosignal-text-secondary">
-                Guaranteed Time Observations (GTO) and General Observers (GO) Cycle 1–3 target
-                rosters used as ground-truth training and validation labels.
+                Candidate JWST target labels compiled from public sources. They are not
+                human-verified and are incomplete; every model metric that uses them is provisional.
               </p>
             </div>
           </div>

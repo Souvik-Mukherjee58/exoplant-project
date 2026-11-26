@@ -117,7 +117,7 @@ describe('TopTargets Component', () => {
     expect(top50Btn).toBeInTheDocument();
   });
 
-  it('renders the "Include already-observed JWST targets" toggle and displays raw score only in 4-decimal tooltip', () => {
+  it('renders the "Include planets labelled as JWST targets" toggle and displays raw score only in 4-decimal tooltip', () => {
     render(
       <MemoryRouter>
         <TopTargets />
@@ -125,9 +125,9 @@ describe('TopTargets Component', () => {
     );
 
     // Verify toggle presence
-    const toggle = screen.getByLabelText(/Include already-observed JWST targets/i);
+    const toggle = screen.getByLabelText(/Include planets labelled as JWST targets/i);
     expect(toggle).toBeInTheDocument();
-    expect(toggle).not.toBeChecked(); // defaults to unobserved planets
+    expect(toggle).not.toBeChecked(); // by default, labelled planets are left out
 
     // Verify primary number is percentile ("Top 0.02%")
     expect(screen.getAllByText('Top 0.02%').length).toBeGreaterThan(0);

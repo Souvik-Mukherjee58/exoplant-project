@@ -94,7 +94,7 @@ const TopTargets = () => {
         tsm: tsmVal,
         threshold: tsmThresh,
         isExtrapolated,
-        anomaly: Number(((p.anomaly_score || 0) * 100).toFixed(1)),
+        anomaly: p.anomaly_score != null ? Number((p.anomaly_score * 100).toFixed(1)) : null,
         percentile: p.percentile_rank ?? null,
       };
     });
@@ -136,13 +136,13 @@ const TopTargets = () => {
           </div>
           <h1 className="text-3xl font-black text-white font-display">
             {activeTab === 'validation'
-              ? 'Validation: Known JWST Targets'
+              ? 'Labelled JWST Targets: Out-Of-Fold Ranks'
               : 'Top Atmospheric Spectroscopy Candidates'}
           </h1>
           <p className="text-sm text-exosignal-text-secondary mt-1 max-w-2xl">
             {activeTab === 'validation'
-              ? 'Evaluating known JWST Cycle 1–3 transmission targets strictly out-of-fold (Group-KFold by host star). No target is scored by a model trained on its own system.'
-              : 'Actionable discovery targets excluding already observed JWST programs, ranked by regularized logistic regression with Kempton et al. (2018) TSM context.'}
+              ? 'Planets labelled as JWST targets, scored out-of-fold (grouped by host star): no planet is scored by a model trained on its own system. The labels are not human-verified.'
+              : 'Planets that our incomplete, unverified label set does not list as JWST targets, ranked by regularized logistic regression, with Kempton et al. (2018) TSM context. Some may already have been observed.'}
           </p>
         </div>
 
@@ -177,9 +177,9 @@ const TopTargets = () => {
                 : 'text-exosignal-text-muted hover:text-white hover:bg-slate-800/40'
             }`}
           >
-            <span>🔭 Top Unobserved Targets</span>
+            <span>🔭 Not Labelled As Targets</span>
             <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono">
-              Actionable
+              Model Rank
             </span>
           </button>
 
@@ -191,7 +191,7 @@ const TopTargets = () => {
                 : 'text-exosignal-text-muted hover:text-white hover:bg-slate-800/40'
             }`}
           >
-            <span>🔬 Validation: Known JWST Targets</span>
+            <span>🔬 Labelled JWST Targets</span>
             <span className="px-2 py-0.5 rounded-full text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/40 font-mono">
               Out-of-Fold
             </span>
@@ -208,7 +208,7 @@ const TopTargets = () => {
                 className="rounded border-slate-700 text-exosignal-cyan focus:ring-0 cursor-pointer"
                 data-testid="toggle-include-observed"
               />
-              <span>Include already-observed JWST targets</span>
+              <span>Include planets labelled as JWST targets</span>
             </label>
           )}
 
@@ -216,12 +216,12 @@ const TopTargets = () => {
             {activeTab === 'unobserved' ? (
               <span className={includeObserved ? 'text-cyan-400' : 'text-emerald-400'}>
                 {includeObserved
-                  ? '● Unified ranking (includes observed targets)'
-                  : '✓ In-sample recall eliminated (Unobserved targets only)'}
+                  ? '● One ranking, including labelled planets (out-of-fold scores)'
+                  : '● Labelled planets are left out'}
               </span>
             ) : (
               <span className="text-purple-300">
-                ● 5-fold StratifiedGroupKFold (Zero host-star leakage)
+                ● 5-fold StratifiedGroupKFold, grouped by host star
               </span>
             )}
           </div>
@@ -233,11 +233,11 @@ const TopTargets = () => {
         <div className="glass-panel p-4 rounded-xl border border-purple-500/30 bg-purple-950/10 text-xs font-mono text-purple-200 flex items-start space-x-3">
           <span className="text-lg">🛡️</span>
           <div>
-            <div className="font-bold text-white mb-0.5">Out-Of-Fold Benchmark Invariant</div>
-            Scores and ranks shown here for known JWST Cycle 1–3 targets are computed exclusively
-            when their entire host star system was held out in validation folds (
+            <div className="font-bold text-white mb-0.5">How These Scores Are Computed</div>
+            Each score shown here comes from a model that was fitted without any planet of the same
+            host star (
             <code className="text-exosignal-cyan">StratifiedGroupKFold(n=5, group=hostname)</code>).
-            This verifies where known targets land without in-sample overfitting.
+            The labels themselves are not human-verified, so these ranks are provisional.
           </div>
         </div>
       )}
@@ -249,26 +249,22 @@ const TopTargets = () => {
             number="01"
             title={
               activeTab === 'validation'
-                ? 'Known JWST Targets: Top Landing Positions'
-                : 'Prime Spectroscopy Targets Podium'
+                ? 'Labelled JWST Targets: First Three'
+                : 'Highest Ranked: First Three'
             }
             subtitle={
               activeTab === 'validation'
-                ? 'Top 3 verified JWST programs ranked by out-of-fold generalization performance'
-                : 'Top 3 unobserved candidates exhibiting peak transmission signal-to-noise ratio and atmospheric scale height'
+                ? 'Top 3 planets labelled as JWST targets (labels not human-verified), by out-of-fold rank'
+                : 'Top 3 planets not labelled as JWST targets, by model rank. The label set is incomplete'
             }
-            badge={activeTab === 'validation' ? 'KNOWN POSITIVES (OOF)' : 'TOP PODIUM'}
+            badge={activeTab === 'validation' ? 'LABELLED (OUT-OF-FOLD)' : 'FIRST THREE'}
             accent={activeTab === 'validation' ? 'purple' : 'amber'}
           />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {podium.map((planet, idx) => {
               const isFirst = idx === 0;
-              const medal = isFirst
-                ? '🥇 #1 Prime Target'
-                : idx === 1
-                  ? '🥈 #2 Runner-Up'
-                  : '🥉 #3 High Yield';
+              const medal = isFirst ? '🥇 First' : idx === 1 ? '🥈 Second' : '🥉 Third';
               const borderGlow = isFirst
                 ? 'border-amber-400/50 shadow-neon-emerald'
                 : idx === 1
@@ -283,8 +279,8 @@ const TopTargets = () => {
                     : planet.unobserved_rank ?? planet.priority_rank ?? idx + 1;
               const currentScore =
                 activeTab === 'validation'
-                  ? planet.oof_priority_score ?? planet.priority_score ?? 0
-                  : planet.priority_score ?? planet.ml_priority_score ?? 0;
+                  ? planet.oof_priority_score ?? planet.priority_score
+                  : planet.priority_score ?? planet.ml_priority_score;
 
               return (
                 <div
@@ -365,8 +361,7 @@ const TopTargets = () => {
                         className="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 cursor-help"
                         title={`Raw score: ${formatRawScore(currentScore)}`}
                       >
-                        {planet.percentile_rank_string ||
-                          `Top ${planet.percentile_rank || 0.1}% of 4,643 eligible`}
+                        {planet.percentile_rank_string || 'Percentile not available'}
                       </span>
                     </div>
 
@@ -412,8 +407,8 @@ const TopTargets = () => {
           <SectionDivider
             number="02"
             title="Top 10 Transmission Spectroscopy Metric (TSM) vs Kempton Thresholds"
-            subtitle="Evaluating observational feasibility against peer-reviewed Kempton et al. (2018) size-class thresholds"
-            badge="TSM FEASIBILITY"
+            subtitle="The TSM of each planet and the cutoff that Kempton et al. (2018) suggest for its size class; not a feasibility study"
+            badge="TSM"
             accent="cyan"
           />
 
@@ -421,14 +416,12 @@ const TopTargets = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-exosignal-cyan/15 pb-3 gap-2">
               <div>
                 <div className="text-xs font-mono text-exosignal-cyan uppercase tracking-wider font-bold mb-1">
-                  Quantitative Feasibility
+                  Transmission Spectroscopy Metric
                 </div>
-                <h3 className="text-xl font-bold font-display text-white">
-                  Top 10 Targets TSM Yield Comparison
-                </h3>
+                <h3 className="text-xl font-bold font-display text-white">TSM of the First Ten</h3>
               </div>
               <span className="text-xs font-mono text-amber-400">
-                ● TSM Yield vs Recommended 5σ Detection Threshold
+                ● TSM and the cutoff suggested by Kempton et al. (2018)
               </span>
             </div>
 
@@ -478,15 +471,10 @@ const TopTargets = () => {
                       fontSize: '11px',
                     }}
                   />
-                  <Bar
-                    dataKey="tsm"
-                    name="TSM Metric (Yield)"
-                    fill="url(#cyanGradient)"
-                    radius={[4, 4, 0, 0]}
-                  />
+                  <Bar dataKey="tsm" name="TSM" fill="url(#cyanGradient)" radius={[4, 4, 0, 0]} />
                   <Bar
                     dataKey="threshold"
-                    name="Kempton Threshold (5σ Baseline)"
+                    name="Kempton et al. (2018) cutoff"
                     fill="url(#amberGradient)"
                     radius={[4, 4, 0, 0]}
                   />
@@ -503,13 +491,13 @@ const TopTargets = () => {
           number="03"
           title={
             activeTab === 'validation'
-              ? 'Known JWST Targets Benchmark Leaderboard'
+              ? 'Labelled JWST Targets'
               : 'Atmospheric Spectroscopy Leaderboard'
           }
           subtitle={
             activeTab === 'validation'
-              ? 'Out-of-fold generalization positions and TSM metrics for known Cycle 1–3 JWST programs'
-              : 'Unobserved candidates prioritized by ranking model, annotated with percentile ranks and Kempton thresholds'
+              ? 'Out-of-fold ranks and TSM of planets labelled as JWST targets'
+              : 'Planets not labelled as JWST targets, by model rank, with percentile and Kempton cutoff'
           }
           badge={`${activePlanets?.length || 0} TARGETS LOADED`}
           accent={activeTab === 'validation' ? 'purple' : 'cyan'}
@@ -519,13 +507,11 @@ const TopTargets = () => {
           <div className="compartment-header text-xs font-mono flex items-center justify-between">
             <span className="text-exosignal-text-secondary font-bold">
               {activeTab === 'validation'
-                ? `Known Targets Validation Set (${activePlanets?.length || 0} Programs)`
-                : `Actionable Unobserved Candidates (${activePlanets?.length || 0} Targets)`}
+                ? `Labelled planets (${activePlanets?.length || 0})`
+                : `Planets not labelled as JWST targets (${activePlanets?.length || 0})`}
             </span>
             <span className={activeTab === 'validation' ? 'text-purple-400' : 'text-emerald-400'}>
-              {activeTab === 'validation'
-                ? '● Out-of-Fold Evaluation Active'
-                : '● Known Targets Excluded (Zero Leakage)'}
+              {activeTab === 'validation' ? '● Out-of-fold scores' : '● Labelled planets left out'}
             </span>
           </div>
 
@@ -573,8 +559,8 @@ const TopTargets = () => {
                           : planet.unobserved_rank ?? planet.priority_rank ?? index + 1;
                     const currentScore =
                       activeTab === 'validation'
-                        ? planet.oof_priority_score ?? planet.priority_score ?? 0
-                        : planet.priority_score ?? planet.ml_priority_score ?? 0;
+                        ? planet.oof_priority_score ?? planet.priority_score
+                        : planet.priority_score ?? planet.ml_priority_score;
 
                     return (
                       <tr
@@ -600,8 +586,7 @@ const TopTargets = () => {
                             className="font-bold text-cyan-300 cursor-help"
                             title={`Raw score: ${formatRawScore(currentScore)}`}
                           >
-                            {planet.percentile_rank_string ||
-                              `Top ${planet.percentile_rank || 0.1}% of 4,643 eligible`}
+                            {planet.percentile_rank_string || 'Percentile not available'}
                           </div>
                           <div
                             className="text-[10px] font-mono text-exosignal-text-muted cursor-help"
@@ -642,7 +627,7 @@ const TopTargets = () => {
                                   : 'bg-slate-700/30 text-slate-400 border border-slate-600/30'
                             }`}
                           >
-                            {planet.hz_status || 'Outside HZ'}
+                            {planet.hz_status || 'Insufficient data'}
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-center">

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from app.pipeline import build_artifacts
+from app.pipeline import REGISTRY_METRICS, build_artifacts
 
 
 @pytest.fixture
@@ -72,6 +72,13 @@ def test_pipeline_fixture_and_evaluation_schema(tmp_path: Path, fixture_raw_csv_
             assert field in model_entry, f"Model entry missing field '{field}': {model_entry}"
         assert isinstance(model_entry["map"], (int, float)), f"map must be float: {model_entry['map']}"
         assert isinstance(model_entry["pr_auc"], (int, float)), f"pr_auc must be float: {model_entry['pr_auc']}"
+
+    # 3b. The registry entry carries real metrics (it used to ask for keys that do not exist and stored nulls)
+    entry = json.loads((v_dir / "registry_entry.json").read_text(encoding="utf-8"))
+    for metric in REGISTRY_METRICS:
+        assert entry["evaluation"][metric] is not None, metric
+    importances = json.loads((v_dir / "ltr_feature_importance.json").read_text(encoding="utf-8"))
+    assert entry["training"]["n_features"] == importances["total_features"]
 
     # 4. Validate Manifest Schema
     with open(manifest_path, "r", encoding="utf-8") as f:

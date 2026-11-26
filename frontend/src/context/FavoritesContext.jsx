@@ -17,7 +17,9 @@ export const FavoritesProvider = ({ children }) => {
     const saved = localStorage.getItem('exosignal_favorites');
     if (saved) {
       try {
-        setFavorites(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        // Anything else in local storage (older versions, manual edits) would break every page.
+        setFavorites(Array.isArray(parsed) ? parsed.filter((p) => p?.planet_name) : []);
       } catch (e) {
         console.error('Failed to parse favorites:', e);
       }

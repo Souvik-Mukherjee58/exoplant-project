@@ -17,7 +17,7 @@ const NAV_ITEMS = [
 const Navbar = () => {
   const location = useLocation();
   const { favorites } = useFavorites();
-  const [systemStatus, setSystemStatus] = useState({ ok: true, version: 'v1_2026-10-23' });
+  const [systemStatus, setSystemStatus] = useState({ ok: false, version: 'checking' });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [quickSearchOpen, setQuickSearchOpen] = useState(false);
 
@@ -47,7 +47,7 @@ const Navbar = () => {
         if (res) {
           setSystemStatus({
             ok: res.status === 'ok',
-            version: res.artifact_version || 'v1_active',
+            version: res.artifact_version || 'unknown',
           });
         }
       })

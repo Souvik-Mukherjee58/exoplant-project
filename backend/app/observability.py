@@ -1,6 +1,6 @@
 """Structured JSON logging and request observability middleware for ExoSignal.
 
-Production-grade observability layer providing:
+Provides:
 1. JSON-structured log output (machine-parseable by ELK, Datadog, CloudWatch).
 2. Per-request correlation IDs (X-Request-ID header propagation via contextvars).
 3. Request/response timing metrics with automatic slow-query alerting.
@@ -12,6 +12,7 @@ import contextvars
 import hashlib
 import json
 import logging
+import re
 import sys
 import threading
 import time
@@ -38,6 +39,18 @@ HTTP_STATUS_TO_CODE = {
     502: "BAD_GATEWAY",
     503: "SERVICE_UNAVAILABLE",
 }
+
+
+# A client-supplied request ID is echoed in a header and written to logs, so it must be short and plain.
+_REQUEST_ID_PATTERN = re.compile(r"[A-Za-z0-9._-]{1,64}")
+
+
+def resolve_request_id(request: Request) -> str:
+    """The client's X-Request-ID when it is well formed; otherwise the current one, or a new one."""
+    supplied = request.headers.get("X-Request-ID", "")
+    if _REQUEST_ID_PATTERN.fullmatch(supplied):
+        return supplied
+    return request_id_ctx.get() or str(uuid.uuid4())[:8]
 
 
 class JSONFormatter(logging.Formatter):
@@ -121,7 +134,7 @@ class RequestTracingMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next) -> Response:
         # Propagate or generate request ID
-        request_id = request.headers.get("X-Request-ID") or request.headers.get("x-request-id") or str(uuid.uuid4())[:8]
+        request_id = resolve_request_id(request)
         token = request_id_ctx.set(request_id)
         start_time = time.perf_counter()
 
@@ -182,6 +195,20 @@ class RequestTracingMiddleware(BaseHTTPMiddleware):
         return response
 
 
+# Monitoring probes and documentation: never rate limited, never cached.
+PROBE_AND_DOC_PATHS = frozenset(
+    {"/health", "/ready", "/metrics", "/api/v1/health", "/api/v1/metrics", "/docs", "/redoc", "/openapi.json"}
+)
+
+# Part of every ETag. Raise it whenever code changes an answer for the same artifact; otherwise a 304 keeps the
+# old answer alive in caches.
+RESPONSE_REVISION = "2"
+
+# Responses that can change while the artifact version stays the same (registry state, live measurements),
+# so an ETag derived from the artifact version would serve stale data.
+DYNAMIC_PATH_PREFIXES = ("/api/v1/models/registry/", "/api/v1/system/")
+
+
 class RateLimitingMiddleware(BaseHTTPMiddleware):
     """
     Lightweight in-memory sliding-window rate limiting per client IP.
@@ -201,7 +228,7 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
         self.window_seconds = 60.0
         self._history: Dict[str, List[float]] = {}
         self._lock = threading.Lock()
-        self._exempt_paths = {"/health", "/ready", "/metrics", "/docs", "/redoc", "/openapi.json"}
+        self._exempt_paths = PROBE_AND_DOC_PATHS
 
     def client_ip(self, request: Request) -> str:
         """Client address that the operator's proxies vouch for.
@@ -246,7 +273,7 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
 
             if len(valid) >= limit:
                 self._history[client_ip] = valid
-                req_id = request.headers.get("X-Request-ID") or request_id_ctx.get() or str(uuid.uuid4())[:8]
+                req_id = resolve_request_id(request)
                 return JSONResponse(
                     status_code=429,
                     headers={
@@ -286,23 +313,14 @@ class ETagCacheMiddleware(BaseHTTPMiddleware):
     Returns 304 Not Modified when client's If-None-Match matches the current active artifact ETag.
     """
 
-    def __init__(self, app):
-        super().__init__(app)
-        self._active_version_cache: Optional[str] = None
-
-    def _get_active_version(self) -> str:
-        if self._active_version_cache:
-            return self._active_version_cache
+    def _get_active_version(self) -> Optional[str]:
+        """The version the engine serves now (not cached here: the engine can be reloaded)."""
         try:
             from app.services.query_engine import CatalogQueryEngine
 
-            v = CatalogQueryEngine.get_instance().active_version
-            if v:
-                self._active_version_cache = v
-                return v
+            return CatalogQueryEngine.get_instance().active_version
         except Exception:
-            pass
-        return "v1"
+            return None
 
     async def dispatch(self, request: Request, call_next) -> Response:
         # Only apply caching headers to read-only GET and HEAD requests
@@ -311,24 +329,29 @@ class ETagCacheMiddleware(BaseHTTPMiddleware):
 
         path = request.url.path
         # Exclude dynamic monitoring probes and docs
-        if path in ("/health", "/ready", "/metrics", "/docs", "/redoc", "/openapi.json"):
+        if path in PROBE_AND_DOC_PATHS:
             return await call_next(request)
+        if path.startswith(DYNAMIC_PATH_PREFIXES):
+            response = await call_next(request)
+            response.headers["Cache-Control"] = "no-store"
+            return response
 
         active_version = self._get_active_version()
-        etag_seed = f"{active_version}:{path}:{request.url.query}"
+        if not active_version:  # nothing to derive an ETag from: do not cache
+            return await call_next(request)
+        etag_seed = f"{RESPONSE_REVISION}:{active_version}:{path}:{request.url.query}"
         digest = hashlib.sha256(etag_seed.encode("utf-8")).hexdigest()[:16]
         etag = f'W/"{active_version}-{digest}"'
 
         # Conditional request check (If-None-Match)
         client_etag = request.headers.get("if-none-match")
         if client_etag and client_etag.strip() == etag:
-            req_id = request.headers.get("X-Request-ID") or request_id_ctx.get() or ""
+            req_id = resolve_request_id(request)
             headers = {
                 "ETag": etag,
                 "Cache-Control": "public, max-age=3600, must-revalidate",
+                "X-Request-ID": req_id,
             }
-            if req_id:
-                headers["X-Request-ID"] = req_id
             return Response(status_code=304, headers=headers)
 
         response = await call_next(request)

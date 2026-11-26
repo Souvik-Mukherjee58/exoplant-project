@@ -45,8 +45,8 @@ const Footer = () => {
               </span>
             </div>
             <p className="text-xs text-exosignal-text-muted leading-relaxed">
-              Machine learning platform optimizing telescope observation schedules for transmission
-              and emission spectroscopy follow-up.
+              Exploratory ranking of transiting exoplanets for transmission spectroscopy. It does
+              not schedule observations.
             </p>
             <div className="flex items-center space-x-2 text-xs font-mono text-emerald-400">
               <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
@@ -66,7 +66,7 @@ const Footer = () => {
               </li>
               <li className="flex items-center space-x-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-exosignal-cyan"></span>
-                <span>10 Standardized Physical Feature Inputs</span>
+                <span>21 Standardized Physical Feature Inputs</span>
               </li>
               <li className="flex items-center space-x-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-exosignal-cyan"></span>
@@ -86,7 +86,7 @@ const Footer = () => {
           {/* Col 3: Data & Astrometry */}
           <div className="space-y-2">
             <h4 className="text-xs font-mono uppercase tracking-wider text-exosignal-purple font-bold">
-              Astrophysical Ground Truth
+              Data and Reference Methods
             </h4>
             <ul className="space-y-2 text-xs text-exosignal-text-muted">
               <li className="flex items-center space-x-2">
@@ -103,11 +103,11 @@ const Footer = () => {
               </li>
               <li className="flex items-center space-x-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-exosignal-purple"></span>
-                <span>Chen &amp; Kipping (2017) Mass-Radius Fallback</span>
+                <span>Mass-Radius Fallback (see Methodology)</span>
               </li>
               <li className="flex items-center space-x-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-exosignal-purple"></span>
-                <span>Confirmed JWST Cycle 1–3 Programs</span>
+                <span>JWST Target Labels (not human-verified)</span>
               </li>
             </ul>
           </div>
@@ -144,8 +144,8 @@ const Footer = () => {
         <div className="pt-8 border-t border-exosignal-cyan/10 flex flex-col md:flex-row items-center justify-between text-[11px] text-exosignal-text-subtle gap-4">
           <p>
             Scientific Disclaimer: Target Priority Scores represent comparative observational
-            utility for spectroscopic follow-up. Scores do not represent a probability of
-            extraterrestrial life.
+            utility for spectroscopic follow-up. Priority and anomaly scores are exploratory; they
+            are neither evidence nor a probability of extraterrestrial life or intelligence.
           </p>
           <p className="font-mono">
             ExoSignal ML Systems • Open Scientific Follow-Up Prioritization

@@ -53,11 +53,13 @@ const Analytics = () => {
     if (!pcaData?.planets || !Array.isArray(pcaData.planets)) return [];
     return pcaData.planets.map((name, i) => ({
       name,
-      x: Number((pcaData.pca_x?.[i] ?? 0).toFixed(2)),
-      y: Number((pcaData.pca_y?.[i] ?? 0).toFixed(2)),
-      anomaly: Number((pcaData.anomaly_score?.[i] ?? 0).toFixed(3)),
-      priority:
-        pcaData.priority_score?.[i] != null ? Number(pcaData.priority_score[i].toFixed(1)) : null,
+      x: pcaData.pca_x?.[i],
+      y: pcaData.pca_y?.[i],
+      anomaly: pcaData.anomaly_score?.[i] ?? null,
+      heuristic:
+        pcaData.target_priority_score?.[i] != null
+          ? Number(pcaData.target_priority_score[i].toFixed(1))
+          : null,
       hz: pcaData.hz_status?.[i] ?? 'Unknown',
     }));
   }, [pcaData]);
@@ -127,12 +129,10 @@ const Analytics = () => {
           <div className="text-xs font-mono text-exosignal-cyan uppercase tracking-wider font-bold mb-1">
             Astronomical Population Analytics
           </div>
-          <h1 className="text-3xl font-black text-white font-display">
-            Exoplanet Population Intelligence
-          </h1>
+          <h1 className="text-3xl font-black text-white font-display">Exoplanet Population</h1>
           <p className="text-sm text-exosignal-text-secondary mt-1 max-w-2xl">
-            Empirical distributions, habitable zone representation, detection technique breakdowns,
-            and unsupervised anomaly clustering across the archive catalog.
+            Distributions, habitable zone representation, detection technique breakdowns, and
+            unsupervised anomaly clustering across the archive catalog.
           </p>
         </div>
         <div className="text-xs font-mono text-exosignal-cyan bg-space-void/90 px-3 py-1.5 rounded-xl border border-exosignal-cyan/20">
@@ -151,7 +151,7 @@ const Analytics = () => {
           <SectionDivider
             number="01"
             title="Population Metric Foundations"
-            subtitle="Vital statistics and distribution spread computed across the prioritized exoplanet catalog"
+            subtitle="Vital statistics and distribution spread computed across the whole catalogue"
             badge="VITAL STATS"
             accent="cyan"
           />
@@ -170,7 +170,7 @@ const Analytics = () => {
             </div>
             <div className="divided-compartment p-5">
               <p className="text-[10px] font-mono text-exosignal-text-muted uppercase mb-1 font-semibold">
-                Priority Range
+                Heuristic Score Range
               </p>
               <p className="text-2xl font-bold font-mono text-exosignal-cyan">
                 {formatPriority(scoreStats.min)}–{formatPriority(scoreStats.max)}
@@ -181,7 +181,7 @@ const Analytics = () => {
             </div>
             <div className="divided-compartment p-5">
               <p className="text-[10px] font-mono text-exosignal-text-muted uppercase mb-1 font-semibold">
-                Mean Priority
+                Mean Heuristic Score
               </p>
               <p className="text-2xl font-bold font-mono text-exosignal-purple">
                 {formatPriority(scoreStats.mean)}
@@ -192,7 +192,7 @@ const Analytics = () => {
             </div>
             <div className="divided-compartment p-5">
               <p className="text-[10px] font-mono text-exosignal-text-muted uppercase mb-1 font-semibold">
-                Median Priority
+                Median Heuristic Score
               </p>
               <p className="text-2xl font-bold font-mono text-emerald-400">
                 {formatPriority(scoreStats.median)}
@@ -207,7 +207,7 @@ const Analytics = () => {
                 {formatPriority(scoreStats.std)}
               </p>
               <span className="text-[10px] font-mono text-amber-300 mt-1 block">
-                Score Variance
+                Standard Deviation
               </span>
             </div>
           </div>
@@ -219,8 +219,8 @@ const Analytics = () => {
         <div className="space-y-4">
           <SectionDivider
             number="02"
-            title="Spectroscopy Priority Score Distribution"
-            subtitle="Binned empirical frequency distribution illustrating prioritization selectivity"
+            title="Heuristic Score Distribution"
+            subtitle="Heuristic composite of all catalogue planets; not used for the ranking"
             badge="HISTOGRAM"
             accent="purple"
           />
@@ -229,11 +229,10 @@ const Analytics = () => {
             <div className="compartment-header">
               <div>
                 <h3 className="text-base font-bold font-display text-white">
-                  Priority Score Binned Frequency
+                  Heuristic Score Frequency
                 </h3>
                 <p className="text-xs font-mono text-exosignal-text-muted">
-                  Empirical distribution of target scores showcasing selective high-priority
-                  candidates
+                  Number of catalogue planets per heuristic score range
                 </p>
               </div>
               <span className="text-xs font-mono px-3 py-1 rounded-full bg-space-void border border-exosignal-cyan/20 text-exosignal-cyan">
@@ -318,7 +317,7 @@ const Analytics = () => {
                     Habitable Zone Alignment
                   </h3>
                   <p className="text-xs font-mono text-exosignal-text-muted">
-                    Based on empirical stellar flux boundaries (Kopparapu et al.)
+                    Stellar flux boundaries of Kopparapu et al.
                   </p>
                 </div>
                 <span className="text-xs font-mono px-3 py-1 rounded-full bg-space-void border border-emerald-500/30 text-emerald-400">
@@ -356,7 +355,7 @@ const Analytics = () => {
                           boxShadow: '0 0 20px rgba(168, 85, 247, 0.25)',
                         }}
                         formatter={(val, name, item) => [
-                          `${val} targets (${item?.payload?.percentage ?? 0}%)`,
+                          `${val} targets (${item?.payload?.percentage ?? '—'}%)`,
                           name,
                         ]}
                       />
@@ -449,7 +448,7 @@ const Analytics = () => {
           <SectionDivider
             number="04"
             title="PCA Feature Space & Outlier Projection"
-            subtitle="Unsupervised dimensionality reduction revealing clustering geometries and extreme anomalies"
+            subtitle="Exploratory: outliers are unusual or uncertain catalogue entries, not evidence of anything artificial"
             badge="ISOLATION FOREST"
             accent="amber"
           />
@@ -457,12 +456,10 @@ const Analytics = () => {
           <div className="divided-compartment">
             <div className="compartment-header">
               <div>
-                <h3 className="text-base font-bold font-display text-white">
-                  PCA 2D Manifold Projection
-                </h3>
+                <h3 className="text-base font-bold font-display text-white">PCA 2D Projection</h3>
                 <p className="text-xs font-mono text-exosignal-text-muted">
-                  First two principal components showing cluster geometries. Color indicates anomaly
-                  score.
+                  First two principal components of a sample of the catalogue. Hover a point for its
+                  anomaly score.
                 </p>
               </div>
               <span className="text-xs font-mono px-3 py-1 rounded-full bg-space-void border border-amber-500/30 text-amber-300">
@@ -509,8 +506,10 @@ const Analytics = () => {
                         </div>,
                         <div key="pc1">PC1: {props.payload.x}</div>,
                         <div key="pc2">PC2: {props.payload.y}</div>,
-                        <div key="anomaly">Anomaly Score: {props.payload.anomaly}</div>,
-                        <div key="priority">Priority Score: {props.payload.priority}</div>,
+                        <div key="anomaly">Anomaly Score: {props.payload.anomaly ?? '—'}</div>,
+                        <div key="heuristic">
+                          Heuristic score: {props.payload.heuristic ?? '—'}
+                        </div>,
                         <div key="hz">HZ: {props.payload.hz}</div>,
                       ]}
                     />

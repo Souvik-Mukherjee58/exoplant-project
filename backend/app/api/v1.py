@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 from app.ml.explainability import SHAPExplainer
 from app.scoring.priority_scorer import TargetPriorityScorer
@@ -22,16 +22,20 @@ router = APIRouter()
 # Pydantic models for API responses with validation
 class PlanetResponse(BaseModel):
     planet_name: str = Field(..., description="Name of the exoplanet")
-    priority_score: Optional[float] = Field(None, ge=0.0, le=100.0, description="Supervised ML priority score (0-100)")
+    priority_score: Optional[float] = Field(
+        None, ge=0.0, le=100.0, description="Ranking score (0-100); not a probability"
+    )
     priority_rank: Optional[int] = Field(
         None, ge=1, description="Rank among eligible planets (1 = top target; None for ineligible)"
     )
     heuristic_habitability_score: Optional[float] = Field(
         None, ge=0.0, le=100.0, description="Heuristic habitability score (0-100)"
     )
-    target_priority_score: float = Field(..., ge=0.0, le=100.0, description="Heuristic priority score (0-100)")
+    target_priority_score: Optional[float] = Field(
+        None, ge=0.0, le=100.0, description="Heuristic composite score (0-100); None when it is not available"
+    )
     ml_priority_score: Optional[float] = Field(
-        None, ge=0.0, le=100.0, description="Supervised LTR priority score (0-100)"
+        None, ge=0.0, le=100.0, description="Supervised ranking score (0-100); not a probability"
     )
     ml_rank: Optional[int] = Field(None, ge=1, description="Rank under the supervised ranking model")
     rank_delta: Optional[int] = Field(
@@ -43,12 +47,19 @@ class PlanetResponse(BaseModel):
     equilibrium_temperature: Optional[float] = Field(None, description="Equilibrium temperature in Kelvin")
     distance: Optional[float] = Field(None, description="Distance to star system in parsecs")
     hz_status: Optional[str] = Field(None, description="Habitable zone status")
-    anomaly_score: Optional[float] = Field(None, ge=0.0, le=1.0, description="Anomaly score (0-1)")
+    anomaly_score: Optional[float] = Field(
+        None,
+        ge=0.0,
+        le=1.0,
+        description="Statistical outlier score (0-1), exploratory; not evidence of anything artificial",
+    )
     discovery_method: Optional[str] = Field(None, description="Discovery method")
     is_transiting: Optional[bool] = Field(None, description="Whether the planet transits its host star")
     eligible_for_transmission: Optional[bool] = Field(None, description="Eligibility for transmission spectroscopy")
     exclusion_reason: Optional[str] = Field(None, description="Exclusion reason if ineligible")
-    already_observed_jwst: Optional[bool] = Field(None, description="Whether target has been observed by JWST")
+    already_observed_jwst: Optional[bool] = Field(
+        None, description="Labelled as observed by JWST (labels not human-verified)"
+    )
     tsm: Optional[float] = Field(None, description="Transmission Spectroscopy Metric")
     tsm_threshold: Optional[float] = Field(None, description="Kempton et al. (2018) size-class threshold")
     kempton_size_class: Optional[str] = Field(None, description="Kempton et al. (2018) physical regime")
@@ -59,7 +70,9 @@ class PlanetResponse(BaseModel):
     oof_ml_rank: Optional[int] = Field(None, description="Out-of-fold global model rank")
     oof_priority_score: Optional[float] = Field(None, description="Out-of-fold cross-validated priority score")
     unobserved_rank: Optional[int] = Field(None, description="Rank among unobserved candidates")
-    is_jwst_target: Optional[bool] = Field(None, description="Whether target is a confirmed JWST target")
+    is_jwst_target: Optional[bool] = Field(
+        None, description="Labelled as a JWST target in the artifact (labels not human-verified)"
+    )
     mass_is_estimated: Optional[bool] = Field(
         None, description="True if the mass is estimated from a mass-radius relation; None if provenance unknown"
     )
@@ -67,13 +80,6 @@ class PlanetResponse(BaseModel):
         None,
         description="measured | archive_mr_relation | chen_kipping_2017 | unknown_provenance | unavailable",
     )
-
-    @field_validator("target_priority_score")
-    @classmethod
-    def validate_priority_score(cls, v):
-        if not 0 <= v <= 100:
-            raise ValueError("Priority score must be between 0 and 100")
-        return v
 
 
 class PlanetDetailResponse(PlanetResponse):
@@ -83,6 +89,7 @@ class PlanetDetailResponse(PlanetResponse):
     stellar_mass: Optional[float] = Field(None, description="Stellar mass in solar masses")
     stellar_metallicity: Optional[float] = Field(None, description="Stellar metallicity")
     stellar_name: Optional[str] = Field(None, description="Name of host star")
+    semi_major_axis: Optional[float] = Field(None, description="Orbital semi-major axis in AU")
     earth_similarity: Optional[float] = Field(None, ge=0.0, le=1.0, description="Earth similarity index (0-1)")
     observational_accessibility: Optional[float] = Field(
         None, ge=0.0, le=1.0, description="Observational accessibility (0-1)"
@@ -100,7 +107,7 @@ class RecommendationResponse(BaseModel):
     tsm_threshold: Optional[float] = Field(None, description="Kempton recommended threshold")
     kempton_size_class: Optional[str] = Field(None, description="Size class regime")
     tsm_ratio: Optional[float] = Field(None, description="Ratio of TSM to threshold")
-    already_observed_jwst: bool = Field(False, description="Whether target has been observed by JWST")
+    already_observed_jwst: bool = Field(False, description="Labelled as observed by JWST (labels not human-verified)")
     reasons: List[str] = Field(default_factory=list, description="Top 3 SHAP drivers in plain English")
     planet_radius: Optional[float] = None
     planet_mass: Optional[float] = None
@@ -130,8 +137,8 @@ class AnomalyPCAResponse(BaseModel):
     planets: List[str] = Field(..., description="Planet names")
     pca_x: List[float] = Field(..., description="PCA x-coordinates")
     pca_y: List[float] = Field(..., description="PCA y-coordinates")
-    anomaly_score: List[float] = Field(..., description="Anomaly scores")
-    target_priority_score: List[float] = Field(..., description="Priority scores")
+    anomaly_score: List[Optional[float]] = Field(..., description="Anomaly scores")
+    target_priority_score: List[Optional[float]] = Field(..., description="Heuristic scores")
     hz_status: List[str] = Field(..., description="Habitable zone statuses")
     explained_variance: List[float] = Field(..., description="PCA explained variance ratios")
     feature_names: List[str] = Field(..., description="Feature names used in PCA")
@@ -165,7 +172,9 @@ class PlanetExplanationResponse(BaseModel):
     citation: str = Field("Lundberg & Lee (2017, NeurIPS)", description="Theoretical attribution framework citation")
     base_logit: Optional[float] = Field(None, description="Base value margin in log-odds units")
     final_logit: Optional[float] = Field(None, description="Final predicted logit margin in log-odds units")
-    converted_percentile: Optional[float] = Field(None, description="Converted percentile score from logit via sigmoid")
+    converted_percentile: Optional[float] = Field(
+        None, description="100 x sigmoid(logit): a ranking score, neither a percentile nor a calibrated probability"
+    )
     mathematical_invariants: MathematicalInvariants = Field(..., description="Linear SHAP additive conservation proof")
     top_positive_drivers: List[WaterfallItem] = Field(..., description="Top 5 features elevating priority")
     top_negative_barriers: List[WaterfallItem] = Field(..., description="Top 5 features lowering priority")
@@ -211,6 +220,35 @@ def _clean_val(val):
     return val
 
 
+def _first_number(row, *keys: str) -> Optional[float]:
+    """First present, non-NaN value. (`a or b` is wrong here: NaN is truthy and 0.0 is falsy.)"""
+    for key in keys:
+        val = row.get(key)
+        if val is not None and pd.notna(val):
+            return float(val)
+    return None
+
+
+def _is_ranked(row) -> bool:
+    """False only for planets the artifact marks as ineligible for transmission spectroscopy."""
+    eligible = row.get("eligible_for_transmission")
+    return eligible is None or pd.isna(eligible) or bool(eligible)
+
+
+def _require_ranked(row, label: str) -> None:
+    if not _is_ranked(row):
+        reason = _clean_val(row.get("exclusion_reason")) or "ineligible"
+        raise HTTPException(
+            status_code=422,
+            detail=f"{label} is not ranked (not eligible for transmission spectroscopy: {reason})",
+        )
+
+
+def _true_flag(row, *keys: str) -> bool:
+    """True when any of the flags is set; missing and NaN count as not set."""
+    return any(pd.notna(row.get(k)) and bool(row.get(k)) for k in keys)
+
+
 def _parse_components(val):
     if isinstance(val, dict):
         return val
@@ -224,27 +262,25 @@ def _parse_components(val):
 
 def _row_to_planet_response(row: pd.Series) -> PlanetResponse:
     """Convert a DataFrame row to PlanetResponse with unified One Score, One Rank."""
-    p_score = _clean_val(row.get("priority_score"))
-    if p_score is None:
-        p_score = _clean_val(row.get("ml_priority_score"))
-    if p_score is None:
-        p_score = float(row.get("target_priority_score", 0.0))
-
+    # The model ranks transmission-eligible planets only. The artifact also stores model outputs for ineligible
+    # (e.g. non-transiting) planets, up to 99.99; they are meaningless, so they are never served. The heuristic
+    # score is a different quantity and is no substitute.
+    ranked = _is_ranked(row)
+    p_score = _first_number(row, "priority_score", "ml_priority_score") if ranked else None
+    heuristic = _first_number(row, "target_priority_score", "heuristic_habitability_score")
     ml_r = int(row["ml_rank"]) if pd.notna(row.get("ml_rank")) else None
     p_rank = int(row["priority_rank"]) if pd.notna(row.get("priority_rank")) else ml_r
 
-    heur_score = _clean_val(row.get("heuristic_habitability_score"))
-    if heur_score is None:
-        heur_score = float(row.get("target_priority_score", 0.0))
+    heur_score = _first_number(row, "heuristic_habitability_score", "target_priority_score")
 
     return PlanetResponse(
         planet_name=row.get("planet_name", ""),
         priority_score=p_score,
         priority_rank=p_rank,
         heuristic_habitability_score=heur_score,
-        target_priority_score=float(row.get("target_priority_score", heur_score or 0.0)),
-        ml_priority_score=_clean_val(row.get("ml_priority_score")) or p_score,
-        ml_rank=ml_r or p_rank,
+        target_priority_score=heuristic,
+        ml_priority_score=_first_number(row, "ml_priority_score", "priority_score") if ranked else None,
+        ml_rank=ml_r if ml_r is not None else p_rank,
         rank_delta=int(row["rank_delta"]) if pd.notna(row.get("rank_delta")) else None,
         planet_radius=_clean_val(row.get("planet_radius")),
         planet_mass=_clean_val(row.get("planet_mass")),
@@ -257,20 +293,18 @@ def _row_to_planet_response(row: pd.Series) -> PlanetResponse:
         is_transiting=_clean_val(row.get("is_transiting")),
         eligible_for_transmission=_clean_val(row.get("eligible_for_transmission")),
         exclusion_reason=_clean_val(row.get("exclusion_reason")),
-        already_observed_jwst=bool(row.get("already_observed_jwst") or row.get("is_jwst_target"))
+        already_observed_jwst=_true_flag(row, "already_observed_jwst", "is_jwst_target")
         if pd.notna(row.get("already_observed_jwst")) or pd.notna(row.get("is_jwst_target"))
         else None,
         tsm=_clean_val(row.get("tsm")),
         tsm_threshold=_clean_val(row.get("tsm_threshold")),
         kempton_size_class=_clean_val(row.get("kempton_size_class")),
-        percentile_rank=_clean_val(row.get("percentile_rank")),
-        percentile_rank_string=_clean_val(row.get("percentile_rank_string")),
+        percentile_rank=_clean_val(row.get("percentile_rank")) if ranked else None,
+        percentile_rank_string=_clean_val(row.get("percentile_rank_string")) if ranked else None,
         oof_ml_rank=int(row["oof_ml_rank"]) if pd.notna(row.get("oof_ml_rank")) else None,
         oof_priority_score=_clean_val(row.get("oof_priority_score")),
         unobserved_rank=int(row["unobserved_rank"]) if pd.notna(row.get("unobserved_rank")) else None,
-        is_jwst_target=bool(row.get("is_jwst_target") or row.get("already_observed_jwst"))
-        if pd.notna(row.get("is_jwst_target")) or pd.notna(row.get("already_observed_jwst"))
-        else False,
+        is_jwst_target=_true_flag(row, "is_jwst_target", "already_observed_jwst"),
         mass_is_estimated=_mass_is_estimated(row),
         mass_source=_clean_val(row.get("mass_source")),
     )
@@ -299,6 +333,7 @@ def _row_to_planet_detail_response(row: pd.Series) -> PlanetDetailResponse:
         stellar_mass=_clean_val(row.get("stellar_mass")),
         stellar_metallicity=_clean_val(row.get("stellar_metallicity")),
         stellar_name=_clean_val(row.get("stellar_name")),
+        semi_major_axis=_clean_val(row.get("semi_major_axis")),
         earth_similarity=_clean_val(row.get("earth_similarity")),
         observational_accessibility=_clean_val(row.get("observational_accessibility")),
         data_quality=_clean_val(row.get("data_quality")),
@@ -308,10 +343,10 @@ def _row_to_planet_detail_response(row: pd.Series) -> PlanetDetailResponse:
 @router.get("/planets", response_model=List[PlanetResponse])
 def get_planets(
     limit: int = Query(100, ge=1, le=500, description="Maximum number of planets to return"),
-    offset: int = Query(0, ge=0, description="Number of planets to skip"),
+    offset: int = Query(0, ge=0, le=1_000_000, description="Number of planets to skip"),
     min_priority: float = Query(0.0, ge=0.0, le=100.0, description="Minimum priority score filter"),
     max_priority: float = Query(100.0, ge=0.0, le=100.0, description="Maximum priority score filter"),
-    q: Optional[str] = Query(None, description="Search term for planet name substring"),
+    q: Optional[str] = Query(None, max_length=100, description="Planet name substring (literal, no wildcards)"),
     hz_status: Optional[str] = Query(
         None, description="Filter by habitable zone status (Inside HZ, Near HZ, Outside HZ)"
     ),
@@ -384,6 +419,8 @@ def get_comparison_explanation(
                 status_code=status.HTTP_404_NOT_FOUND, detail=f"Planet B '{planet_b}' not found in catalog"
             )
 
+        _require_ranked(row_a, f"Planet A '{planet_a}'")
+        _require_ranked(row_b, f"Planet B '{planet_b}'")
         explainer = SHAPExplainer.get_instance()
         return explainer.explain_comparison(row_a, row_b)
 
@@ -393,7 +430,7 @@ def get_comparison_explanation(
         logger.error(f"Error comparing planets {planet_a} vs {planet_b}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to compute differential Linear SHAP explanation: {str(e)}",
+            detail="Failed to compute differential Linear SHAP explanation",
         )
 
 
@@ -417,6 +454,7 @@ def get_planet_explanation(planet_name: str):
                 status_code=status.HTTP_404_NOT_FOUND, detail=f"Planet '{planet_name}' not found in the dataset"
             )
 
+        _require_ranked(planet_row, f"Planet '{planet_name}'")
         explainer = SHAPExplainer.get_instance()
         return explainer.explain_planet(planet_row)
 
@@ -426,7 +464,7 @@ def get_planet_explanation(planet_name: str):
         logger.error(f"Error explaining planet {planet_name}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to compute Linear SHAP explanation: {str(e)}",
+            detail="Failed to compute Linear SHAP explanation",
         )
 
 
@@ -435,7 +473,7 @@ def get_planet_details(planet_name: str):
     """
     Get detailed information for a specific exoplanet via DuckDB.
 
-    Performs case-insensitive exact matching with sub-millisecond index lookup.
+    Case-insensitive exact match (hyphens and spaces are interchangeable).
     """
     try:
         if not planet_name or len(planet_name.strip()) == 0:
@@ -497,7 +535,9 @@ def get_top_targets(
 @router.get("/validation/known-targets", response_model=List[PlanetResponse])
 def get_known_jwst_targets():
     """
-    Validation view: shows where confirmed JWST atmospheric targets land using out-of-fold ranks only.
+    Validation view: where planets labelled as JWST targets land, using out-of-fold ranks only.
+
+    The labels are not human-verified (see reports/LABEL_REVIEW.md).
     """
     try:
         engine = CatalogQueryEngine.get_instance()
@@ -518,7 +558,7 @@ def get_recommendations(
         None, description="Filter by size class: terrestrial, small_sub_neptune, large_sub_neptune, gas_giant"
     ),
     limit: int = Query(25, ge=1, le=100, description="Maximum recommendations to return"),
-    offset: int = Query(0, ge=0, description="Offset for pagination"),
+    offset: int = Query(0, ge=0, le=1_000_000, description="Offset for pagination"),
 ):
     """
     Get prioritized target recommendations with plain-English scientific justifications.
@@ -534,10 +574,11 @@ def get_recommendations(
 
         results = []
         for idx, p in enumerate(planets):
-            rank = int(p.get("unobserved_rank") or p.get("priority_rank") or (offset + idx + 1))
-            score = float(
-                p.get("priority_score") or p.get("ml_priority_score") or p.get("target_priority_score") or 0.0
-            )
+            known_rank = _first_number(p, "unobserved_rank", "priority_rank")
+            rank = int(known_rank) if known_rank is not None else offset + idx + 1
+            score = _first_number(p, "priority_score", "ml_priority_score")
+            if score is None:
+                continue  # eligible planets always have one; never substitute another quantity
             tsm_val = _clean_val(p.get("tsm"))
             thresh_val = _clean_val(p.get("tsm_threshold"))
             ratio = round(tsm_val / thresh_val, 2) if (tsm_val is not None and thresh_val and thresh_val > 0) else None
@@ -559,7 +600,7 @@ def get_recommendations(
                     tsm_threshold=thresh_val,
                     kempton_size_class=_clean_val(p.get("kempton_size_class")),
                     tsm_ratio=ratio,
-                    already_observed_jwst=bool(p.get("already_observed_jwst") or p.get("is_jwst_target")),
+                    already_observed_jwst=_true_flag(p, "already_observed_jwst", "is_jwst_target"),
                     reasons=reasons,
                     planet_radius=_clean_val(p.get("planet_radius")),
                     planet_mass=_clean_val(p.get("planet_mass")),
@@ -569,7 +610,7 @@ def get_recommendations(
                     stellar_name=_clean_val(p.get("stellar_name")),
                     hz_status=_clean_val(p.get("hz_status")),
                     anomaly_score=_clean_val(p.get("anomaly_score")),
-                    is_jwst_target=bool(p.get("already_observed_jwst") or p.get("is_jwst_target")),
+                    is_jwst_target=_true_flag(p, "already_observed_jwst", "is_jwst_target"),
                     mass_is_estimated=_mass_is_estimated(pd.Series(p)),
                 )
             )
@@ -616,7 +657,7 @@ def get_latency_benchmark(
     iterations: int = Query(100, ge=10, le=500, description="Number of query iterations to benchmark"),
 ):
     """
-    Benchmark real-time vectorized DuckDB query engine latency over concurrent analytical queries.
+    Time a fixed set of in-process DuckDB queries, one after another (not an HTTP or concurrency measurement).
     """
     try:
         engine = CatalogQueryEngine.get_instance()
@@ -624,7 +665,7 @@ def get_latency_benchmark(
     except Exception as e:
         logger.error(f"Error executing latency benchmark: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to benchmark query latency: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to benchmark query latency"
         )
 
 
@@ -667,18 +708,22 @@ def get_evaluation_benchmark(
     """
     Get offline ML ranking evaluation benchmark leaderboard and metrics from in-memory artifact.
 
-    Evaluates models (Random, Distance, ESI, ExoSignal Composite, Supervised GBDT)
-    against published ground truth (Kempton et al. 2018 TSM and confirmed JWST atmospheric targets).
+    The report compares ranking models and baselines against the artifact's JWST target labels. Those labels
+    are NOT human-verified (see reports/LABEL_REVIEW.md), so every metric is provisional.
     """
     try:
         engine = CatalogQueryEngine.get_instance()
         report = engine.get_benchmark_report(split=split)
+        if "error" in report:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=report["error"])
         return report
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error computing evaluation benchmark: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to compute evaluation benchmark: {str(e)}",
+            detail="Failed to compute evaluation benchmark",
         )
 
 
@@ -693,7 +738,7 @@ def get_ltr_info():
     except Exception as e:
         logger.error(f"Error retrieving LTR model info: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to retrieve LTR model info: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve LTR model info"
         )
 
 
@@ -709,7 +754,7 @@ def get_ltr_feature_importance():
         logger.error(f"Error retrieving LTR feature importances: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve LTR feature importances: {str(e)}",
+            detail="Failed to retrieve LTR feature importances",
         )
 
 
@@ -743,7 +788,7 @@ def list_registered_versions():
         logger.error(f"Error listing model registry versions: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list model registry versions: {str(e)}",
+            detail="Failed to list model registry versions",
         )
 
 
@@ -768,14 +813,24 @@ def get_active_model_version():
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Active version '{active_ver}' not found in registry index.",
             )
-        return entry
+        # The build environment (host name, platform) is provenance for the repository, not for the public API.
+        public = {k: v for k, v in entry.items() if k != "environment"}
+        # Entries written before 2026-11-24 record the length of the top-10 list as n_features: count the served model's inputs.
+        try:
+            from app.ml.explainability import SHAPExplainer
+
+            public["served_model_features"] = len(SHAPExplainer.get_instance().feature_names)
+        except Exception:
+            logger.exception("Model registry: served model unavailable")
+            public["served_model_features"] = None
+        return public
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error retrieving active model version: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve active model version: {str(e)}",
+            detail="Failed to retrieve active model version",
         )
 
 
@@ -800,7 +855,7 @@ def validate_model_integrity(version: str):
     except Exception as e:
         logger.error(f"Error validating model integrity: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to validate model integrity: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to validate model integrity"
         )
 
 
@@ -818,13 +873,17 @@ def compare_model_versions(
 
         registry = ModelRegistry()
         comparison = registry.compare_versions(version_a, version_b)
+        if "error" in comparison:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=comparison["error"])
         return comparison
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
         logger.error(f"Error comparing model versions: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to compare model versions: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to compare model versions"
         )
 
 
@@ -867,9 +926,7 @@ def promote_model_version(version: str, req: Optional[PromoteRequest] = None):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
         logger.error(f"Error promoting model version: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to promote model version: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to promote model version")
 
 
 @router.post("/models/registry/rollback", dependencies=[Depends(require_admin)])
@@ -899,7 +956,7 @@ def rollback_model_version(req: Optional[RollbackRequest] = None):
     except Exception as e:
         logger.error(f"Error during model rollback: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to rollback model version: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to rollback model version"
         )
 
 

@@ -111,4 +111,37 @@ describe('ShapWaterfall Component (Linear SHAP)', () => {
     expect(screen.queryByText('0.0 Δ log-odds')).not.toBeInTheDocument();
     expect(screen.queryByText('0.00 Δ log-odds')).not.toBeInTheDocument();
   });
+
+  it('shows missing values as missing and a genuine zero as zero', async () => {
+    const show = async (explanation) => {
+      explainabilityApi.getPlanetExplanation.mockResolvedValueOnce(explanation);
+      const { container, unmount } = render(<ShapWaterfall planetName="X b" />);
+      await screen.findByText('Linear SHAP Interpretability Waterfall');
+      const { textContent } = container;
+      unmount();
+      return textContent;
+    };
+    const item = { feature: 'f', display_name: 'F', raw_value: 'N/A', abs_importance: 1 };
+    let text = await show({ planet_name: 'X b', top_positive_drivers: [item], full_waterfall: [] });
+    expect(text).toContain('Base Value (w₀)—');
+    expect(text).toContain('Net Feature Shift (Σ φᵢ)—');
+    expect(text).toContain('Final Logit (w·x + w₀)—');
+    expect(text).toContain('Reconstruction residual: —');
+    expect(text).not.toMatch(/0\.000|NaN|undefined/);
+    const zero = {
+      base_margin: 0,
+      sum_shap_margin: 0,
+      predicted_margin: 0,
+      reconstruction_error: 0,
+    };
+    text = await show({
+      mathematical_invariants: zero,
+      top_positive_drivers: [{ ...item, shap_value: 0 }],
+    });
+    expect(text).toContain('Base Value (w₀)0.000');
+    expect(text).toContain('Net Feature Shift (Σ φᵢ)0.000');
+    expect(text).toContain('Final Logit (w·x + w₀)0.000');
+    expect(text).toContain('0.000 Δ log-odds');
+    expect(text).toContain('Reconstruction residual: 0.00e+0');
+  });
 });

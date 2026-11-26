@@ -1,4 +1,5 @@
 -r requirements.txt
+httpx==0.28.1  # required by starlette.testclient (FastAPI TestClient)
 pytest-cov>=5.0.0
 ruff==0.8.4  # must match the ruff-pre-commit rev in .pre-commit-config.yaml (CI and hook must format identically)
 mypy>=1.13.0

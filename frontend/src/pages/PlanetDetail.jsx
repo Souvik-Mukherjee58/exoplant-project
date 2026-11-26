@@ -78,35 +78,39 @@ const PlanetDetail = () => {
 
     const hzDesc =
       planet.hz_status === 'Inside HZ'
-        ? 'It is situated squarely within the habitable zone of its host star.'
+        ? 'Its orbit lies inside the model habitable zone of its host star (an orbital distance range; it says nothing about surface conditions).'
         : planet.hz_status === 'Near HZ'
-          ? 'It orbits near the empirical habitable zone boundary.'
-          : 'It orbits outside the circumstellar habitable zone.';
+          ? 'It orbits near the model habitable zone boundary.'
+          : planet.hz_status === 'Outside HZ'
+            ? 'It orbits outside the model habitable zone.'
+            : 'Its habitable zone position is unknown (insufficient data).';
+
+    const teqDesc = planet.equilibrium_temperature
+      ? `an equilibrium temperature of ~${Math.round(planet.equilibrium_temperature)} K`
+      : 'no equilibrium temperature in the archive';
 
     if (planet.priority_score != null) {
-      return `${planet.planet_name} achieves an overall priority score of ${formatPriority(
+      return `${planet.planet_name} has a ranking score of ${formatPriority(
         planet.priority_score
-      )}/100 under the multi-criteria ranking model. ${hzDesc} Its estimated distance is ${formatDistance(
+      )}/100 (not a probability). ${hzDesc} Its estimated distance is ${formatDistance(
         planet.distance
-      )} with an equilibrium temperature of ~${Math.round(planet.equilibrium_temperature || 0)} K.`;
+      )} with ${teqDesc}.`;
     }
     return `${planet.planet_name} is currently not eligible for priority ranking (${
       planet.exclusion_reason || 'non-transiting or missing parameter'
-    }). ${hzDesc} Its estimated distance is ${formatDistance(
-      planet.distance
-    )} with an equilibrium temperature of ~${Math.round(planet.equilibrium_temperature || 0)} K.`;
+    }). ${hzDesc} Its estimated distance is ${formatDistance(planet.distance)} with ${teqDesc}.`;
   };
 
   const getSuggestedObservations = () => {
     const list = [];
-    const isTransiting = (planet.discovery_method || '').toLowerCase().includes('transit');
+    const isTransiting = planet.is_transiting === true;
     const sma = planet.semi_major_axis;
     const teq = planet.equilibrium_temperature;
 
     if (isTransiting) {
       list.push({
         title: 'Transmission Spectroscopy (JWST NIRSpec / HST WFC3)',
-        desc: `Because ${planet.planet_name} transits its host star, transit transmission spectroscopy can detect atmospheric chemical signatures during primary transit.`,
+        desc: `Because ${planet.planet_name} transits its host star, transmission spectroscopy during primary transit is geometrically possible. Detectability depends on the atmosphere, which this catalogue does not model.`,
       });
     }
 
@@ -124,12 +128,16 @@ const PlanetDetail = () => {
       desc: 'High-resolution Doppler spectroscopy to refine dynamical planetary mass, constrain orbital eccentricity, and verify multi-planet architecture.',
     });
 
-    if (sma && sma > 1.5) {
+    if (sma && sma > 1.5 && planet.distance) {
+      // Small-angle relation: 1 AU at 1 pc subtends 1 arcsec.
+      const separationMas = (sma / planet.distance) * 1000;
       list.push({
-        title: 'High-Contrast Direct Imaging (Roman CGI / ELT)',
-        desc: `With a semi-major axis of ${sma.toFixed(
-          2
-        )} AU, this planet has sufficient angular separation for coronagraphic direct imaging follow-up.`,
+        title: 'Direct Imaging (feasibility not assessed)',
+        desc: `A semi-major axis of ${sma.toFixed(2)} AU at ${planet.distance.toFixed(
+          1
+        )} pc corresponds to at most ~${separationMas.toFixed(
+          0
+        )} mas for a circular orbit. Contrast and instrument limits are not modelled here.`,
       });
     }
 
@@ -193,10 +201,10 @@ const PlanetDetail = () => {
                         : 'bg-slate-700/40 text-slate-300 border border-slate-600/40'
                   }`}
                 >
-                  {planet.hz_status || 'Outside HZ'}
+                  {planet.hz_status || 'Insufficient data'}
                 </span>
                 <span className="text-xs font-mono text-exosignal-text-muted">
-                  Discovery: {planet.discovery_method || 'Transit'}
+                  Discovery: {planet.discovery_method || 'not in archive'}
                 </span>
               </div>
 
@@ -249,7 +257,7 @@ const PlanetDetail = () => {
                     </span>
                     <div className="text-2xl font-bold font-mono text-white">
                       #{currentRank}{' '}
-                      {planet.rank_delta !== undefined && (
+                      {planet.rank_delta != null && (
                         <span
                           className={`text-xs ${
                             planet.rank_delta >= 0 ? 'text-emerald-400' : 'text-rose-400'
@@ -309,12 +317,14 @@ const PlanetDetail = () => {
                   name: planet.planet_name,
                   type:
                     planet.hz_status === 'Inside HZ'
-                      ? 'Temperate Candidate'
+                      ? 'Inside model HZ'
                       : planet.planet_radius > 6
                         ? 'Gas Giant'
                         : planet.planet_radius > 1.8
                           ? 'Sub-Neptune'
-                          : 'Terrestrial',
+                          : planet.planet_radius > 0
+                            ? 'Terrestrial size'
+                            : 'Size unknown',
                   radius: planet.planet_radius
                     ? `${planet.planet_radius.toFixed(2)} R⊕`
                     : 'not in archive',
@@ -517,8 +527,8 @@ const PlanetDetail = () => {
                       Stellar Temp
                     </span>
                     <span className="text-white font-bold text-sm">
-                      {planet.stellar_teff ? (
-                        `${Math.round(planet.stellar_teff)} K`
+                      {planet.stellar_effective_temperature ? (
+                        `${Math.round(planet.stellar_effective_temperature)} K`
                       ) : (
                         <span
                           title="Parameter not reported in NASA Exoplanet Archive"
@@ -542,6 +552,10 @@ const PlanetDetail = () => {
                     <span className="text-amber-400 font-bold text-sm">
                       {formatAnomaly(planet.anomaly_score)}
                     </span>
+                    <span className="text-[10px] text-exosignal-text-muted block mt-1">
+                      Statistical outlier score (exploratory). Not evidence of life or of anything
+                      artificial.
+                    </span>
                   </div>
                 </div>
               </div>
@@ -551,9 +565,7 @@ const PlanetDetail = () => {
           {/* Dynamic Scientific Narrative Compartment */}
           <div className="divided-compartment">
             <div className="compartment-header">
-              <h3 className="text-base font-bold text-white font-display">
-                Atmospheric Prioritization Summary
-              </h3>
+              <h3 className="text-base font-bold text-white font-display">Ranking Summary</h3>
               <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-exosignal-cyan/15 text-exosignal-cyan border border-exosignal-cyan/30">
                 SCIENTIFIC RATIONALE
               </span>
@@ -580,11 +592,18 @@ const PlanetDetail = () => {
 
           <div className="divided-compartment">
             <div className="p-6">
-              <ShapWaterfall
-                planetName={planet.planet_name}
-                mlRank={planet.priority_rank ?? planet.ml_rank}
-                rankDelta={planet.rank_delta}
-              />
+              {planet.eligible_for_transmission === false ? (
+                <p className="text-sm text-exosignal-text-secondary">
+                  No attribution: the model does not rank this planet (
+                  {planet.exclusion_reason || 'not eligible'}).
+                </p>
+              ) : (
+                <ShapWaterfall
+                  planetName={planet.planet_name}
+                  mlRank={planet.priority_rank ?? planet.ml_rank}
+                  rankDelta={planet.rank_delta}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -595,8 +614,8 @@ const PlanetDetail = () => {
         <div className="space-y-4">
           <SectionDivider
             number="03"
-            title="Recommended Observational Protocols"
-            subtitle="Spectroscopy, transit timing, and high-contrast imaging follow-up strategies tailored to target characteristics"
+            title="Possible Follow-Up Methods"
+            subtitle="Generic method suggestions from catalogue parameters; not an observing plan"
             badge="MISSION STRATEGY"
             accent="emerald"
           />
@@ -604,10 +623,10 @@ const PlanetDetail = () => {
           <div className="divided-compartment">
             <div className="compartment-header">
               <h3 className="text-base font-bold text-white font-display">
-                Instrument & Campaign Recommendations
+                Generic Method Suggestions
               </h3>
               <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                {getSuggestedObservations().length} TARGET PROTOCOLS
+                {getSuggestedObservations().length} METHODS
               </span>
             </div>
             <div className="p-6">

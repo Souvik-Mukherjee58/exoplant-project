@@ -40,7 +40,42 @@ const FEATURE_LABEL_MAP = {
   orbital_period: 'Orbital Period',
 };
 
+const PRODUCTION_MODEL_NAME = 'Logistic Regression (Variant A - All Features)';
+
+const metricOrNull = (v) => (typeof v === 'number' ? Number(v.toFixed(3)) : null);
+
+/** Metrics of the served model from GET /evaluation/benchmark, under one set of names; null when unknown. */
+export function productionMetrics(benchmark) {
+  const summary =
+    benchmark?.selected_production_model?.model_name === PRODUCTION_MODEL_NAME
+      ? benchmark.selected_production_model
+      : null;
+  const entry = Array.isArray(benchmark?.leaderboard)
+    ? benchmark.leaderboard.find((m) => m.model_name === PRODUCTION_MODEL_NAME)
+    : null;
+  if (!summary && !entry) return null;
+  const pick = (a, b) => entry?.[a] ?? summary?.[b] ?? summary?.[a] ?? null;
+  return {
+    ap: pick('ap', 'mean_ap'),
+    ap_std: pick('ap_std', 'mean_ap_std'),
+    ap_ci95: pick('ap_ci95', 'ap_ci95'),
+    'recall@50': pick('recall@50', 'mean_recall50'),
+    'ndcg@25': pick('ndcg@25', 'mean_ndcg25'),
+  };
+}
+
+const RADAR_PLANETS = ['TRAPPIST-1 e', 'TOI-700 d', 'WASP-96 b'];
+const RADAR_COLORS = ['#00d4ff', '#10b981', '#a855f7'];
+const RADAR_AXES = [
+  { key: 'planetary_relevance', label: 'Planetary' },
+  { key: 'observational_accessibility', label: 'Accessibility' },
+  { key: 'stellar_characteristics', label: 'Host star' },
+  { key: 'data_quality', label: 'Completeness' },
+  { key: 'anomaly_score', label: 'Outlier score' },
+];
+
 const Home = () => {
+  const [radarPlanets, setRadarPlanets] = useState([]);
   const { planets: topPlanets } = useTopTargets(8);
   const [knownTargets, setKnownTargets] = useState([]);
   const { stats } = useAnalytics();
@@ -60,6 +95,10 @@ const Home = () => {
       .then((res) => setFeatureImportances(res))
       .catch(() => null);
 
+    Promise.all(RADAR_PLANETS.map((name) => planetsApi.getByName(name)))
+      .then((res) => setRadarPlanets(res.filter(Boolean)))
+      .catch(() => setRadarPlanets([]));
+
     planetsApi
       .getKnownTargets()
       .then((res) => {
@@ -73,8 +112,11 @@ const Home = () => {
   // 1. Feature Importance Data for Logistic Regression (|Standardized Coefficient|)
   const featureChartData = useMemo(() => {
     if (featureImportances?.top_features && Array.isArray(featureImportances.top_features)) {
-      return featureImportances.top_features.slice(0, 8).map((f) => {
-        const coef = typeof f.coefficient === 'number' ? f.coefficient : f.gain || 0;
+      const withValue = featureImportances.top_features.filter((f) =>
+        Number.isFinite(f.coefficient ?? f.gain)
+      );
+      return withValue.slice(0, 8).map((f) => {
+        const coef = f.coefficient ?? f.gain;
         return {
           feature: FEATURE_LABEL_MAP[f.feature] || f.feature,
           coefficient: Number(Number(coef).toFixed(3)),
@@ -115,30 +157,19 @@ const Home = () => {
     if (benchmark?.leaderboard && Array.isArray(benchmark.leaderboard)) {
       return benchmark.leaderboard.map((m) => ({
         model: m.model_name.replace(' (Learning-to-Rank)', '').replace(' Baseline', ''),
-        ndcg10: Number((m['ndcg@10'] || 0).toFixed(3)),
-        map: Number((m.map || 0).toFixed(3)),
-        precision10: Number((m['precision@10'] || 0).toFixed(3)),
+        ndcg10: metricOrNull(m['ndcg@10']),
+        map: metricOrNull(m.map),
+        precision10: metricOrNull(m['precision@10']),
       }));
     }
     return [];
   }, [benchmark]);
 
-  const EXACT_PRODUCTION_MODEL_NAME = 'Logistic Regression (Variant A - All Features)';
+  // The leaderboard entry and the summary of the selected model use different key names for the same metrics.
+  const productionModel = useMemo(() => productionMetrics(benchmark), [benchmark]);
 
-  const productionModel = useMemo(() => {
-    if (benchmark?.selected_production_model?.model_name === EXACT_PRODUCTION_MODEL_NAME) {
-      return benchmark.selected_production_model;
-    }
-    if (benchmark?.leaderboard && Array.isArray(benchmark.leaderboard)) {
-      return (
-        benchmark.leaderboard.find((m) => m.model_name === EXACT_PRODUCTION_MODEL_NAME) || null
-      );
-    }
-    return null;
-  }, [benchmark]);
-
-  // Known JWST Targets: strictly verified labels (is_jwst_target == True) with OUT-OF-FOLD rank
-  const verifiedGoldenTargets = useMemo(() => {
+  // Planets labelled as JWST targets (labels are NOT human-verified), with out-of-fold rank
+  const labelledTargets = useMemo(() => {
     if (!Array.isArray(knownTargets) || knownTargets.length === 0) {
       return [];
     }
@@ -152,7 +183,7 @@ const Home = () => {
       .slice(0, 4)
       .map((planet, index) => {
         const priorityScore =
-          planet.oof_priority_score ?? planet.ml_priority_score ?? planet.priority_score ?? 0;
+          planet.oof_priority_score ?? planet.ml_priority_score ?? planet.priority_score;
         const oofRank = planet.oof_ml_rank ?? planet.priority_rank ?? index + 1;
         const hzStatus = planet.hz_status || 'Insufficient data';
 
@@ -169,11 +200,11 @@ const Home = () => {
             : 'not in archive',
           hz: hzStatus,
           hzColor: hzStatus === 'Inside HZ' ? 'emerald' : hzStatus === 'Near HZ' ? 'amber' : 'gray',
-          mlScore: Number(Number(priorityScore).toFixed(1)),
+          mlScore: formatPriority(priorityScore),
           featureNote: `${
             planet.kempton_size_class || 'Spectroscopic'
-          } candidate with confirmed JWST transmission observation`,
-          type: 'Confirmed JWST Target',
+          } planet labelled as a JWST target (label not human-verified)`,
+          type: 'Labelled JWST Target (unverified)',
         };
       });
   }, [knownTargets]);
@@ -188,8 +219,7 @@ const Home = () => {
       .filter((planet) => !planet.already_observed_jwst && !planet.is_jwst_target)
       .slice(0, 4)
       .map((planet, index) => {
-        const priorityScore =
-          planet.ml_priority_score ?? planet.priority_score ?? planet.target_priority_score ?? 0;
+        const priorityScore = planet.ml_priority_score ?? planet.priority_score; // the heuristic is no substitute
         const rank = planet.unobserved_rank ?? planet.priority_rank ?? index + 1;
         const hzStatus = planet.hz_status || 'Insufficient data';
 
@@ -206,10 +236,10 @@ const Home = () => {
             : 'not in archive',
           hz: hzStatus,
           hzColor: hzStatus === 'Inside HZ' ? 'emerald' : hzStatus === 'Near HZ' ? 'amber' : 'gray',
-          mlScore: Number(Number(priorityScore).toFixed(1)),
+          mlScore: formatPriority(priorityScore),
           featureNote: `${
             planet.kempton_size_class || 'Spectroscopic'
-          } unobserved candidate prioritized for characterization`,
+          } planet that is not labelled as a JWST target`,
           type: 'New Recommendation',
         };
       });
@@ -220,17 +250,21 @@ const Home = () => {
     return calculateHzPieData(stats?.hz_distribution, stats?.total_planets);
   }, [stats?.hz_distribution, stats?.total_planets]);
 
-  // 5. Circular Multi-Axis Polar Radar Data for Observational Targets
-  const radarProfileData = useMemo(
-    () => [
-      { metric: 'Transmission SNR', trappist: 94, toi700: 82, wasp96: 98, fullMark: 100 },
-      { metric: 'Scale Height', trappist: 78, toi700: 75, wasp96: 95, fullMark: 100 },
-      { metric: 'Transit Depth', trappist: 85, toi700: 68, wasp96: 92, fullMark: 100 },
-      { metric: 'Host Brightness', trappist: 70, toi700: 86, wasp96: 88, fullMark: 100 },
-      { metric: 'HZ Alignment', trappist: 98, toi700: 95, wasp96: 12, fullMark: 100 },
-    ],
-    []
-  );
+  // 5. Radar: heuristic component scores from the API (0-100). Nothing is filled in when a value is missing.
+  const radarProfileData = useMemo(() => {
+    if (radarPlanets.length !== RADAR_PLANETS.length) return [];
+    return RADAR_AXES.map(({ key, label }) => ({
+      metric: label,
+      ...Object.fromEntries(
+        radarPlanets.map((planet, i) => [
+          `planet${i}`,
+          typeof planet.priority_components?.[key] === 'number'
+            ? planet.priority_components[key]
+            : null,
+        ])
+      ),
+    }));
+  }, [radarPlanets]);
 
   return (
     <div className="space-y-16">
@@ -271,8 +305,9 @@ const Home = () => {
               competitive. ExoSignal leverages{' '}
               <strong className="text-white">regularized machine learning ranking</strong>,{' '}
               <strong className="text-white">DuckDB columnar analytics</strong>, and{' '}
-              <strong className="text-white">exact SHAP attribution</strong> to identify high-yield
-              exoplanetary atmospheres.
+              <strong className="text-white">exact SHAP attribution</strong> to rank transiting
+              planets for transmission spectroscopy. It is an exploratory ranking: no score is a
+              probability of life.
             </p>
 
             {/* CTAs */}
@@ -353,14 +388,12 @@ const Home = () => {
               <span className="text-exosignal-cyan">AP & RECALL</span>
             </div>
             <div className="text-xl sm:text-2xl font-black font-mono text-exosignal-cyan">
-              {productionModel
-                ? productionModel.mean_ap !== undefined
-                  ? `${productionModel.mean_ap.toFixed(4)} ± ${(
-                      productionModel.mean_ap_std || 0
-                    ).toFixed(4)}`
-                  : productionModel['precision@10']
-                    ? `${productionModel['precision@10'].toFixed(4)}`
-                    : '—'
+              {typeof productionModel?.ap === 'number'
+                ? `${productionModel.ap.toFixed(4)} ± ${
+                    typeof productionModel.ap_std === 'number'
+                      ? productionModel.ap_std.toFixed(4)
+                      : '—'
+                  }`
                 : '—'}
             </div>
             <div className="text-[11px] text-emerald-400 mt-1 font-mono">
@@ -372,11 +405,11 @@ const Home = () => {
                       )}, ${productionModel.ap_ci95[1].toFixed(4)}] • `
                     : ''}
                   Recall@50:{' '}
-                  {productionModel.mean_recall50 ?? productionModel['recall@50']
-                    ? (productionModel.mean_recall50 ?? productionModel['recall@50']).toFixed(3)
+                  {typeof productionModel['recall@50'] === 'number'
+                    ? productionModel['recall@50'].toFixed(3)
                     : '—'}
                   <span className="text-white ml-1.5 font-bold">
-                    ({benchmark?.n_positives ?? '—'} positives)
+                    ({benchmark?.n_positives ?? '—'} unverified labels)
                   </span>
                 </>
               ) : (
@@ -404,7 +437,9 @@ const Home = () => {
               <span className="text-emerald-400">Linear SHAP</span>
             </div>
             <div className="text-3xl font-black font-mono text-emerald-400">
-              {featureImportances?.top_features ? featureImportances.top_features.length : '—'}{' '}
+              {featureImportances?.total_features ??
+                featureImportances?.all_features?.length ??
+                '—'}{' '}
               <span className="text-lg">Features</span>
             </div>
             <div className="text-[11px] text-exosignal-text-muted mt-1">
@@ -421,7 +456,7 @@ const Home = () => {
         <SectionDivider
           number="02"
           title="Interactive Visual Intelligence & Analytics Lab"
-          subtitle="Supervised ranking gains, empirical score histograms, benchmark leaderboard, and spectroscopic radar profiles"
+          subtitle="Model coefficients, score histograms, benchmark leaderboard, and heuristic component radar"
           badge="ANALYTICS STUDIO"
           accent="purple"
         />
@@ -439,9 +474,8 @@ const Home = () => {
                 <span className="text-gradient-cyan">Circular Charts</span>
               </h2>
               <p className="text-xs text-exosignal-text-muted font-mono mt-1">
-                Comprehensive telemetry across the NASA exoplanet archive catalog — featuring
-                supervised ranking gains, circular habitability donuts, and 5-axis spectroscopic
-                radar profiles.
+                Comprehensive telemetry across the NASA exoplanet archive catalog — featuring model
+                coefficients, habitable zone shares, and heuristic component scores.
               </p>
             </div>
 
@@ -465,7 +499,7 @@ const Home = () => {
                   <h3 className="text-lg font-bold font-display text-white">
                     {activeChartTab === 'features' &&
                       'Model Feature Importance (|Standardized Coefficient|)'}
-                    {activeChartTab === 'histogram' && 'Priority Score Population Histogram'}
+                    {activeChartTab === 'histogram' && 'Heuristic Score Histogram'}
                     {activeChartTab === 'benchmark' && 'Supervised Model Leaderboard (NDCG@10)'}
                   </h3>
                 </div>
@@ -589,7 +623,7 @@ const Home = () => {
                 </div>
               )}
 
-              {/* CHART 2: Priority Score Population Histogram Vertical Bar Chart */}
+              {/* CHART 2: Heuristic score histogram */}
               {activeChartTab === 'histogram' && (
                 <div className="space-y-3 flex-1 flex flex-col justify-between">
                   <div className="flex items-center justify-between text-xs font-mono text-exosignal-text-muted">
@@ -618,7 +652,7 @@ const Home = () => {
                             tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'JetBrains Mono' }}
                             axisLine={{ stroke: '#1e293b' }}
                             label={{
-                              value: 'Priority Score Interval',
+                              value: 'Heuristic Score Interval',
                               position: 'insideBottom',
                               offset: -10,
                               fill: '#64748b',
@@ -668,8 +702,8 @@ const Home = () => {
                     </div>
                   )}
                   <p className="text-[11px] font-mono text-exosignal-text-muted text-center">
-                    🎯 Targets with score &gt; 80 exhibit sufficient atmospheric SNR for
-                    spectroscopic follow-up.
+                    Heuristic composite score (not used for ranking, not a probability). It does not
+                    show that a target is observable.
                   </p>
                 </div>
               )}
@@ -678,13 +712,13 @@ const Home = () => {
               {activeChartTab === 'benchmark' && (
                 <div className="space-y-3 flex-1 flex flex-col justify-between">
                   <div className="flex items-center justify-between text-xs font-mono text-exosignal-text-muted">
-                    <span>Holdout split benchmark (&ge; 2022 discoveries)</span>
+                    <span>25 host-grouped CV folds, unverified labels</span>
                     <span className="text-emerald-400 font-semibold">
                       {productionModel
-                        ? `Variant A: NDCG@25 = ${(productionModel.mean_ndcg25 ?? 0.602).toFixed(
-                            3
-                          )}`
-                        : 'Holdout Split Evaluation'}
+                        ? typeof productionModel['ndcg@25'] === 'number'
+                          ? `Variant A: NDCG@25 = ${productionModel['ndcg@25'].toFixed(3)}`
+                          : 'NDCG@25 not available'
+                        : 'Evaluation results not loaded'}
                     </span>
                   </div>
 
@@ -749,8 +783,8 @@ const Home = () => {
                     </div>
                   )}
                   <p className="text-[11px] font-mono text-exosignal-text-muted text-center">
-                    📈 Model architectures evaluated across host-stratified folds on post-2022
-                    discoveries.
+                    Models compared on the same 25 host-grouped cross-validation folds. The labels
+                    are not human-verified.
                   </p>
                 </div>
               )}
@@ -897,7 +931,8 @@ const Home = () => {
                       {hzPieData.find((d) => d.name === 'Inside HZ')?.value?.toLocaleString() ||
                         '0'}{' '}
                       exoplanets ({hzPieData.find((d) => d.name === 'Inside HZ')?.percentage || '0'}
-                      %) reside in temperate liquid-water habitable orbits.
+                      %) orbit inside the model habitable zone. This is an orbital distance range;
+                      it does not show that a planet has water or is habitable.
                     </p>
                   )}
                 </div>
@@ -907,9 +942,9 @@ const Home = () => {
               {activeCircularTab === 'radar' && (
                 <div className="space-y-4 flex-1 flex flex-col justify-between">
                   <div className="flex items-center justify-between text-xs font-mono text-exosignal-text-muted">
-                    <span>Multi-axis spectroscopic fingerprint</span>
+                    <span>Heuristic component scores (0–100), from the API</span>
                     <span className="text-exosignal-cyan font-semibold">
-                      TRAPPIST-1 e vs TOI-700 d
+                      {RADAR_PLANETS.join(' • ')}
                     </span>
                   </div>
 
@@ -928,27 +963,16 @@ const Home = () => {
                           tick={{ fill: '#475569', fontSize: 8, fontFamily: 'JetBrains Mono' }}
                           stroke="#1e293b"
                         />
-                        <Radar
-                          name="TRAPPIST-1 e"
-                          dataKey="trappist"
-                          stroke="#00d4ff"
-                          fill="#00d4ff"
-                          fillOpacity={0.4}
-                        />
-                        <Radar
-                          name="TOI-700 d"
-                          dataKey="toi700"
-                          stroke="#10b981"
-                          fill="#10b981"
-                          fillOpacity={0.35}
-                        />
-                        <Radar
-                          name="WASP-96 b"
-                          dataKey="wasp96"
-                          stroke="#a855f7"
-                          fill="#a855f7"
-                          fillOpacity={0.2}
-                        />
+                        {RADAR_PLANETS.map((name, i) => (
+                          <Radar
+                            key={name}
+                            name={name}
+                            dataKey={`planet${i}`}
+                            stroke={RADAR_COLORS[i]}
+                            fill={RADAR_COLORS[i]}
+                            fillOpacity={0.25}
+                          />
+                        ))}
                         <Tooltip
                           contentStyle={{
                             backgroundColor: '#070a16',
@@ -972,8 +996,9 @@ const Home = () => {
                   </div>
 
                   <div className="p-2 rounded-xl bg-space-void/60 border border-slate-800 text-[11px] font-mono text-exosignal-text-muted text-center">
-                    🕸️ Radar polygons visualize 360° trade-offs: TRAPPIST-1 e exhibits highest
-                    combined SNR + HZ score.
+                    {radarProfileData.length > 0
+                      ? 'Components of the heuristic score, which is not used for the ranking. They are not measurements of an atmosphere and not evidence of habitability.'
+                      : 'Component scores not loaded.'}
                   </div>
                 </div>
               )}
@@ -988,9 +1013,9 @@ const Home = () => {
       <div className="space-y-6" data-testid="golden-benchmark-section">
         <SectionDivider
           number="03"
-          title="Known JWST targets: where our model ranks them"
-          subtitle="Out-of-fold cross-validated ranking of confirmed JWST transmission spectroscopy targets"
-          badge="GROUND TRUTH"
+          title="Labelled JWST targets: where our model ranks them"
+          subtitle="Out-of-fold ranks of planets labelled as JWST targets. The labels are not human-verified, so this is provisional"
+          badge="UNVERIFIED LABELS"
           accent="emerald"
         />
 
@@ -998,15 +1023,16 @@ const Home = () => {
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
             <div>
               <div className="text-xs font-mono text-emerald-400 uppercase tracking-wider font-bold">
-                Ground Truth Out-of-Fold Validation
+                Out-of-Fold Ranks (Unverified Labels)
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold text-white font-display">
-                Known JWST targets: where our model ranks them
+                Labelled JWST targets: where our model ranks them
               </h2>
             </div>
             <p className="text-xs text-exosignal-text-muted font-mono max-w-md">
               Out-of-fold ranks from Stratified Group Cross-Validation on the current JWST
-              transmission-target labels. Label review status: see reports/LABEL_REVIEW.md.
+              transmission-target labels. No label has been human-verified yet; see
+              reports/LABEL_REVIEW.md.
             </p>
           </div>
 
@@ -1014,7 +1040,7 @@ const Home = () => {
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5"
             data-testid="golden-targets-grid"
           >
-            {verifiedGoldenTargets.map((t) => (
+            {labelledTargets.map((t) => (
               <div
                 key={t.name}
                 data-testid={`golden-target-${t.name}`}
@@ -1082,7 +1108,7 @@ const Home = () => {
       <div className="space-y-6" data-testid="new-recommendations-section">
         <SectionDivider
           number="04"
-          title="New recommendations (not yet observed by JWST)"
+          title="New recommendations (not labelled as JWST targets)"
           subtitle="Top candidates prioritized for upcoming transmission spectroscopy observation"
           badge="DISCOVERY PICKS"
           accent="cyan"
@@ -1092,15 +1118,15 @@ const Home = () => {
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
             <div>
               <div className="text-xs font-mono text-exosignal-cyan uppercase tracking-wider font-bold">
-                Actionable Follow-Up Pipeline
+                Not Labelled As JWST Targets
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold text-white font-display">
-                New recommendations (not yet observed by JWST)
+                New recommendations (not labelled as JWST targets)
               </h2>
             </div>
             <p className="text-xs text-exosignal-text-muted font-mono max-w-md">
-              Transiting candidates with high predicted transmission spectroscopic yield that have
-              not yet been observed.
+              Highly ranked transiting planets that our label set does not list as JWST targets. The
+              label set is incomplete, so JWST may already have observed some of them.
             </p>
           </div>
 
@@ -1188,11 +1214,11 @@ const Home = () => {
               ML Systems Engineering
             </div>
             <h2 className="text-2xl sm:text-3xl font-bold text-white font-display mb-3">
-              Full Discovery-to-Observation Workflow
+              From Archive Data to a Ranked List
             </h2>
             <p className="text-sm text-exosignal-text-secondary leading-relaxed">
-              ExoSignal solves the full exoplanet discovery-to-observation workflow: from noisy
-              archive ingestion through supervised ranking and in-process analytical queries.
+              ExoSignal covers archive ingestion, supervised ranking and in-process analytical
+              queries. It does not plan or schedule observations.
             </p>
           </div>
 
@@ -1203,8 +1229,8 @@ const Home = () => {
               </div>
               <h4 className="font-bold text-white text-sm">NASA Archive Ingestion</h4>
               <p className="text-xs text-exosignal-text-muted leading-relaxed">
-                Automated schema validation, deduplication, and Chen & Kipping (2017) mass-radius
-                empirical fallback relations.
+                Schema validation, deduplication, and an empirical mass-radius fallback (a known
+                defect affects large planets; see Methodology).
               </p>
             </div>
 
@@ -1260,9 +1286,9 @@ const Home = () => {
       {/* ────────────────────────────────────────────────────────── */}
       <div className="space-y-4">
         <SectionDivider
-          number="05"
+          number="06"
           title="Highest Ranked Exoplanet Candidates"
-          subtitle="Inference rankings prioritized by atmospheric transmission signal-to-noise ratio"
+          subtitle="Order of the ranking model (trained on unverified labels)"
           badge="TOP TARGETS"
           accent="amber"
         />
@@ -1337,7 +1363,7 @@ const Home = () => {
                                 : 'bg-slate-700/30 text-slate-400 border border-slate-600/30'
                           }`}
                         >
-                          {planet.hz_status || 'Outside HZ'}
+                          {planet.hz_status || 'Insufficient data'}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-exosignal-cyan font-bold text-sm">

@@ -1,12 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useFavorites } from '../context/FavoritesContext';
-import {
-  formatAnomaly,
-  formatDistance,
-  getHZColor,
-  getCleanHostStar,
-} from '../utils/formatters';
+import { formatAnomaly, formatDistance, getHZColor, getCleanHostStar } from '../utils/formatters';
 import { motion } from 'framer-motion';
 import { PriorityScoreDisplay } from '../components/PriorityBadge';
 
@@ -74,7 +69,7 @@ const Favorites = () => {
               >
                 <td className="px-6 py-4 text-exosignal-text font-medium">
                   <Link
-                    to={`/planet/${planet.planet_name}`}
+                    to={`/planet/${encodeURIComponent(planet.planet_name)}`}
                     className="hover:text-exosignal-accent"
                   >
                     {planet.planet_name}

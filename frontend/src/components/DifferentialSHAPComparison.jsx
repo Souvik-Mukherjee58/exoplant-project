@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { explainabilityApi } from '../services/api';
 
+const logOdds = (value) => `${value > 0 ? '+' : ''}${value.toFixed(2)}`;
+
 export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
   const [diffExplanation, setDiffExplanation] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -39,7 +41,8 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
       <div className="bg-space-darker rounded-lg border border-exosignal-blue/20 p-6 text-center">
         <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-exosignal-accent"></div>
         <p className="mt-2 text-exosignal-text/70 text-xs">
-          Computing pairwise differential Linear SHAP attribution: Δφ = φ({planetA}) - φ({planetB})...
+          Computing pairwise differential Linear SHAP attribution: Δφ = φ({planetA}) - φ({planetB}
+          )...
         </p>
       </div>
     );
@@ -84,13 +87,16 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
             </span>
           </div>
           <p className="text-xs text-exosignal-text/70 mt-1">
-            Explains precisely which astrophysical parameter differences drive the ranking
-            separation between {planet_a} and {planet_b}.
+            Attributions of {planet_a} minus those of {planet_b}. All differences are in log-odds,
+            where the attributions of the linear model are exact. The final model is used for both
+            planets: for labelled planets, the cards above show the out-of-fold score instead.
           </p>
         </div>
 
         <div className="text-right">
-          <span className="text-xs text-exosignal-text/60 block">ML Score Differential</span>
+          <span className="text-xs text-exosignal-text/60 block">
+            Difference of the final-model scores
+          </span>
           <span className="text-lg font-extrabold text-exosignal-accent">
             {favoredPlanet} (+{absAdvantage.toFixed(1)} pts)
           </span>
@@ -113,7 +119,7 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
                   {item.display_name} ({item.planet_a_value} vs {item.planet_b_value})
                 </span>
                 <span className="font-mono text-emerald-400 font-bold">
-                  +{item.diff_score_impact.toFixed(1)} pts
+                  {logOdds(item.diff_shap)}
                 </span>
               </li>
             ))}
@@ -131,9 +137,7 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
                 <span>
                   {item.display_name} ({item.planet_b_value} vs {item.planet_a_value})
                 </span>
-                <span className="font-mono text-rose-400 font-bold">
-                  {item.diff_score_impact.toFixed(1)} pts
-                </span>
+                <span className="font-mono text-rose-400 font-bold">{logOdds(item.diff_shap)}</span>
               </li>
             ))}
           </ul>
@@ -143,13 +147,13 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
       {/* Toggle View */}
       <div className="flex justify-between items-center mt-4 mb-2">
         <span className="text-xs font-semibold text-exosignal-text/70">
-          {showAll ? 'All 21 Feature Differential Shifts' : 'Top Discrepant Feature Shifts'}
+          {showAll ? 'Differences of all model inputs' : 'Largest differences'}
         </span>
         <button
           onClick={() => setShowAll(!showAll)}
           className="text-xs text-exosignal-blue hover:text-exosignal-accent underline"
         >
-          {showAll ? 'Show Top Shifts' : 'Show All 21 Features'}
+          {showAll ? 'Show the largest only' : `Show all ${differential_waterfall.length} inputs`}
         </button>
       </div>
 
@@ -158,11 +162,11 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="border-b border-exosignal-blue/20 text-exosignal-text/60">
-              <th className="py-2 pr-3">Astrophysical Feature</th>
+              <th className="py-2 pr-3">Model Input</th>
               <th className="py-2 px-3">{planet_a}</th>
               <th className="py-2 px-3">{planet_b}</th>
               <th className="py-2 px-3 text-right">Advantage</th>
-              <th className="py-2 pl-3 text-right">Net Impact</th>
+              <th className="py-2 pl-3 text-right">Δ log-odds</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-exosignal-blue/10">
@@ -179,18 +183,21 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
                   </td>
                   <td className="py-2 px-3 text-right">
                     <span
-                      className={`px-2 py-0.5 rounded text-[11px] font-semibold ${favorsA ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}
+                      className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
+                        favorsA
+                          ? 'bg-emerald-500/20 text-emerald-400'
+                          : 'bg-rose-500/20 text-rose-400'
+                      }`}
                     >
-                      {favorsA ? planet_a : planet_b}
+                      {item.diff_shap === 0 ? '—' : favorsA ? planet_a : planet_b}
                     </span>
                   </td>
                   <td
-                    className={`py-2 pl-3 text-right font-mono font-bold ${favorsA ? 'text-emerald-400' : 'text-rose-400'}`}
+                    className={`py-2 pl-3 text-right font-mono font-bold ${
+                      favorsA ? 'text-emerald-400' : 'text-rose-400'
+                    }`}
                   >
-                    {favorsA
-                      ? `+${item.diff_score_impact.toFixed(1)}`
-                      : `${item.diff_score_impact.toFixed(1)}`}{' '}
-                    pts
+                    {logOdds(item.diff_shap)}
                   </td>
                 </tr>
               );

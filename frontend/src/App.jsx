@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Link, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -13,6 +13,15 @@ import About from './pages/About';
 import Favorites from './pages/Favorites';
 import ModelRegistry from './pages/ModelRegistry';
 import './App.css';
+
+const NotFound = () => (
+  <div className="glass-panel p-8 text-center font-mono text-sm">
+    <h1 className="text-xl font-bold text-white mb-3">Page not found</h1>
+    <Link to="/" className="btn-secondary-glass text-xs inline-block">
+      Back to home
+    </Link>
+  </div>
+);
 
 function App() {
   return (
@@ -34,6 +43,7 @@ function App() {
             <Route path="/registry" element={<ModelRegistry />} />
             <Route path="/methodology" element={<Methodology />} />
             <Route path="/about" element={<About />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
 

@@ -36,14 +36,16 @@ export function formatTemperature(value) {
   return formatNumber(value, 0) + ' K';
 }
 
+const LIGHT_YEARS_PER_PARSEC = 3.26156;
+
 /**
- * Format distance (raw data is in light-years)
+ * Format distance. The API value is in parsecs (NASA Exoplanet Archive sy_dist).
  */
 export function formatDistance(value) {
   if (value === null || value === undefined || isNaN(value)) {
     return '—';
   }
-  return value.toFixed(1) + ' ly';
+  return `${value.toFixed(1)} pc (${(value * LIGHT_YEARS_PER_PARSEC).toFixed(1)} ly)`;
 }
 
 /**

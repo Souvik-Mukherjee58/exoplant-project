@@ -77,12 +77,12 @@ const Methodology = () => {
               Astronomical surveys like Kepler, K2, and TESS have identified thousands of confirmed
               exoplanets and candidates. However, observation time on premiere spectroscopic
               observatories (JWST, HST, and upcoming Extremely Large Telescopes) is intensely
-              oversubscribed by factors of 4× to 7×.
+              oversubscribed.
             </p>
             <p className="text-sm text-exosignal-text-secondary leading-relaxed">
               ExoSignal addresses this by fusing NASA Exoplanet Archive composite physical
               parameters with supervised regularized logistic regression models, columnar querying
-              in DuckDB, and exact linear SHAP attribution to provide an empirically grounded target
+              in DuckDB, and exact linear SHAP attribution to provide an exploratory target
               prioritization index.
             </p>
           </div>
@@ -116,8 +116,10 @@ const Methodology = () => {
                   02 // Physical Fallbacks
                 </span>
                 <p className="text-exosignal-text-muted">
-                  Applies Chen & Kipping (2017) probabilistic mass-radius relations when dynamical
-                  RV masses are unmeasured.
+                  Uses an empirical mass-radius power law when the archive has no mass. Known
+                  defect: above 1.23 R⊕ the served artifact uses M = 2.69 R^0.93, which is not the
+                  Chen & Kipping (2017) relation and is too small for giant planets, so their TSM is
+                  overstated. A corrected relation awaits the next model rebuild.
                 </p>
               </div>
               <div className="bg-space-void/80 p-4 rounded-xl border border-exosignal-purple/20 space-y-1.5">
@@ -150,7 +152,7 @@ const Methodology = () => {
           <SectionDivider
             number="03"
             title="Scoring Framework & Feature Weighting"
-            subtitle="Multi-component ranking formulation combining supervised ML and domain astrophysical models"
+            subtitle="The heuristic composite. The ranking itself comes from the supervised model"
             badge="FORMULATION"
             accent="emerald"
           />
@@ -183,7 +185,7 @@ const Methodology = () => {
                 </div>
                 <div className="bg-space-void/90 p-3 rounded-xl border border-blue-500/30 text-center">
                   <span className="text-[10px] text-exosignal-text-muted block uppercase">
-                    Transmission
+                    Accessibility
                   </span>
                   <span className="text-lg font-bold text-blue-400">
                     {weightsData?.percentages?.observational_accessibility ?? '—'}%
@@ -217,22 +219,19 @@ const Methodology = () => {
 
               <div className="bg-space-void/90 rounded-xl p-5 border border-exosignal-cyan/20">
                 <pre className="text-xs font-mono text-exosignal-cyan leading-relaxed overflow-x-auto">
-                  {`Target Priority Score (0–100)
+                  {`Heuristic Composite Score (0–100; not used for the ranking)
 ├── Planetary Relevance (${weightsData?.percentages?.planetary_relevance ?? '—'}%)
 │   ├── Earth Similarity Index (ESI) (Schulze-Makuch et al. 2011)
 │   ├── Circumstellar Habitable Zone Position (Kopparapu et al. 2013/2014)
-│   ├── Planetary Radius Envelope (Terrestrial / Super-Earth regime)
-│   └── Equilibrium Temperature temperate window
-├── Observational Transmission Yield (${
-                    weightsData?.percentages?.observational_accessibility ?? '—'
-                  }%)
-│   ├── Transmission Spectroscopy Metric (TSM) (Kempton et al. 2018)
-│   ├── Atmospheric Scale Height (H = k·T / (μ·g))
-│   └── Distance Attenuation (parsec dilution)
+│   └── Planetary Radius Envelope (Terrestrial / Super-Earth regime)
+├── Observational Accessibility (${weightsData?.percentages?.observational_accessibility ?? '—'}%)
+│   ├── Distance
+│   ├── 2MASS K (or J) Magnitude
+│   └── Transit Depth and Period Proxy
 ├── Stellar Characteristics (${weightsData?.percentages?.stellar_characteristics ?? '—'}%)
 │   ├── Host Star Effective Temperature (Teff)
 │   ├── Stellar Radius (R☉) — smaller dwarfs maximize transit depth
-│   └── 2MASS Near-Infrared K-Magnitude (stellar flux in spectroscopy bands)
+│   └── Stellar Metallicity
 ├── Data Quality & Completeness (${weightsData?.percentages?.data_quality ?? '—'}%)
 │   └── Non-missing parameter coverage across critical orbital elements
 └── Anomaly Index (${weightsData?.percentages?.anomaly_score ?? '—'}%)
@@ -251,7 +250,7 @@ const Methodology = () => {
           <SectionDivider
             number="04"
             title="Scientific Constraints & Guardrails"
-            subtitle="Transparent caveats, methodological boundaries, and anti-hallucination standards"
+            subtitle="Caveats and methodological boundaries"
             badge="GUARDRAILS"
             accent="amber"
           />
@@ -264,19 +263,20 @@ const Methodology = () => {
                 </span>
                 <p className="text-exosignal-text-secondary leading-relaxed">
                   Priority scores indicate suitability for atmospheric characterization with current
-                  spectroscopic hardware. A high score does not represent probability of
-                  extraterrestrial biosignatures.
+                  spectroscopic hardware. A high priority score is not a probability of life. A high
+                  anomaly score means that a planet is a statistical outlier in the catalogue, often
+                  because of unusual or uncertain data; it is not evidence of extraterrestrial
+                  activity.
                 </p>
               </div>
 
               <div className="p-4 rounded-xl bg-space-void/80 border border-exosignal-cyan/20">
-                <span className="text-exosignal-cyan font-bold block mb-1">
-                  02 // Zero Fabrication of Missing Data
-                </span>
+                <span className="text-exosignal-cyan font-bold block mb-1">02 // Missing Data</span>
                 <p className="text-exosignal-text-secondary leading-relaxed">
-                  Missing parameters are treated explicitly via documented physical fallbacks (e.g.
-                  Chen & Kipping mass estimation) or penalized under data completeness. Missing
-                  values are never fabricated.
+                  Missing values are shown as missing. Inside the models they are handled by an
+                  empirical mass estimate, by median imputation (ranking and anomaly models) or by a
+                  neutral default (heuristic score). These substitutes are modelling assumptions,
+                  not measurements.
                 </p>
               </div>
 
@@ -286,8 +286,9 @@ const Methodology = () => {
                 </span>
                 <p className="text-exosignal-text-secondary leading-relaxed">
                   Circumstellar habitable zone boundaries follow Kopparapu et al. (2013) 1D
-                  radiative-convective equilibrium models. Being inside the HZ is a necessary but
-                  insufficient condition for habitability.
+                  radiative-convective models, which are valid for host stars of 2600–7200 K. 80
+                  catalogue planets orbit stars outside that range; their classification is an
+                  extrapolation. Lying inside the zone does not show that a planet is habitable.
                 </p>
               </div>
             </div>

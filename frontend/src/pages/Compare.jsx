@@ -1,12 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { usePlanets } from '../hooks/usePlanets';
-import {
-  formatRadius,
-  formatMass,
-  formatPeriod,
-  getCleanHostStar,
-} from '../utils/formatters';
+import { formatRadius, formatMass, formatPeriod, getCleanHostStar } from '../utils/formatters';
 import DifferentialSHAPComparison from '../components/DifferentialSHAPComparison';
 import SectionDivider from '../components/SectionDivider';
 import { PriorityScoreDisplay } from '../components/PriorityBadge';
@@ -81,8 +76,9 @@ const Compare = () => {
           Multi-Target Comparative Analysis
         </h1>
         <p className="text-sm text-exosignal-text-secondary mt-1 max-w-2xl">
-          Side-by-side physical parameter comparison and exact pairwise Linear SHAP differential
-          feature attributions ($\Delta \phi_i$) explaining ranking reversals.
+          Side-by-side parameters and, for the first two targets, the difference of their Linear
+          SHAP attributions (Δφ): how much each model input adds to one score compared with the
+          other. This explains the model, not the planets.
         </p>
       </div>
 
@@ -165,7 +161,7 @@ const Compare = () => {
                 <SectionDivider
                   number="01"
                   title="Target Physical Parameters & Radiative Environment"
-                  subtitle="Side-by-side comparison of bulk radii, orbital period, equilibrium temperature, and ML priority"
+                  subtitle="Side-by-side comparison of bulk radii, orbital period, distance, and ranking score"
                   badge={`${selectedPlanets.length} TARGETS`}
                   accent="cyan"
                 />
@@ -188,7 +184,7 @@ const Compare = () => {
                                 : 'bg-slate-700/40 text-slate-300'
                             }`}
                           >
-                            {planet.hz_status || 'Outside HZ'}
+                            {planet.hz_status || 'Insufficient data'}
                           </span>
                         </div>
 
@@ -246,7 +242,11 @@ const Compare = () => {
                           <div
                             className="bg-gradient-to-r from-exosignal-cyan to-exosignal-purple h-full rounded-full"
                             style={{
-                              width: `${planet.priority_score != null ? Math.min(Math.max(planet.priority_score, 5), 100) : 0}%`,
+                              width: `${
+                                planet.priority_score != null
+                                  ? Math.min(Math.max(planet.priority_score, 5), 100)
+                                  : 0
+                              }%`,
                             }}
                           ></div>
                         </div>
@@ -262,7 +262,7 @@ const Compare = () => {
                   <SectionDivider
                     number="02"
                     title="Linear SHAP Differential Feature Impact (Δφ)"
-                    subtitle={`Pairwise feature attribution difference explaining why ${selectedPlanets[0].planet_name} scored differently than ${selectedPlanets[1].planet_name}`}
+                    subtitle={`Attributions of ${selectedPlanets[0].planet_name} minus those of ${selectedPlanets[1].planet_name}`}
                     badge="DIFFERENTIAL SHAP"
                     accent="purple"
                   />
@@ -284,7 +284,7 @@ const Compare = () => {
               </h3>
               <p className="text-xs font-mono max-w-md mx-auto">
                 Select targets from the catalog sidebar to compare physical characteristics and view
-                exact Linear SHAP attributions.
+                Linear SHAP attributions.
               </p>
             </div>
           )}

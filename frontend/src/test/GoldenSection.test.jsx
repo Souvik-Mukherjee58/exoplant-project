@@ -80,6 +80,7 @@ vi.mock('../hooks/useAnalytics', () => ({
 vi.mock('../services/api', () => ({
   planetsApi: {
     getKnownTargets: vi.fn(),
+    getByName: vi.fn().mockRejectedValue(new Error('not mocked')),
   },
   modelsApi: {
     getBenchmark: vi.fn(),
@@ -134,15 +135,16 @@ describe('Home.jsx Golden Benchmark Section', () => {
     },
   ];
 
-  it('renders ONLY verified JWST targets in the Golden Benchmark section and NEVER displays a target with already_observed_jwst == false', async () => {
+  it('renders ONLY labelled JWST targets in the Golden Benchmark section and NEVER displays a target with already_observed_jwst == false', async () => {
     planetsApi.getKnownTargets.mockResolvedValue(mockKnownTargetsResponse);
     modelsApi.getBenchmark.mockResolvedValue({
       leaderboard: [],
       selected_production_model: {
         model_name: 'Logistic Regression (Variant A - All Features)',
-        ap: 0.4597,
+        mean_ap: 0.4597, // the report's summary uses other key names than its leaderboard
+        mean_ap_std: 0.2476,
         ap_ci95: [0.3599, 0.5687],
-        recall_at_50: 0.7459,
+        mean_recall50: 0.7459,
       },
     });
     modelsApi.getFeatureImportance.mockResolvedValue({
@@ -161,7 +163,7 @@ describe('Home.jsx Golden Benchmark Section', () => {
     await waitFor(() => {
       expect(
         screen.getAllByRole('heading', {
-          name: /Known JWST targets: where our model ranks them/i,
+          name: /Labelled JWST targets: where our model ranks them/i,
         }).length
       ).toBeGreaterThan(0);
     });
@@ -177,18 +179,29 @@ describe('Home.jsx Golden Benchmark Section', () => {
     expect(within(goldenSection).getByText('OOF Rank #5')).toBeInTheDocument();
 
     // 3. Unobserved targets (already_observed_jwst == false) MUST NEVER appear in Golden Benchmark
-    expect(within(goldenSection).queryByText('Unobserved-Planet-False-Observed')).not.toBeInTheDocument();
-    expect(within(goldenSection).queryByText('Inconsistent-Target-Flagged-False')).not.toBeInTheDocument();
+    expect(
+      within(goldenSection).queryByText('Unobserved-Planet-False-Observed')
+    ).not.toBeInTheDocument();
+    expect(
+      within(goldenSection).queryByText('Inconsistent-Target-Flagged-False')
+    ).not.toBeInTheDocument();
+
+    // The quality card shows AP
+    expect(screen.getByText(/^0\.4597 ±/)).toBeInTheDocument();
 
     // 4. New recommendations section exists separately
     const recommendationsSection = screen.getByTestId('new-recommendations-section');
     expect(recommendationsSection).toBeInTheDocument();
     expect(
-      within(recommendationsSection).getAllByText(/New recommendations \(not yet observed by JWST\)/i).length
+      within(recommendationsSection).getAllByText(
+        /New recommendations \(not labelled as JWST targets\)/i
+      ).length
     ).toBeGreaterThan(0);
 
     // 5. Unobserved targets appear in the New Recommendations section
-    expect(within(recommendationsSection).getByText('Unobserved-Candidate-Alpha')).toBeInTheDocument();
+    expect(
+      within(recommendationsSection).getByText('Unobserved-Candidate-Alpha')
+    ).toBeInTheDocument();
 
     // 6. Confirmed targets do NOT appear in the New Recommendations section
     expect(within(recommendationsSection).queryByText('WASP-39 b')).not.toBeInTheDocument();

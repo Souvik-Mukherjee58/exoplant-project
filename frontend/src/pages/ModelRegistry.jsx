@@ -3,6 +3,14 @@ import { registryApi, systemApi } from '../services/api';
 import SectionDivider from '../components/SectionDivider';
 import SegmentedTabs from '../components/SegmentedTabs';
 
+const ms = (value) => (Number.isFinite(value) ? `${value} ms` : 'Not measured');
+const recorded = (value) => (Number.isFinite(value) ? value.toFixed(4) : 'Not recorded');
+const valueSize = (value) => (Number.isFinite(value) ? 'text-2xl' : 'text-sm');
+const metricNote = (value) =>
+  Number.isFinite(value)
+    ? 'Mean of 25 host-grouped CV folds; labels not human-verified'
+    : 'Not in the registry entry of this build';
+
 const ModelRegistry = () => {
   const [registryData, setRegistryData] = useState(null);
   const [activeVersionData, setActiveVersionData] = useState(null);
@@ -117,7 +125,7 @@ const ModelRegistry = () => {
       id: 'verification',
       label: 'Integrity & Benchmarks',
       icon: '⚡',
-      badge: validationResult ? (validationResult.valid ? 'Verified' : 'Alert') : undefined,
+      badge: validationResult ? (validationResult.valid ? 'Match' : 'Alert') : undefined,
     },
     {
       id: 'ab-compare',
@@ -140,13 +148,10 @@ const ModelRegistry = () => {
             <h1 className="text-3xl font-black text-white font-display">
               Model Registry & Governance
             </h1>
-            <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-              Week 7 MLOps
-            </span>
           </div>
           <p className="text-sm text-exosignal-text-secondary max-w-3xl">
-            Artifacts versioned with SHA-256 checksums, automated ML benchmark regression gating,
-            and atomic deployment lineage.
+            Registered model builds with the SHA-256 checksums of their files. Metrics are those
+            that a build recorded; they rest on labels that are not human-verified.
           </p>
         </div>
         <div className="flex items-center space-x-3">
@@ -178,7 +183,7 @@ const ModelRegistry = () => {
           <SectionDivider
             number="01"
             title="Active Model Deployment Lineage"
-            subtitle="Active in-process model artifact currently serving astrophysical inference"
+            subtitle="The version the API serves. Verify Hashes compares its files with this entry"
             badge="ACTIVE MODEL"
             accent="cyan"
           />
@@ -209,39 +214,49 @@ const ModelRegistry = () => {
                 {/* Key Metrics Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-space-void/80 rounded-xl p-4 border border-exosignal-cyan/20 shadow-sm">
-                    <span className="text-xs font-mono text-exosignal-text-muted">
-                      NDCG@10 (Test Set)
-                    </span>
-                    <div className="text-2xl font-bold font-mono text-exosignal-cyan mt-1">
-                      {activeVersionData.evaluation?.['ndcg@10'] !== undefined
-                        ? activeVersionData.evaluation['ndcg@10'].toFixed(4)
-                        : '—'}
+                    <span className="text-xs font-mono text-exosignal-text-muted">NDCG@10</span>
+                    <div
+                      className={`${valueSize(
+                        activeVersionData.evaluation?.['ndcg@10']
+                      )} font-bold font-mono text-exosignal-cyan mt-1`}
+                    >
+                      {recorded(activeVersionData.evaluation?.['ndcg@10'])}
                     </div>
-                    <span className="text-[11px] text-emerald-400">Held-Out Test Split</span>
+                    <span className="text-[11px] text-exosignal-text-muted">
+                      {metricNote(activeVersionData.evaluation?.['ndcg@10'])}
+                    </span>
                   </div>
 
                   <div className="bg-space-void/80 rounded-xl p-4 border border-exosignal-cyan/20 shadow-sm">
                     <span className="text-xs font-mono text-exosignal-text-muted">
                       Mean Avg Precision (MAP)
                     </span>
-                    <div className="text-2xl font-bold font-mono text-exosignal-purple mt-1">
-                      {activeVersionData.evaluation?.map !== undefined
-                        ? activeVersionData.evaluation.map.toFixed(4)
-                        : '—'}
+                    <div
+                      className={`${valueSize(
+                        activeVersionData.evaluation?.map
+                      )} font-bold font-mono text-exosignal-purple mt-1`}
+                    >
+                      {recorded(activeVersionData.evaluation?.map)}
                     </div>
-                    <span className="text-[11px] text-emerald-400">Ranking Relevance</span>
+                    <span className="text-[11px] text-exosignal-text-muted">
+                      {metricNote(activeVersionData.evaluation?.map)}
+                    </span>
                   </div>
 
                   <div className="bg-space-void/80 rounded-xl p-4 border border-exosignal-cyan/20 shadow-sm">
                     <span className="text-xs font-mono text-exosignal-text-muted">
                       Precision@10
                     </span>
-                    <div className="text-2xl font-bold font-mono text-emerald-400 mt-1">
-                      {activeVersionData.evaluation?.['precision@10'] !== undefined
-                        ? activeVersionData.evaluation['precision@10'].toFixed(4)
-                        : '—'}
+                    <div
+                      className={`${valueSize(
+                        activeVersionData.evaluation?.['precision@10']
+                      )} font-bold font-mono text-emerald-400 mt-1`}
+                    >
+                      {recorded(activeVersionData.evaluation?.['precision@10'])}
                     </div>
-                    <span className="text-[11px] text-emerald-400">Confirmed JWST</span>
+                    <span className="text-[11px] text-exosignal-text-muted">
+                      {metricNote(activeVersionData.evaluation?.['precision@10'])}
+                    </span>
                   </div>
 
                   <div className="bg-space-void/80 rounded-xl p-4 border border-exosignal-cyan/20 shadow-sm">
@@ -262,24 +277,31 @@ const ModelRegistry = () => {
                   <div className="bg-space-void/60 p-3 rounded-xl border border-exosignal-cyan/10">
                     <span className="text-exosignal-text-muted block text-[10px]">Algorithm:</span>
                     <span className="text-white font-semibold text-xs">
-                      {activeVersionData.training?.algorithm ||
-                        'Regularized Logistic Regression (Variant A)'}
+                      {activeVersionData.training?.algorithm || 'Not recorded'}
                     </span>
                   </div>
                   <div className="bg-space-void/60 p-3 rounded-xl border border-exosignal-cyan/10">
                     <span className="text-exosignal-text-muted block text-[10px]">
-                      Astrophysical Features:
+                      Inputs of the served model:
                     </span>
                     <span className="text-white font-semibold text-xs">
-                      {activeVersionData.training?.n_features ?? '—'} features
+                      {activeVersionData.served_model_features ?? 'Not available'}
                     </span>
+                    {activeVersionData.training?.n_features != null &&
+                      activeVersionData.served_model_features != null &&
+                      activeVersionData.training.n_features !==
+                        activeVersionData.served_model_features && (
+                        <span className="text-exosignal-text-muted block text-[10px]">
+                          The registry entry says {activeVersionData.training.n_features}: it
+                          counted only the list of most important inputs.
+                        </span>
+                      )}
                   </div>
                   <div className="bg-space-void/60 p-3 rounded-xl border border-exosignal-cyan/10">
-                    <span className="text-exosignal-text-muted block text-[10px]">
-                      Temporal Holdout:
-                    </span>
-                    <span className="text-emerald-400 font-semibold text-xs">
-                      Train ≤2017, Test ≥2022
+                    <span className="text-exosignal-text-muted block text-[10px]">Evaluation:</span>
+                    <span className="text-white font-semibold text-xs">
+                      Cross-validation grouped by host star (25 folds). No separate test set; the
+                      final model is fitted on all eligible planets.
                     </span>
                   </div>
                 </div>
@@ -295,7 +317,7 @@ const ModelRegistry = () => {
           <SectionDivider
             number="02"
             title="Artifact Provenance Catalog"
-            subtitle="Immutable snapshot builds with cross-validation gating and SHA-256 integrity tags"
+            subtitle="Registered builds and the metrics they recorded (— = not recorded)"
             badge="CATALOG"
             accent="purple"
           />
@@ -307,7 +329,7 @@ const ModelRegistry = () => {
                   Registered Model Builds
                 </h3>
                 <p className="text-xs font-mono text-exosignal-text-muted">
-                  Historical lineage of trained ranking engines with test benchmark scores
+                  Cross-validation metrics on labels that are not human-verified
                 </p>
               </div>
               <span className="text-xs font-mono px-3 py-1 rounded-full bg-space-void border border-exosignal-purple/30 text-purple-300 font-bold">
@@ -343,18 +365,18 @@ const ModelRegistry = () => {
                               </span>
                             ) : (
                               <span className="px-2 py-0.5 rounded-full bg-slate-700/40 text-slate-400 border border-slate-600/40 text-[10px]">
-                                ARCHIVED
+                                {(v.status || 'unknown').toUpperCase()}
                               </span>
                             )}
                           </td>
                           <td className="py-3 px-4 text-exosignal-cyan font-bold">
-                            {v.ndcg_at_10 ? v.ndcg_at_10.toFixed(4) : '—'}
+                            {v.ndcg_at_10 != null ? v.ndcg_at_10.toFixed(4) : '—'}
                           </td>
                           <td className="py-3 px-4 text-exosignal-purple font-bold">
-                            {v.map ? v.map.toFixed(4) : '—'}
+                            {v.map != null ? v.map.toFixed(4) : '—'}
                           </td>
                           <td className="py-3 px-4 text-emerald-400 font-bold">
-                            {v.precision_at_10 ? v.precision_at_10.toFixed(4) : '—'}
+                            {v.precision_at_10 != null ? v.precision_at_10.toFixed(4) : '—'}
                           </td>
                           <td className="py-3 px-4 text-exosignal-text-muted">
                             {v.registered_at?.slice(0, 10)}
@@ -384,7 +406,7 @@ const ModelRegistry = () => {
           <SectionDivider
             number="03"
             title="Integrity Verification & Benchmarks"
-            subtitle="SHA256 checksum validation audits and DuckDB columnar latency telemetry"
+            subtitle="Comparison of file checksums with the registry, and timing of database queries"
             badge="DIAGNOSTICS"
             accent="emerald"
           />
@@ -407,7 +429,7 @@ const ModelRegistry = () => {
                         : 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
                     }`}
                   >
-                    {validationResult.valid ? 'VERIFIED INTACT' : 'INTEGRITY COMPROMISED'}
+                    {validationResult.valid ? 'CHECKSUMS MATCH' : 'CHECKSUM MISMATCH OR MISSING'}
                   </span>
                 )}
               </div>
@@ -418,7 +440,7 @@ const ModelRegistry = () => {
                     <p className="text-xs font-mono text-exosignal-text-secondary">
                       Active Model Version:{' '}
                       <span className="text-white font-bold">{validationResult.version}</span> •
-                      SHA256 checksum comparison against immutable registry records
+                      file checksums compared with those in the registry entry
                     </p>
 
                     {validationResult.checks && (
@@ -476,12 +498,12 @@ const ModelRegistry = () => {
                 <div className="flex items-center space-x-2">
                   <span className="text-xl">⚡</span>
                   <h3 className="text-base font-bold text-white font-display">
-                    In-Process DuckDB Columnar Latency Telemetry
+                    DuckDB Query Timing
                   </h3>
                 </div>
                 {latencyBench && (
                   <span className="text-xs font-mono text-emerald-400 font-bold bg-space-void/80 px-3 py-1 rounded-full border border-emerald-500/30">
-                    Status: {latencyBench.status?.toUpperCase()}
+                    {latencyBench.engine}
                   </span>
                 )}
               </div>
@@ -490,8 +512,8 @@ const ModelRegistry = () => {
                 {latencyBench ? (
                   <div className="space-y-4">
                     <p className="text-xs font-mono text-exosignal-text-secondary">
-                      Measured over {latencyBench.iterations} concurrent multi-feature ranking
-                      queries against in-memory Parquet
+                      {latencyBench.iterations} database queries, one after another, inside the API
+                      process. Not a measurement of HTTP requests or of concurrent users.
                     </p>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 font-mono text-center">
@@ -500,25 +522,25 @@ const ModelRegistry = () => {
                           P50 Median Latency
                         </span>
                         <div className="text-2xl font-bold text-emerald-400 mt-1">
-                          {latencyBench.p50_latency_ms} ms
+                          {ms(latencyBench.p50_ms)}
                         </div>
                       </div>
                       <div className="bg-space-void/80 p-4 rounded-xl border border-exosignal-cyan/20">
-                        <span className="text-xs text-exosignal-text-muted">P90 Tail Latency</span>
+                        <span className="text-xs text-exosignal-text-muted">P95 Latency</span>
                         <div className="text-2xl font-bold text-exosignal-cyan mt-1">
-                          {latencyBench.p90_latency_ms} ms
+                          {ms(latencyBench.p95_ms)}
                         </div>
                       </div>
                       <div className="bg-space-void/80 p-4 rounded-xl border border-exosignal-cyan/20">
-                        <span className="text-xs text-exosignal-text-muted">P99 Worst Case</span>
+                        <span className="text-xs text-exosignal-text-muted">P99 Latency</span>
                         <div className="text-2xl font-bold text-exosignal-purple mt-1">
-                          {latencyBench.p99_latency_ms} ms
+                          {ms(latencyBench.p99_ms)}
                         </div>
                       </div>
                       <div className="bg-space-void/80 p-4 rounded-xl border border-exosignal-cyan/20">
                         <span className="text-xs text-exosignal-text-muted">Mean Latency</span>
                         <div className="text-2xl font-bold text-white mt-1">
-                          {latencyBench.mean_latency_ms} ms
+                          {ms(latencyBench.mean_ms)}
                         </div>
                       </div>
                     </div>
@@ -552,8 +574,8 @@ const ModelRegistry = () => {
           <SectionDivider
             number="04"
             title="A/B Model Version Comparator"
-            subtitle="Side-by-side metric delta evaluation, regression gating, and deployment winner declaration"
-            badge="A/B GATING"
+            subtitle="Side by side: the metrics that two builds recorded. No build is promoted or blocked here"
+            badge="COMPARISON"
             accent="amber"
           />
 
@@ -609,7 +631,11 @@ const ModelRegistry = () => {
                 </div>
               )}
 
-              {comparison ? (
+              {comparison && Object.keys(comparison.metric_comparison || {}).length === 0 ? (
+                <div className="text-center py-8 text-xs font-mono text-exosignal-text-muted">
+                  No metric is recorded for both builds, so there is nothing to compare.
+                </div>
+              ) : comparison ? (
                 <div className="bg-space-void/80 rounded-xl p-5 border border-exosignal-purple/20">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
                     {Object.entries(comparison.metric_comparison || {}).map(([metric, data]) => (
@@ -639,11 +665,11 @@ const ModelRegistry = () => {
                                 : 'bg-amber-500/20 text-amber-300'
                             }`}
                           >
-                            Winner: {data.winner || 'Tie'} (
-                            {data.delta >= 0
-                              ? `+${data.delta?.toFixed(4)}`
-                              : data.delta?.toFixed(4)}
-                            )
+                            {data.delta === 0
+                              ? 'No difference'
+                              : `Higher: ${data.winner} (${
+                                  data.delta > 0 ? '+' : ''
+                                }${data.delta?.toFixed(4)})`}
                           </span>
                         </div>
                       </div>

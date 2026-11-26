@@ -116,7 +116,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
 async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     """Handle 422 request parameter validation errors with consistent schema."""
     return _format_error_response(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=422,
         message="Request parameter validation failed",
         detail=exc.errors(),
         details_payload=exc.errors(),
@@ -136,17 +136,19 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 
 # ---------------------------------------------------------------------------
 # Middleware Pipeline
-# Order: outer-to-inner -> Tracing -> RateLimiting -> ETag/Cache -> Gzip -> CORS
+# Starlette runs the LAST added middleware first, so a request passes through
+# CORS -> Tracing -> RateLimiting -> ETag/Cache -> Gzip -> routes.
+# CORS is outermost so that a browser can also read 429 and 304 responses.
 # ---------------------------------------------------------------------------
 
-app.add_middleware(RequestTracingMiddleware)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+app.add_middleware(ETagCacheMiddleware)
 app.add_middleware(
     RateLimitingMiddleware,
     requests_per_minute=settings.RATE_LIMIT_PER_MINUTE,
     trusted_proxy_hops=settings.TRUSTED_PROXY_HOPS,
 )
-app.add_middleware(ETagCacheMiddleware)
-app.add_middleware(GZipMiddleware, minimum_size=1000)
+app.add_middleware(RequestTracingMiddleware)
 
 
 def validate_cors_origins(origins: list) -> list:
@@ -190,11 +192,12 @@ async def root():
 
 
 @app.get("/health")
+@app.get("/api/v1/health", include_in_schema=False)  # reachable through the frontend's /api proxy
 async def health():
     """Liveness probe: verifies process is alive and returns basic service status."""
     try:
         engine = CatalogQueryEngine.get_instance()
-        count = engine.conn.execute("SELECT COUNT(*) FROM planets").fetchone()[0] if engine.conn else 0
+        count = engine.get_cursor().execute("SELECT COUNT(*) FROM planets").fetchone()[0]
         return {
             "status": "ok",
             "service": "exosignal",
@@ -204,8 +207,9 @@ async def health():
             "catalog_records": count,
             "environment": _env,
         }
-    except Exception as e:
-        return {"status": "degraded", "error": str(e), "environment": _env}
+    except Exception:
+        logger.exception("Health probe failed")
+        return {"status": "degraded", "error": "query engine unavailable", "environment": _env}
 
 
 @app.get("/ready")
@@ -222,7 +226,7 @@ async def ready():
                 content={"status": "not_ready", "error": "DuckDB connection is not initialized"},
             )
 
-        count = engine.conn.execute("SELECT COUNT(*) FROM planets").fetchone()[0]
+        count = engine.get_cursor().execute("SELECT COUNT(*) FROM planets").fetchone()[0]
         if count <= 0:
             return JSONResponse(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -236,14 +240,16 @@ async def ready():
             "catalog_records": count,
             "environment": _env,
         }
-    except Exception as e:
+    except Exception:
+        logger.exception("Readiness probe failed")
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={"status": "not_ready", "error": str(e)},
+            content={"status": "not_ready", "error": "query engine unavailable"},
         )
 
 
 @app.get("/metrics")
+@app.get("/api/v1/metrics", include_in_schema=False)
 async def metrics():
     """
     Lightweight operational metrics endpoint for monitoring dashboards.
@@ -254,14 +260,15 @@ async def metrics():
     # DuckDB health
     try:
         engine = CatalogQueryEngine.get_instance()
-        count = engine.conn.execute("SELECT COUNT(*) FROM planets").fetchone()[0] if engine.conn else 0
+        count = engine.get_cursor().execute("SELECT COUNT(*) FROM planets").fetchone()[0]
         result["subsystems"]["duckdb"] = {
             "status": "ok",
             "artifact_version": engine.active_version,
             "catalog_records": count,
         }
-    except Exception as e:
-        result["subsystems"]["duckdb"] = {"status": "error", "error": str(e)}
+    except Exception:
+        logger.exception("Metrics: query engine unavailable")
+        result["subsystems"]["duckdb"] = {"status": "error"}
 
     # SHAP explainer health
     try:
@@ -270,11 +277,12 @@ async def metrics():
         explainer = SHAPExplainer.get_instance()
         result["subsystems"]["shap_explainer"] = {
             "status": "ok",
-            "model_path": str(explainer.model_path),
+            "model_file": Path(str(explainer.model_path)).name,
             "n_features": len(explainer.feature_names),
         }
-    except Exception as e:
-        result["subsystems"]["shap_explainer"] = {"status": "unavailable", "error": str(e)}
+    except Exception:
+        logger.exception("Metrics: explainer unavailable")
+        result["subsystems"]["shap_explainer"] = {"status": "unavailable"}
 
     # Model registry
     try:
@@ -292,8 +300,9 @@ async def metrics():
             }
         else:
             result["subsystems"]["model_registry"] = {"status": "not_initialized"}
-    except Exception as e:
-        result["subsystems"]["model_registry"] = {"status": "error", "error": str(e)}
+    except Exception:
+        logger.exception("Metrics: model registry unreadable")
+        result["subsystems"]["model_registry"] = {"status": "error"}
 
     return result
 

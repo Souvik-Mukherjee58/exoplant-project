@@ -2,16 +2,12 @@ import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { usePlanets } from '../hooks/usePlanets';
 import { useFavorites } from '../context/FavoritesContext';
-import {
-  formatRadius,
-  formatPeriod,
-  formatTemperature,
-  formatAnomaly,
-} from '../utils/formatters';
+import { formatRadius, formatPeriod, formatTemperature, formatAnomaly } from '../utils/formatters';
 import SectionDivider from '../components/SectionDivider';
 import ShapWaterfall from '../components/ShapWaterfall';
 import { PriorityScoreDisplay } from '../components/PriorityBadge';
 
+const MAX_ROWS = 500; // API maximum per request
 const HZ_OPTIONS = ['All', 'Inside HZ', 'Near HZ', 'Outside HZ'];
 const ITEMS_PER_PAGE = 24;
 
@@ -35,7 +31,7 @@ const Explorer = () => {
   const { toggleFavorite, isFavorite } = useFavorites();
 
   const queryParams = useMemo(() => {
-    const params = { limit: 1000 };
+    const params = { limit: MAX_ROWS };
     if (filters.name && filters.name.trim()) {
       params.q = filters.name.trim();
     }
@@ -104,12 +100,12 @@ const Explorer = () => {
       .sort((a, b) => {
         const valA =
           filters.sortBy === 'priority'
-            ? (a.priority_score ?? (filters.sortOrder === 'asc' ? Infinity : -Infinity))
-            : (a.anomaly_score ?? 0);
+            ? a.priority_score ?? (filters.sortOrder === 'asc' ? Infinity : -Infinity)
+            : a.anomaly_score ?? (filters.sortOrder === 'asc' ? Infinity : -Infinity);
         const valB =
           filters.sortBy === 'priority'
-            ? (b.priority_score ?? (filters.sortOrder === 'asc' ? Infinity : -Infinity))
-            : (b.anomaly_score ?? 0);
+            ? b.priority_score ?? (filters.sortOrder === 'asc' ? Infinity : -Infinity)
+            : b.anomaly_score ?? (filters.sortOrder === 'asc' ? Infinity : -Infinity);
         return filters.sortOrder === 'asc' ? valA - valB : valB - valA;
       });
   }, [planets, filters]);
@@ -346,7 +342,7 @@ const Explorer = () => {
           title={
             viewMode === 'shap'
               ? 'Linear SHAP Model Interpretability Subfeature'
-              : 'Catalog Targets & Observational Yield'
+              : 'Catalog Targets'
           }
           subtitle={
             viewMode === 'shap'
@@ -356,7 +352,9 @@ const Explorer = () => {
           badge={
             viewMode === 'shap'
               ? `SHAP INSPECTOR: ${shapTarget}`
-              : `${filteredAndSortedPlanets.length} MATCHING TARGETS`
+              : planets.length === MAX_ROWS
+                ? `FIRST ${MAX_ROWS} MATCHES LOADED (REFINE THE FILTERS FOR MORE)`
+                : `${filteredAndSortedPlanets.length} MATCHING TARGETS`
           }
           accent={viewMode === 'shap' ? 'purple' : 'cyan'}
         />
@@ -494,7 +492,7 @@ const Explorer = () => {
                           : 'bg-slate-700/40 text-slate-300'
                       }`}
                     >
-                      {activeShapPlanet.hz_status || 'Outside HZ'}
+                      {activeShapPlanet.hz_status || 'Insufficient data'}
                     </span>
                     <span className="text-exosignal-text-muted">
                       Radius: {formatRadius(activeShapPlanet.planet_radius)} • Period:{' '}
@@ -548,7 +546,7 @@ const Explorer = () => {
                               : 'bg-slate-700/30 text-slate-400 border border-slate-600/30'
                         }`}
                       >
-                        {planet.hz_status || 'Outside HZ'}
+                        {planet.hz_status || 'Insufficient data'}
                       </span>
                       <button
                         onClick={() => toggleFavorite(planet)}
@@ -618,7 +616,11 @@ const Explorer = () => {
                       <div
                         className="bg-gradient-to-r from-exosignal-cyan to-exosignal-purple h-full rounded-full"
                         style={{
-                          width: `${planet.priority_score != null ? Math.min(Math.max(planet.priority_score, 5), 100) : 0}%`,
+                          width: `${
+                            planet.priority_score != null
+                              ? Math.min(Math.max(planet.priority_score, 5), 100)
+                              : 0
+                          }%`,
                         }}
                       ></div>
                     </div>
@@ -705,7 +707,7 @@ const Explorer = () => {
                                 : 'bg-slate-700/30 text-slate-400 border border-slate-600/30'
                           }`}
                         >
-                          {planet.hz_status || 'Outside HZ'}
+                          {planet.hz_status || 'Insufficient data'}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-amber-400 font-semibold">
