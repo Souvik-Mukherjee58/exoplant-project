@@ -104,7 +104,7 @@ const TopTargets = () => {
     const radius = Number(planet.planet_radius);
     if (!isNaN(radius) && radius > 10.0) {
       return (
-        <span className="text-amber-400 italic text-[10px]">
+        <span className="text-amber-400 italic text-[11px]">
           outside Kempton (2018) size classes — extrapolated
         </span>
       );
@@ -112,11 +112,11 @@ const TopTargets = () => {
     const threshold = planet.tsm_threshold;
     if (threshold == null) {
       return (
-        <span className="text-slate-500 italic text-[10px]">size-class threshold unavailable</span>
+        <span className="text-slate-400 italic text-[11px]">size-class threshold unavailable</span>
       );
     }
     if (planet.tsm == null) {
-      return <span className="text-slate-500 italic text-[10px]">TSM not computable</span>;
+      return <span className="text-slate-400 italic text-[11px]">TSM not computable</span>;
     }
     const passes = planet.tsm >= threshold;
     return (
@@ -242,9 +242,9 @@ const TopTargets = () => {
         </div>
       )}
 
-      {/* Top 3 Podium Cards */}
+      {/* Top 3 Podium Cards (hidden on phones: the first three leaderboard cards show the same planets) */}
       {!loading && podium.length >= 3 && (
-        <div className="space-y-4">
+        <div className="hidden md:block space-y-4">
           <SectionDivider
             number="01"
             title={
@@ -299,7 +299,13 @@ const TopTargets = () => {
                         {medal} · #{displayRank}
                       </span>
                       <button
+                        type="button"
                         onClick={() => toggleFavorite(planet)}
+                        aria-label={
+                          isFav
+                            ? `Remove ${planet.planet_name} from the watchlist`
+                            : `Add ${planet.planet_name} to the watchlist`
+                        }
                         className="text-lg hover:scale-125 transition-transform"
                       >
                         {isFav ? '★' : '☆'}
@@ -515,7 +521,104 @@ const TopTargets = () => {
             </span>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Cards on small screens: the 11-column table does not fit a phone */}
+          {!loading && !error && (
+            <ol className="md:hidden divide-y divide-exosignal-cyan/10">
+              {activePlanets.map((planet, index) => {
+                const pRank =
+                  activeTab === 'validation'
+                    ? planet.oof_ml_rank ?? index + 1
+                    : includeObserved
+                      ? planet.priority_rank ?? index + 1
+                      : planet.unobserved_rank ?? planet.priority_rank ?? index + 1;
+                const currentScore =
+                  activeTab === 'validation'
+                    ? planet.oof_priority_score ?? planet.priority_score
+                    : planet.priority_score ?? planet.ml_priority_score;
+                const isFav = isFavorite(planet.planet_name);
+                return (
+                  <li key={planet.planet_name} className="px-4 py-3 space-y-1">
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="font-mono min-w-0 truncate">
+                        <span className="font-bold text-amber-400">#{pRank}</span>
+                        <span className="text-exosignal-text-muted">
+                          {' '}
+                          · {getCleanHostStar(planet)}
+                        </span>
+                      </span>
+                      <span
+                        className={`shrink-0 whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                          planet.hz_status === 'Inside HZ'
+                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                            : planet.hz_status === 'Near HZ'
+                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                              : 'bg-slate-700/30 text-slate-300 border border-slate-600/30'
+                        }`}
+                      >
+                        {planet.hz_status || 'Insufficient data'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <Link
+                        to={`/planet/${encodeURIComponent(planet.planet_name)}`}
+                        className="min-w-0 font-mono font-bold text-white hover:text-exosignal-cyan break-words"
+                      >
+                        {planet.planet_name}
+                      </Link>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleFavorite(planet)}
+                          aria-label={
+                            isFav
+                              ? `Remove ${planet.planet_name} from the watchlist`
+                              : `Add ${planet.planet_name} to the watchlist`
+                          }
+                          className="w-8 h-8 text-lg leading-none"
+                        >
+                          {isFav ? '★' : '☆'}
+                        </button>
+                        <Link
+                          to={`/planet/${encodeURIComponent(planet.planet_name)}`}
+                          className="whitespace-nowrap px-2.5 py-1.5 rounded bg-exosignal-cyan/10 text-exosignal-cyan border border-exosignal-cyan/30 text-xs"
+                        >
+                          Why this rank
+                        </Link>
+                      </div>
+                    </div>
+                    <div className="text-xs">
+                      <span
+                        className="font-bold text-cyan-300"
+                        title={`Raw score: ${formatRawScore(currentScore)}`}
+                      >
+                        {planet.percentile_rank_string || 'Percentile not available'}
+                      </span>
+                      <span className="font-mono text-exosignal-text-muted">
+                        {' '}
+                        · Score {formatPriority(currentScore)}
+                      </span>
+                    </div>
+                    <div className="text-xs text-exosignal-text-secondary">
+                      TSM{' '}
+                      <span className="font-mono text-amber-300">
+                        {planet.tsm != null ? planet.tsm.toFixed(1) : '—'}
+                      </span>{' '}
+                      (cutoff {renderKemptonThreshold(planet)}) ·{' '}
+                      <span className="font-mono text-white">
+                        {formatRadius(planet.planet_radius)}
+                      </span>{' '}
+                      ·{' '}
+                      <span className="font-mono text-white">
+                        {formatPeriod(planet.orbital_period)}
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-xs font-mono">
               <thead>
                 <tr className="border-b border-exosignal-cyan/20 bg-space-void/80 text-exosignal-text-muted text-left">
@@ -632,7 +735,13 @@ const TopTargets = () => {
                         </td>
                         <td className="py-3.5 px-4 text-center">
                           <button
+                            type="button"
                             onClick={() => toggleFavorite(planet)}
+                            aria-label={
+                              isFav
+                                ? `Remove ${planet.planet_name} from the watchlist`
+                                : `Add ${planet.planet_name} to the watchlist`
+                            }
                             className="hover:scale-125 transition-transform"
                           >
                             {isFav ? '★' : '☆'}

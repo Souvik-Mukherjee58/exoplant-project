@@ -812,3 +812,14 @@ td {
 
 @tailwind components;
 @tailwind utilities;
+
+/* Readability: paragraphs of prose use the sans-serif face; monospace stays for labels, numbers and names. */
+p.font-mono {
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+}

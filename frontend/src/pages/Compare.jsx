@@ -160,7 +160,7 @@ const Compare = () => {
               <div className="space-y-4">
                 <SectionDivider
                   number="01"
-                  title="Target Physical Parameters & Radiative Environment"
+                  title="Side-by-side parameters"
                   subtitle="Side-by-side comparison of bulk radii, orbital period, distance, and ranking score"
                   badge={`${selectedPlanets.length} TARGETS`}
                   accent="cyan"

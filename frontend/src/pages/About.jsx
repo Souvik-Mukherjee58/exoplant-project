@@ -43,7 +43,7 @@ const About = () => {
         <div className="space-y-4">
           <SectionDivider
             number="01"
-            title="Project Mission & Objective"
+            title="About the project"
             subtitle="What the project ranks, and what it does not claim"
             badge="MISSION"
             accent="cyan"
@@ -73,7 +73,7 @@ const About = () => {
         <div className="space-y-4">
           <SectionDivider
             number="02"
-            title="Technical Architecture & Engine Stack"
+            title="Architecture"
             subtitle="DuckDB, regularized logistic regression, FastAPI and React"
             badge="TECH STACK"
             accent="purple"
@@ -135,7 +135,7 @@ const About = () => {
         <div className="space-y-4">
           <SectionDivider
             number="03"
-            title="Data Sources & Astronomical Provenance"
+            title="Data sources"
             subtitle="Public catalogues, and labels that are not human-verified"
             badge="PROVENANCE"
             accent="emerald"

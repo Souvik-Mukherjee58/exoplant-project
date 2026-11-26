@@ -180,8 +180,8 @@ const Explorer = () => {
       <div className="space-y-4">
         <SectionDivider
           number="01"
-          title="Catalog Search & Columnar Filters"
-          subtitle="Multi-attribute query engine with parameter pushdown"
+          title="Search and filter"
+          subtitle="Filter by name, habitable zone status and minimum score"
           badge="QUERY FILTERS"
           accent="cyan"
         />
@@ -607,14 +607,17 @@ const Explorer = () => {
 
                   {/* Score Bar & Actions */}
                   <div className="space-y-3 pt-2 border-t border-exosignal-cyan/10">
-                    <div className="flex items-center justify-between text-xs font-mono">
-                      <span className="text-exosignal-text-muted">
-                        Priority Score {planet.priority_rank ? `(#${planet.priority_rank})` : ''}
+                    <div className="flex items-baseline justify-between text-xs font-mono">
+                      <span className="text-sm font-bold text-white">
+                        {planet.priority_rank ? `Rank #${planet.priority_rank}` : 'Not ranked'}
                       </span>
-                      <PriorityScoreDisplay
-                        planet={planet}
-                        className="text-exosignal-cyan font-bold text-sm"
-                      />
+                      <span className="text-exosignal-text-muted">
+                        Score{' '}
+                        <PriorityScoreDisplay
+                          planet={planet}
+                          className="text-exosignal-cyan font-bold"
+                        />
+                      </span>
                     </div>
                     <div className="w-full bg-space-void rounded-full h-1.5 overflow-hidden">
                       <div

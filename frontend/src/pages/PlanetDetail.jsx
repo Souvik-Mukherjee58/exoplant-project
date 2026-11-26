@@ -390,8 +390,8 @@ const PlanetDetail = () => {
         <div className="space-y-6">
           <SectionDivider
             number="01"
-            title="Astrophysical Telemetry & Host Environment"
-            subtitle="Derived planetary bulk density proxies, orbital mechanics, and stellar irradiance"
+            title="Planet and host star"
+            subtitle="Physical parameters from the NASA Exoplanet Archive"
             badge="TELEMETRY"
             accent="cyan"
           />
@@ -422,7 +422,7 @@ const PlanetDetail = () => {
                       ) : (
                         <span
                           title="Parameter not reported in NASA Exoplanet Archive"
-                          className="text-slate-500 italic text-xs cursor-help"
+                          className="text-slate-400 italic text-xs cursor-help"
                         >
                           not in archive
                         </span>
@@ -441,7 +441,7 @@ const PlanetDetail = () => {
                       ) : (
                         <span
                           title="Parameter not reported in NASA Exoplanet Archive"
-                          className="text-slate-500 italic text-xs cursor-help"
+                          className="text-slate-400 italic text-xs cursor-help"
                         >
                           not in archive
                         </span>
@@ -460,7 +460,7 @@ const PlanetDetail = () => {
                       ) : (
                         <span
                           title="Parameter not reported in NASA Exoplanet Archive"
-                          className="text-slate-500 italic text-xs cursor-help"
+                          className="text-slate-400 italic text-xs cursor-help"
                         >
                           not in archive
                         </span>
@@ -479,7 +479,7 @@ const PlanetDetail = () => {
                       ) : (
                         <span
                           title="Parameter not reported in NASA Exoplanet Archive"
-                          className="text-slate-500 italic text-xs cursor-help"
+                          className="text-slate-400 italic text-xs cursor-help"
                         >
                           not in archive
                         </span>
@@ -515,7 +515,7 @@ const PlanetDetail = () => {
                       ) : (
                         <span
                           title="Parameter not reported in NASA Exoplanet Archive"
-                          className="text-slate-500 italic text-xs cursor-help"
+                          className="text-slate-400 italic text-xs cursor-help"
                         >
                           not in archive
                         </span>
@@ -532,7 +532,7 @@ const PlanetDetail = () => {
                       ) : (
                         <span
                           title="Parameter not reported in NASA Exoplanet Archive"
-                          className="text-slate-500 italic text-xs cursor-help"
+                          className="text-slate-400 italic text-xs cursor-help"
                         >
                           not in archive
                         </span>
@@ -585,7 +585,7 @@ const PlanetDetail = () => {
           <SectionDivider
             number="02"
             title="Linear SHAP Feature Attribution"
-            subtitle="Local Shapley feature importance waterfall (Lundberg & Lee 2017) explaining exactly why the model prioritized this target"
+            subtitle="How each feature moved this planet's score (Lundberg & Lee 2017)"
             badge="ML EXPLAINABILITY"
             accent="purple"
           />

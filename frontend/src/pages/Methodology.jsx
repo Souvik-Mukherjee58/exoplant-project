@@ -63,8 +63,8 @@ const Methodology = () => {
         <div className="space-y-4">
           <SectionDivider
             number="01"
-            title="Scientific Context & Mission Rationale"
-            subtitle="The observational bottleneck in high-resolution transmission and emission spectroscopy"
+            title="Why prioritise targets"
+            subtitle="Telescope time for transmission and emission spectroscopy is limited"
             badge="CONTEXT"
             accent="cyan"
           />
@@ -94,8 +94,8 @@ const Methodology = () => {
         <div className="space-y-4">
           <SectionDivider
             number="02"
-            title="End-to-End Data Processing Pipeline"
-            subtitle="Deterministic multistage ETL, schema standardization, and physics-informed feature derivation"
+            title="Data pipeline"
+            subtitle="From the archive download to model features"
             badge="DATA PIPELINE"
             accent="purple"
           />

@@ -150,8 +150,8 @@ const Analytics = () => {
         <div className="space-y-6">
           <SectionDivider
             number="01"
-            title="Population Metric Foundations"
-            subtitle="Vital statistics and distribution spread computed across the whole catalogue"
+            title="Catalogue overview"
+            subtitle="Summary statistics across the whole catalogue"
             badge="VITAL STATS"
             accent="cyan"
           />
@@ -302,8 +302,8 @@ const Analytics = () => {
         <div className="space-y-6">
           <SectionDivider
             number="03"
-            title="Habitability Classification & Observational Techniques"
-            subtitle="Circumstellar habitable zone alignment and discovery methodology distributions"
+            title="Habitable zone and discovery methods"
+            subtitle="How many planets fall in each habitable-zone class, and how they were discovered"
             badge="CLASSIFICATION"
             accent="emerald"
           />

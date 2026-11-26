@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTopTargets } from '../hooks/usePlanets';
 import { useAnalytics } from '../hooks/useAnalytics';
-import { formatPriority, getIneligibleTooltip, getCleanHostStar } from '../utils/formatters';
+import { formatPriority } from '../utils/formatters';
 import { calculateHzPieData } from '../utils/hzDonut';
 import { modelsApi, planetsApi } from '../services/api';
 import {
@@ -14,16 +14,7 @@ import {
   Tooltip,
   CartesianGrid,
   Cell,
-  Legend,
-  PieChart,
-  Pie,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
 } from 'recharts';
-import SectionDivider from '../components/SectionDivider';
 import Planet3DVisualizer from '../components/Planet3DVisualizer';
 
 const FEATURE_LABEL_MAP = {
@@ -38,11 +29,12 @@ const FEATURE_LABEL_MAP = {
   insolation_flux: 'Insolation Flux',
   distance_attenuation: 'Distance Attenuation',
   orbital_period: 'Orbital Period',
+  distance: 'Distance',
+  semi_major_axis: 'Orbit Size',
+  transit_depth_proxy: 'Transit Depth',
 };
 
 const PRODUCTION_MODEL_NAME = 'Logistic Regression (Variant A - All Features)';
-
-const metricOrNull = (v) => (typeof v === 'number' ? Number(v.toFixed(3)) : null);
 
 /** Metrics of the served model from GET /evaluation/benchmark, under one set of names; null when unknown. */
 export function productionMetrics(benchmark) {
@@ -64,25 +56,93 @@ export function productionMetrics(benchmark) {
   };
 }
 
-const RADAR_PLANETS = ['TRAPPIST-1 e', 'TOI-700 d', 'WASP-96 b'];
-const RADAR_COLORS = ['#00d4ff', '#10b981', '#a855f7'];
-const RADAR_AXES = [
-  { key: 'planetary_relevance', label: 'Planetary' },
-  { key: 'observational_accessibility', label: 'Accessibility' },
-  { key: 'stellar_characteristics', label: 'Host star' },
-  { key: 'data_quality', label: 'Completeness' },
-  { key: 'anomaly_score', label: 'Outlier score' },
-];
+const formatRadius = (r) => (r ? `${Number(r).toFixed(2)} R⊕` : 'not in archive');
+const formatPeriodDays = (p) => (p ? `${Number(p).toFixed(1)} days` : 'not in archive');
+
+const HZ_BADGE = {
+  'Inside HZ': 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+  'Near HZ': 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+};
+const hzBadgeClass = (hz) => HZ_BADGE[hz] || 'bg-slate-700/30 text-slate-300 border-slate-600/40';
+
+/** A plain section heading: one title, one sentence of context. */
+const SectionHeading = ({ title, children, action }) => (
+  <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+    <div className="max-w-3xl">
+      <h2 className="text-2xl sm:text-3xl font-bold text-white font-display">{title}</h2>
+      {children && (
+        <p className="mt-1.5 text-sm text-exosignal-text-secondary leading-relaxed">{children}</p>
+      )}
+    </div>
+    {action}
+  </div>
+);
+
+const StatCard = ({ label, value, valueClass = 'text-white', note, accent }) => (
+  <div className={`glass-panel p-5 ${accent}`}>
+    <div className="text-xs font-semibold uppercase tracking-wide text-exosignal-text-muted mb-2">
+      {label}
+    </div>
+    <div className={`text-2xl sm:text-3xl font-black font-mono ${valueClass}`}>{value}</div>
+    {note && <div className="text-xs text-exosignal-text-muted mt-1.5 leading-snug">{note}</div>}
+  </div>
+);
+
+/** One planet card, used for both the labelled targets and the new recommendations. */
+const TargetCard = ({ target, rankLabel, scoreLabel, accentText, accentBorder, testId }) => (
+  <div
+    data-testid={testId}
+    className={`glass-panel glass-panel-hover p-5 ${accentBorder} flex flex-col justify-between group`}
+  >
+    <div>
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <span className={`text-xs font-mono font-bold ${accentText}`}>{rankLabel}</span>
+        <span
+          className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${hzBadgeClass(
+            target.hz
+          )}`}
+        >
+          {target.hz}
+        </span>
+      </div>
+      <Link
+        to={`/planet/${encodeURIComponent(target.name)}`}
+        className="block text-lg font-bold font-mono text-white hover:underline"
+      >
+        {target.name}
+      </Link>
+      <dl className="grid grid-cols-2 gap-2 my-3 text-xs bg-space-void/60 p-2.5 rounded-lg">
+        <div>
+          <dt className="text-exosignal-text-muted">Radius</dt>
+          <dd className="text-white font-mono font-semibold">{target.radius}</dd>
+        </div>
+        <div>
+          <dt className="text-exosignal-text-muted">Period</dt>
+          <dd className="text-white font-mono font-semibold">{target.period}</dd>
+        </div>
+      </dl>
+      <p className="text-xs text-exosignal-text-secondary leading-relaxed">{target.featureNote}</p>
+    </div>
+    <div className="pt-3 mt-4 border-t border-slate-800 flex items-center justify-between">
+      <div className="text-xs text-exosignal-text-muted">
+        {scoreLabel} <span className={`font-mono font-bold ${accentText}`}>{target.mlScore}</span>
+      </div>
+      <Link
+        to={`/planet/${encodeURIComponent(target.name)}`}
+        className={`text-xs font-semibold ${accentText} hover:underline`}
+      >
+        Why this rank →
+      </Link>
+    </div>
+  </div>
+);
 
 const Home = () => {
-  const [radarPlanets, setRadarPlanets] = useState([]);
   const { planets: topPlanets } = useTopTargets(8);
   const [knownTargets, setKnownTargets] = useState([]);
   const { stats } = useAnalytics();
   const [benchmark, setBenchmark] = useState(null);
   const [featureImportances, setFeatureImportances] = useState(null);
-  const [activeChartTab, setActiveChartTab] = useState('features'); // 'features' | 'histogram' | 'benchmark'
-  const [activeCircularTab, setActiveCircularTab] = useState('donut'); // 'donut' | 'radar'
 
   useEffect(() => {
     modelsApi
@@ -95,85 +155,43 @@ const Home = () => {
       .then((res) => setFeatureImportances(res))
       .catch(() => null);
 
-    Promise.all(RADAR_PLANETS.map((name) => planetsApi.getByName(name)))
-      .then((res) => setRadarPlanets(res.filter(Boolean)))
-      .catch(() => setRadarPlanets([]));
-
     planetsApi
       .getKnownTargets()
-      .then((res) => {
-        setKnownTargets(Array.isArray(res) ? res : []);
-      })
-      .catch(() => {
-        setKnownTargets([]);
-      });
+      .then((res) => setKnownTargets(Array.isArray(res) ? res : []))
+      .catch(() => setKnownTargets([]));
   }, []);
 
-  // 1. Feature Importance Data for Logistic Regression (|Standardized Coefficient|)
+  // Feature weights of the logistic regression (|standardized coefficient|), signed by direction
   const featureChartData = useMemo(() => {
-    if (featureImportances?.top_features && Array.isArray(featureImportances.top_features)) {
-      const withValue = featureImportances.top_features.filter((f) =>
-        Number.isFinite(f.coefficient ?? f.gain)
-      );
-      return withValue.slice(0, 8).map((f) => {
+    if (!Array.isArray(featureImportances?.top_features)) return [];
+    return featureImportances.top_features
+      .filter((f) => Number.isFinite(f.coefficient ?? f.gain))
+      .slice(0, 8)
+      .map((f) => {
         const coef = f.coefficient ?? f.gain;
         return {
           feature: FEATURE_LABEL_MAP[f.feature] || f.feature,
           coefficient: Number(Number(coef).toFixed(3)),
           abs_coefficient: Number(Math.abs(coef).toFixed(3)),
           direction: coef >= 0 ? 'positive' : 'negative',
-          raw_name: f.feature,
         };
       });
-    }
-    return [];
   }, [featureImportances]);
 
-  // Dynamic caption generated directly from feature importance data (never hard-coded)
-  const featureCaption = useMemo(() => {
-    if (!featureChartData || featureChartData.length === 0) {
-      return 'Loading feature importance coefficients from regularized model...';
-    }
-    const top = featureChartData[0];
-    const signWord = top.coefficient >= 0 ? 'positive' : 'negative';
-    const effectWord = top.coefficient >= 0 ? 'elevates' : 'penalizes';
-    return `Model weights isolate ${
-      top.feature
-    } as the primary factor (${signWord} standardized coefficient: ${
-      top.coefficient > 0 ? '+' : ''
-    }${top.coefficient.toFixed(2)}), which strongly ${effectWord} target ranking.`;
-  }, [featureChartData]);
+  // Text alternative of the chart, generated from the same data
+  const featureSummary = useMemo(
+    () =>
+      featureChartData
+        .map((d) => `${d.feature} ${d.coefficient > 0 ? '+' : ''}${d.coefficient}`)
+        .join(', '),
+    [featureChartData]
+  );
 
-  // 2. Population Priority Histogram Data for Recharts Bar Chart (No fake fallbacks)
-  const histogramChartData = useMemo(() => {
-    if (stats?.priority_histogram && Array.isArray(stats.priority_histogram)) {
-      return stats.priority_histogram;
-    }
-    return [];
-  }, [stats?.priority_histogram]);
-
-  // 3. Model Benchmark Leaderboard Comparison Data for Recharts Bar Chart
-  const benchmarkChartData = useMemo(() => {
-    if (benchmark?.leaderboard && Array.isArray(benchmark.leaderboard)) {
-      return benchmark.leaderboard.map((m) => ({
-        model: m.model_name.replace(' (Learning-to-Rank)', '').replace(' Baseline', ''),
-        ndcg10: metricOrNull(m['ndcg@10']),
-        map: metricOrNull(m.map),
-        precision10: metricOrNull(m['precision@10']),
-      }));
-    }
-    return [];
-  }, [benchmark]);
-
-  // The leaderboard entry and the summary of the selected model use different key names for the same metrics.
   const productionModel = useMemo(() => productionMetrics(benchmark), [benchmark]);
 
   // Planets labelled as JWST targets (labels are NOT human-verified), with out-of-fold rank
   const labelledTargets = useMemo(() => {
-    if (!Array.isArray(knownTargets) || knownTargets.length === 0) {
-      return [];
-    }
-
+    if (!Array.isArray(knownTargets)) return [];
     return knownTargets
       .filter(
         (planet) =>
@@ -181,117 +199,71 @@ const Home = () => {
           planet.already_observed_jwst !== false
       )
       .slice(0, 4)
-      .map((planet, index) => {
-        const priorityScore =
-          planet.oof_priority_score ?? planet.ml_priority_score ?? planet.priority_score;
-        const oofRank = planet.oof_ml_rank ?? planet.priority_rank ?? index + 1;
-        const hzStatus = planet.hz_status || 'Insufficient data';
-
-        return {
-          name: planet.planet_name || `Target ${index + 1}`,
-          is_jwst_target: true,
-          already_observed_jwst: true,
-          oofRank,
-          radius: planet.planet_radius
-            ? `${Number(planet.planet_radius).toFixed(2)} R⊕`
-            : 'not in archive',
-          period: planet.orbital_period
-            ? `${Number(planet.orbital_period).toFixed(1)} days`
-            : 'not in archive',
-          hz: hzStatus,
-          hzColor: hzStatus === 'Inside HZ' ? 'emerald' : hzStatus === 'Near HZ' ? 'amber' : 'gray',
-          mlScore: formatPriority(priorityScore),
-          featureNote: `${
-            planet.kempton_size_class || 'Spectroscopic'
-          } planet labelled as a JWST target (label not human-verified)`,
-          type: 'Labelled JWST Target (unverified)',
-        };
-      });
+      .map((planet, index) => ({
+        name: planet.planet_name || `Target ${index + 1}`,
+        oofRank: planet.oof_ml_rank ?? planet.priority_rank ?? index + 1,
+        radius: formatRadius(planet.planet_radius),
+        period: formatPeriodDays(planet.orbital_period),
+        hz: planet.hz_status || 'Insufficient data',
+        mlScore: formatPriority(
+          planet.oof_priority_score ?? planet.ml_priority_score ?? planet.priority_score
+        ),
+        featureNote: `${
+          planet.kempton_size_class || 'Spectroscopic'
+        } planet labelled as a JWST target (label not human-verified)`,
+      }));
   }, [knownTargets]);
 
-  // New Recommendations: Unobserved top picks awaiting JWST transmission observation
-  const unobservedRecommendations = useMemo(() => {
-    if (!Array.isArray(topPlanets) || topPlanets.length === 0) {
-      return [];
-    }
-
+  // Highly ranked planets that the label set does not list as JWST targets
+  const newRecommendations = useMemo(() => {
+    if (!Array.isArray(topPlanets)) return [];
     return topPlanets
       .filter((planet) => !planet.already_observed_jwst && !planet.is_jwst_target)
       .slice(0, 4)
-      .map((planet, index) => {
-        const priorityScore = planet.ml_priority_score ?? planet.priority_score; // the heuristic is no substitute
-        const rank = planet.unobserved_rank ?? planet.priority_rank ?? index + 1;
-        const hzStatus = planet.hz_status || 'Insufficient data';
-
-        return {
-          name: planet.planet_name || `Candidate ${index + 1}`,
-          is_jwst_target: false,
-          already_observed_jwst: false,
-          rank,
-          radius: planet.planet_radius
-            ? `${Number(planet.planet_radius).toFixed(2)} R⊕`
-            : 'not in archive',
-          period: planet.orbital_period
-            ? `${Number(planet.orbital_period).toFixed(1)} days`
-            : 'not in archive',
-          hz: hzStatus,
-          hzColor: hzStatus === 'Inside HZ' ? 'emerald' : hzStatus === 'Near HZ' ? 'amber' : 'gray',
-          mlScore: formatPriority(priorityScore),
-          featureNote: `${
-            planet.kempton_size_class || 'Spectroscopic'
-          } planet that is not labelled as a JWST target`,
-          type: 'New Recommendation',
-        };
-      });
+      .map((planet, index) => ({
+        name: planet.planet_name || `Candidate ${index + 1}`,
+        rank: planet.unobserved_rank ?? planet.priority_rank ?? index + 1,
+        radius: formatRadius(planet.planet_radius),
+        period: formatPeriodDays(planet.orbital_period),
+        hz: planet.hz_status || 'Insufficient data',
+        mlScore: formatPriority(planet.ml_priority_score ?? planet.priority_score),
+        featureNote: `${
+          planet.kempton_size_class || 'Spectroscopic'
+        } planet that is not labelled as a JWST target`,
+      }));
   }, [topPlanets]);
 
-  // 4. Circular Habitable Zone Donut Chart Data (4 slices, uniform denominator, sums to 100 +/- 0.1%)
-  const hzPieData = useMemo(() => {
-    return calculateHzPieData(stats?.hz_distribution, stats?.total_planets);
-  }, [stats?.hz_distribution, stats?.total_planets]);
+  const insideHz = useMemo(
+    () =>
+      calculateHzPieData(stats?.hz_distribution, stats?.total_planets).find(
+        (d) => d.name === 'Inside HZ'
+      ) || null,
+    [stats?.hz_distribution, stats?.total_planets]
+  );
 
-  // 5. Radar: heuristic component scores from the API (0-100). Nothing is filled in when a value is missing.
-  const radarProfileData = useMemo(() => {
-    if (radarPlanets.length !== RADAR_PLANETS.length) return [];
-    return RADAR_AXES.map(({ key, label }) => ({
-      metric: label,
-      ...Object.fromEntries(
-        radarPlanets.map((planet, i) => [
-          `planet${i}`,
-          typeof planet.priority_components?.[key] === 'number'
-            ? planet.priority_components[key]
-            : null,
-        ])
-      ),
-    }));
-  }, [radarPlanets]);
+  const apText =
+    typeof productionModel?.ap === 'number'
+      ? `${productionModel.ap.toFixed(4)} ± ${
+          typeof productionModel.ap_std === 'number' ? productionModel.ap_std.toFixed(4) : '—'
+        }`
+      : '—';
 
   return (
     <div className="space-y-16">
-      {/* ────────────────────────────────────────────────────────── */}
-      {/* ────────────────────────────────────────────────────────── */}
-      {/* 1. CINEMATIC HERO SECTION WITH REAL 3D EXOPLANET & PLANETARY FONT */}
-      {/* ────────────────────────────────────────────────────────── */}
-      <section className="relative pt-6 pb-12 overflow-hidden">
-        {/* Ambient Cosmic Radial Glows */}
+      {/* 1. Hero */}
+      <section className="relative pt-6 pb-4 overflow-hidden">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[450px] bg-gradient-to-tr from-exosignal-cyan/15 via-exosignal-purple/10 to-transparent blur-3xl pointer-events-none rounded-full"></div>
 
         <div className="relative max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          {/* Left Column: Heading & Planetary Typography */}
           <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
-            {/* Micro-pill badge with Orbitron styling */}
-            <div className="inline-flex flex-wrap items-center justify-center gap-x-2 px-3.5 py-1.5 rounded-2xl sm:rounded-full bg-space-surface/90 border border-exosignal-cyan/40 text-xs font-orbitron text-exosignal-cyan shadow-neon-cyan">
-              <span className="pulsing-dot emerald"></span>
-              <span>NASA ARCHIVE</span>
+            <div className="inline-flex flex-wrap items-center justify-center gap-x-2 px-3.5 py-1.5 rounded-2xl sm:rounded-full bg-space-surface/90 border border-exosignal-cyan/40 text-xs font-orbitron text-exosignal-cyan">
+              <span>NASA EXOPLANET ARCHIVE</span>
               <span className="text-exosignal-cyan/50">•</span>
-              <span>LOGISTIC REGRESSION</span>
+              <span>RANKING MODEL</span>
               <span className="text-exosignal-cyan/50">•</span>
-              <span>DUCKDB IN-MEMORY</span>
-              <span className="text-exosignal-cyan/50">•</span>
-              <span>LINEAR SHAP</span>
+              <span>EXPLAINED SCORES</span>
             </div>
 
-            {/* Main Heading with Planetary Animated Shimmer Font */}
             <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.1] font-display">
               Target Prioritization for{' '}
               <span className="planet-font-animated font-orbitron block mt-2 text-2xl sm:text-4xl lg:text-5xl">
@@ -299,51 +271,33 @@ const Home = () => {
               </span>
             </h1>
 
-            {/* Subheading */}
             <p className="text-base sm:text-lg text-exosignal-text-secondary max-w-2xl leading-relaxed">
-              Observation time on the James Webb Space Telescope (JWST) and ELTs is fiercely
-              competitive. ExoSignal leverages{' '}
-              <strong className="text-white">regularized machine learning ranking</strong>,{' '}
-              <strong className="text-white">DuckDB columnar analytics</strong>, and{' '}
-              <strong className="text-white">exact SHAP attribution</strong> to rank transiting
-              planets for transmission spectroscopy. It is an exploratory ranking: no score is a
-              probability of life.
+              Telescope time on JWST is scarce. ExoSignal ranks known transiting planets by how
+              promising they look for transmission spectroscopy, and shows which planet properties
+              drive each rank. It is an exploratory ranking: no score is a probability of life.
             </p>
 
-            {/* CTAs */}
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-2">
               <Link to="/explorer" className="btn-primary-glow font-orbitron text-sm">
                 <span>
-                  🪐 Explore{' '}
-                  {stats?.total_planets ? `${stats.total_planets.toLocaleString()} ` : ''}Targets
+                  Explore {stats?.total_planets ? `${stats.total_planets.toLocaleString()} ` : ''}
+                  planets
                 </span>
               </Link>
               <Link to="/top-targets" className="btn-secondary-glass font-orbitron text-xs">
-                <span>🏆 Top Candidates</span>
+                <span>Top targets</span>
               </Link>
               <Link
-                to="/analytics"
-                className="btn-secondary-glass border-exosignal-purple/40 text-exosignal-purple hover:border-exosignal-purple font-orbitron text-xs"
+                to="/methodology"
+                className="text-sm text-exosignal-text-secondary hover:text-white underline-offset-4 hover:underline"
               >
-                <span>📊 Analytics</span>
-              </Link>
-              <Link
-                to="/registry"
-                className="btn-secondary-glass border-emerald-500/40 text-emerald-400 hover:border-emerald-400 font-orbitron text-xs"
-              >
-                <span>🛡️ Model Registry</span>
+                How it works
               </Link>
             </div>
           </div>
 
-          {/* Right Column: Real Procedural 3D Planetary Animation */}
           <div className="lg:col-span-5 flex justify-center">
             <div className="divided-compartment p-5 w-full max-w-md bg-space-void/60 border-exosignal-cyan/30">
-              <div className="text-center mb-2">
-                <span className="font-orbitron text-xs text-exosignal-cyan tracking-widest uppercase font-bold">
-                  ✦ Interactive Exoplanetary Globe ✦
-                </span>
-              </div>
               <Planet3DVisualizer
                 initialPlanet="trappist1e"
                 size={320}
@@ -355,1045 +309,251 @@ const Home = () => {
         </div>
       </section>
 
-      {/* ────────────────────────────────────────────────────────── */}
-      {/* 2. LIVE SYSTEM TELEMETRY HUD */}
-      {/* ────────────────────────────────────────────────────────── */}
-      <div className="space-y-4">
-        <SectionDivider
-          number="01"
-          title="Mission Telemetry & Engine Vital Statistics"
-          subtitle="Live operational metrics across in-memory catalog, regularized ranking engine, and linear SHAP explainability"
-          badge="TELEMETRY HUD"
-          accent="cyan"
-        />
-
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="glass-panel p-5 border-exosignal-cyan/30">
-            <div className="flex items-center justify-between text-xs font-mono text-exosignal-text-muted mb-2">
-              <span>CATALOG POPULATION</span>
-              <span className="text-exosignal-cyan">DuckDB</span>
-            </div>
-            <div className="text-3xl font-black font-mono text-white">
-              {stats?.total_planets?.toLocaleString() || '—'}
-            </div>
-            <div className="text-[11px] text-emerald-400 mt-1 flex items-center space-x-1">
-              <span>●</span>
-              <span>Standardized NASA Archive</span>
-            </div>
-          </div>
-
-          <div className="glass-panel p-5 border-exosignal-cyan/30">
-            <div className="flex flex-wrap items-center justify-between gap-x-2 text-xs font-mono text-exosignal-text-muted mb-2">
-              <span>MODEL QUALITY (VARIANT A)</span>
-              <span className="text-exosignal-cyan">AP & RECALL</span>
-            </div>
-            <div className="text-xl sm:text-2xl font-black font-mono text-exosignal-cyan">
-              {typeof productionModel?.ap === 'number'
-                ? `${productionModel.ap.toFixed(4)} ± ${
-                    typeof productionModel.ap_std === 'number'
-                      ? productionModel.ap_std.toFixed(4)
-                      : '—'
-                  }`
-                : '—'}
-            </div>
-            <div className="text-[11px] text-emerald-400 mt-1 font-mono">
-              {productionModel ? (
+      {/* 2. At a glance */}
+      <section className="space-y-5">
+        <SectionHeading title="At a glance" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            label="Planets in the catalogue"
+            value={stats?.total_planets?.toLocaleString() || '—'}
+            note="From the NASA Exoplanet Archive"
+            accent="border-exosignal-cyan/30"
+          />
+          <StatCard
+            label="Model quality (average precision)"
+            value={<span className="text-xl sm:text-2xl">{apText}</span>}
+            valueClass="text-exosignal-cyan"
+            note={
+              productionModel ? (
                 <>
-                  {productionModel.ap_ci95
-                    ? `95% CI: [${productionModel.ap_ci95[0].toFixed(
-                        4
-                      )}, ${productionModel.ap_ci95[1].toFixed(4)}] • `
-                    : ''}
-                  Recall@50:{' '}
+                  Recall@50{' '}
                   {typeof productionModel['recall@50'] === 'number'
                     ? productionModel['recall@50'].toFixed(3)
-                    : '—'}
-                  <span className="text-white ml-1.5 font-bold">
-                    ({benchmark?.n_positives ?? '—'} unverified labels)
-                  </span>
+                    : '—'}{' '}
+                  · {benchmark?.n_positives ?? '—'} labels, not yet human-verified
                 </>
               ) : (
                 'Evaluation results not loaded'
-              )}
-            </div>
-          </div>
+              )
+            }
+            accent="border-exosignal-cyan/30"
+          />
+          <StatCard
+            label="Inside the habitable zone"
+            value={insideHz ? insideHz.value.toLocaleString() : '—'}
+            valueClass="text-emerald-400"
+            note={
+              insideHz
+                ? `${insideHz.percentage}% of the catalogue. An orbital distance range, not evidence of water or life`
+                : 'Habitable zone data not loaded'
+            }
+            accent="border-emerald-500/30"
+          />
+          <StatCard
+            label="Features explained per planet"
+            value={
+              featureImportances?.total_features ?? featureImportances?.all_features?.length ?? '—'
+            }
+            valueClass="text-exosignal-purple"
+            note="Every score is split into exact per-feature contributions (linear SHAP)"
+            accent="border-exosignal-purple/30"
+          />
+        </div>
+      </section>
 
-          <div className="glass-panel p-5 border-exosignal-purple/30">
-            <div className="flex items-center justify-between text-xs font-mono text-exosignal-text-muted mb-2">
-              <span>API LATENCY</span>
-              <span className="text-exosignal-purple">DuckDB</span>
-            </div>
-            <div className="text-xl font-black font-mono text-exosignal-purple">
-              Not yet measured
-            </div>
-            <div className="text-[11px] text-exosignal-text-muted mt-1">
-              Load test pending; results will come from reports/LOADTEST.md
-            </div>
-          </div>
+      {/* 3. One chart: what drives the ranking */}
+      <section className="space-y-5">
+        <SectionHeading
+          title="What drives the ranking"
+          action={
+            <Link
+              to="/analytics"
+              className="text-sm font-semibold text-exosignal-cyan hover:underline whitespace-nowrap"
+            >
+              More charts in Analytics →
+            </Link>
+          }
+        >
+          Weights of the ranking model (standardized coefficients). Green raises a planet&apos;s
+          rank, red lowers it.
+        </SectionHeading>
 
-          <div className="glass-panel p-5 border-emerald-500/30">
-            <div className="flex items-center justify-between text-xs font-mono text-exosignal-text-muted mb-2">
-              <span>EXPLAINABILITY</span>
-              <span className="text-emerald-400">Linear SHAP</span>
-            </div>
-            <div className="text-3xl font-black font-mono text-emerald-400">
-              {featureImportances?.total_features ??
-                featureImportances?.all_features?.length ??
-                '—'}{' '}
-              <span className="text-lg">Features</span>
-            </div>
-            <div className="text-[11px] text-exosignal-text-muted mt-1">
-              Exact closed-form additive attribution
-            </div>
-          </div>
-        </section>
-      </div>
-
-      {/* ────────────────────────────────────────────────────────── */}
-      {/* 3. INTERACTIVE VISUAL CHARTS & CIRCULAR DIAGNOSTICS */}
-      {/* ────────────────────────────────────────────────────────── */}
-      <div className="space-y-6">
-        <SectionDivider
-          number="02"
-          title="Interactive Visual Intelligence & Analytics Lab"
-          subtitle="Model coefficients, score histograms, benchmark leaderboard, and heuristic component radar"
-          badge="ANALYTICS STUDIO"
-          accent="purple"
-        />
-
-        <section className="space-y-6">
-          {/* Section Header */}
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-exosignal-cyan/20 pb-4">
-            <div>
-              <div className="inline-flex items-center space-x-2 text-xs font-mono text-exosignal-cyan uppercase tracking-wider font-bold mb-1">
-                <span className="w-2 h-2 rounded-full bg-exosignal-cyan animate-pulse"></span>
-                <span>Visual Data Intelligence & Observational Studio</span>
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-white font-display">
-                Machine Learning Bar Graphs &{' '}
-                <span className="text-gradient-cyan">Circular Charts</span>
-              </h2>
-              <p className="text-xs text-exosignal-text-muted font-mono mt-1">
-                Comprehensive telemetry across the NASA exoplanet archive catalog — featuring model
-                coefficients, habitable zone shares, and heuristic component scores.
-              </p>
-            </div>
-
-            <div className="flex items-center space-x-2 text-xs font-mono text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/30 whitespace-nowrap">
-              <span>●</span>
-              <span>Live Parquet Engine</span>
-            </div>
-          </div>
-
-          {/* Dual-Column Visual Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-            {/* ──────────────────────────────────────────────────────── */}
-            {/* LEFT COLUMN: Machine Learning & Population Bar Graphs (7 Cols) */}
-            {/* ──────────────────────────────────────────────────────── */}
-            <div className="lg:col-span-7 glass-panel p-6 sm:p-7 border-exosignal-cyan/30 flex flex-col justify-between space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
-                <div>
-                  <span className="text-[11px] font-mono text-exosignal-cyan uppercase tracking-wider font-semibold">
-                    Bar & Distribution Analytics
-                  </span>
-                  <h3 className="text-lg font-bold font-display text-white">
-                    {activeChartTab === 'features' &&
-                      'Model Feature Importance (|Standardized Coefficient|)'}
-                    {activeChartTab === 'histogram' && 'Heuristic Score Histogram'}
-                    {activeChartTab === 'benchmark' && 'Supervised Model Leaderboard (NDCG@10)'}
-                  </h3>
-                </div>
-
-                {/* Bar Chart Sub-tabs */}
-                <div className="flex flex-wrap items-center gap-1 bg-space-void/90 p-1 rounded-xl border border-exosignal-cyan/20 font-mono text-xs">
-                  <button
-                    onClick={() => setActiveChartTab('features')}
-                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                      activeChartTab === 'features'
-                        ? 'bg-exosignal-cyan/20 text-exosignal-cyan border border-exosignal-cyan/40 shadow-neon-cyan'
-                        : 'text-exosignal-text-muted hover:text-white'
-                    }`}
-                    title="Standardized Coefficients (|w|)"
-                  >
-                    ⚖️ Coefficients
-                  </button>
-                  <button
-                    onClick={() => setActiveChartTab('histogram')}
-                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                      activeChartTab === 'histogram'
-                        ? 'bg-exosignal-cyan/20 text-exosignal-cyan border border-exosignal-cyan/40 shadow-neon-cyan'
-                        : 'text-exosignal-text-muted hover:text-white'
-                    }`}
-                    title="Score Distribution Histogram"
-                  >
-                    📈 Scores
-                  </button>
-                  <button
-                    onClick={() => setActiveChartTab('benchmark')}
-                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                      activeChartTab === 'benchmark'
-                        ? 'bg-exosignal-cyan/20 text-exosignal-cyan border border-exosignal-cyan/40 shadow-neon-cyan'
-                        : 'text-exosignal-text-muted hover:text-white'
-                    }`}
-                    title="Model Benchmark"
-                  >
-                    🏆 Models
-                  </button>
-                </div>
-              </div>
-
-              {/* CHART 1: Feature Importance Standardized Coefficient Horizontal Bar Chart */}
-              {activeChartTab === 'features' && (
-                <div className="space-y-3 flex-1 flex flex-col justify-between">
-                  <div className="flex items-center justify-between text-xs font-mono text-exosignal-text-muted">
-                    <span>|Standardized Coefficient| (Signed Bars: Positive vs Negative)</span>
-                    <span className="text-emerald-400 font-semibold">
-                      {featureChartData[0]
-                        ? `${featureChartData[0].feature}: ${
-                            featureChartData[0].coefficient > 0 ? '+' : ''
-                          }${featureChartData[0].coefficient} (${featureChartData[0].direction})`
-                        : 'Physical Parameters'}
-                    </span>
-                  </div>
-
-                  {featureChartData.length > 0 ? (
-                    <div className="h-72 w-full pt-1">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                          data={featureChartData}
-                          layout="vertical"
-                          margin={{ top: 5, right: 25, left: 110, bottom: 5 }}
-                        >
-                          <CartesianGrid
-                            strokeDasharray="3 3"
-                            stroke="#131c38"
-                            horizontal={false}
-                          />
-                          <XAxis
-                            type="number"
-                            tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'JetBrains Mono' }}
-                            axisLine={{ stroke: '#1e293b' }}
-                          />
-                          <YAxis
-                            type="category"
-                            dataKey="feature"
-                            tick={{ fill: '#f8fafc', fontSize: 10, fontFamily: 'JetBrains Mono' }}
-                            axisLine={{ stroke: '#1e293b' }}
-                            width={105}
-                          />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: '#070a16',
-                              borderColor: '#00d4ff',
-                              borderRadius: '12px',
-                              color: '#ffffff',
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: '11px',
-                              boxShadow: '0 0 20px rgba(0, 212, 255, 0.25)',
-                            }}
-                            formatter={(value, name, item) => [
-                              `${item.payload.coefficient > 0 ? '+' : ''}${
-                                item.payload.coefficient
-                              } (${item.payload.direction})`,
-                              '|Standardized Coefficient|',
-                            ]}
-                          />
-                          <Bar dataKey="abs_coefficient" radius={[0, 6, 6, 0]}>
-                            {featureChartData.map((entry, index) => (
-                              <Cell
-                                key={`cell-${index}`}
-                                fill={entry.direction === 'positive' ? '#10b981' : '#f43f5e'}
-                              />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="h-72 w-full flex items-center justify-center font-mono text-xs text-exosignal-text-muted border border-dashed border-slate-800 rounded-xl">
-                      <div className="text-center space-y-2">
-                        <div className="w-8 h-8 mx-auto rounded-full border-2 border-exosignal-cyan border-t-transparent animate-spin"></div>
-                        <p>Loading feature importances from model registry...</p>
-                      </div>
-                    </div>
-                  )}
-                  <p className="text-[11px] font-mono text-exosignal-text-muted text-center">
-                    💡 {featureCaption}
-                  </p>
-                </div>
-              )}
-
-              {/* CHART 2: Heuristic score histogram */}
-              {activeChartTab === 'histogram' && (
-                <div className="space-y-3 flex-1 flex flex-col justify-between">
-                  <div className="flex items-center justify-between text-xs font-mono text-exosignal-text-muted">
-                    <span>Frequency across score buckets</span>
-                    <span className="text-exosignal-cyan font-semibold">
-                      Mean: {stats?.score_distribution?.mean?.toFixed(1) || '—'}/100
-                    </span>
-                  </div>
-
-                  {histogramChartData.length > 0 ? (
-                    <div className="h-72 w-full pt-1">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                          data={histogramChartData}
-                          margin={{ top: 10, right: 20, left: 10, bottom: 20 }}
-                        >
-                          <defs>
-                            <linearGradient id="purpleBarGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#a855f7" stopOpacity={1} />
-                              <stop offset="100%" stopColor="#6366f1" stopOpacity={0.6} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#131c38" vertical={false} />
-                          <XAxis
-                            dataKey="range"
-                            tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'JetBrains Mono' }}
-                            axisLine={{ stroke: '#1e293b' }}
-                            label={{
-                              value: 'Heuristic Score Interval',
-                              position: 'insideBottom',
-                              offset: -10,
-                              fill: '#64748b',
-                              fontSize: 10,
-                              fontFamily: 'JetBrains Mono',
-                            }}
-                          />
-                          <YAxis
-                            tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'JetBrains Mono' }}
-                            axisLine={{ stroke: '#1e293b' }}
-                          />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: '#070a16',
-                              borderColor: '#a855f7',
-                              borderRadius: '12px',
-                              color: '#ffffff',
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: '11px',
-                              boxShadow: '0 0 20px rgba(168, 85, 247, 0.25)',
-                            }}
-                            formatter={(val) => [`${val} planets`, 'Catalog Population']}
-                          />
-                          <Bar dataKey="count" fill="url(#purpleBarGradient)" radius={[6, 6, 0, 0]}>
-                            {histogramChartData.map((entry, index) => (
-                              <Cell
-                                key={`hist-${index}`}
-                                fill={
-                                  index === 4
-                                    ? '#10b981'
-                                    : index === 3
-                                      ? '#38bdf8'
-                                      : 'url(#purpleBarGradient)'
-                                }
-                              />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="h-72 w-full flex items-center justify-center font-mono text-xs text-exosignal-text-muted border border-dashed border-slate-800 rounded-xl">
-                      <div className="text-center space-y-2">
-                        <div className="w-8 h-8 mx-auto rounded-full border-2 border-exosignal-purple border-t-transparent animate-spin"></div>
-                        <p>Loading score distribution histogram from DuckDB...</p>
-                      </div>
-                    </div>
-                  )}
-                  <p className="text-[11px] font-mono text-exosignal-text-muted text-center">
-                    Heuristic composite score (not used for ranking, not a probability). It does not
-                    show that a target is observable.
-                  </p>
-                </div>
-              )}
-
-              {/* CHART 3: Benchmark Comparison Grouped Bar Chart */}
-              {activeChartTab === 'benchmark' && (
-                <div className="space-y-3 flex-1 flex flex-col justify-between">
-                  <div className="flex items-center justify-between text-xs font-mono text-exosignal-text-muted">
-                    <span>25 host-grouped CV folds, unverified labels</span>
-                    <span className="text-emerald-400 font-semibold">
-                      {productionModel
-                        ? typeof productionModel['ndcg@25'] === 'number'
-                          ? `Variant A: NDCG@25 = ${productionModel['ndcg@25'].toFixed(3)}`
-                          : 'NDCG@25 not available'
-                        : 'Evaluation results not loaded'}
-                    </span>
-                  </div>
-
-                  {benchmarkChartData.length > 0 ? (
-                    <div className="h-72 w-full pt-1">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                          data={benchmarkChartData}
-                          margin={{ top: 10, right: 20, left: 10, bottom: 20 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" stroke="#131c38" vertical={false} />
-                          <XAxis
-                            dataKey="model"
-                            tick={{ fill: '#f8fafc', fontSize: 10, fontFamily: 'JetBrains Mono' }}
-                            axisLine={{ stroke: '#1e293b' }}
-                          />
-                          <YAxis
-                            domain={[0, 1.0]}
-                            tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'JetBrains Mono' }}
-                            axisLine={{ stroke: '#1e293b' }}
-                          />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: '#070a16',
-                              borderColor: '#00d4ff',
-                              borderRadius: '12px',
-                              color: '#ffffff',
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: '11px',
-                              boxShadow: '0 0 20px rgba(0, 212, 255, 0.25)',
-                            }}
-                          />
-                          <Legend
-                            wrapperStyle={{
-                              paddingTop: '5px',
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: '10px',
-                            }}
-                          />
-                          <Bar
-                            dataKey="ndcg10"
-                            name="NDCG@10"
-                            fill="#00d4ff"
-                            radius={[4, 4, 0, 0]}
-                          />
-                          <Bar dataKey="map" name="MAP" fill="#a855f7" radius={[4, 4, 0, 0]} />
-                          <Bar
-                            dataKey="precision10"
-                            name="Prec@10"
-                            fill="#10b981"
-                            radius={[4, 4, 0, 0]}
-                          />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="h-72 w-full flex items-center justify-center font-mono text-xs text-exosignal-text-muted border border-dashed border-slate-800 rounded-xl">
-                      <div className="text-center space-y-2">
-                        <div className="w-8 h-8 mx-auto rounded-full border-2 border-emerald-500 border-t-transparent animate-spin"></div>
-                        <p>Loading benchmark comparison leaderboard...</p>
-                      </div>
-                    </div>
-                  )}
-                  <p className="text-[11px] font-mono text-exosignal-text-muted text-center">
-                    Models compared on the same 25 host-grouped cross-validation folds. The labels
-                    are not human-verified.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* ──────────────────────────────────────────────────────── */}
-            {/* RIGHT COLUMN: CIRCULAR CHARTS STUDIO (5 Cols)           */}
-            {/* ──────────────────────────────────────────────────────── */}
-            <div className="lg:col-span-5 glass-panel p-6 sm:p-7 border-emerald-500/30 flex flex-col justify-between space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
-                <div>
-                  <div className="inline-flex items-center space-x-1.5 text-[11px] font-mono text-emerald-400 uppercase tracking-wider font-semibold">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                    <span>Circular Chart Studio</span>
-                  </div>
-                  <h3 className="text-lg font-bold font-display text-white">
-                    {activeCircularTab === 'donut' ? 'Habitable Zone Donut' : 'Target Polar Radar'}
-                  </h3>
-                </div>
-
-                {/* Circular Chart Sub-tabs */}
-                <div className="flex items-center space-x-1 bg-space-void/90 p-1 rounded-xl border border-emerald-500/30 font-mono text-xs">
-                  <button
-                    onClick={() => setActiveCircularTab('donut')}
-                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                      activeCircularTab === 'donut'
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-neon-emerald'
-                        : 'text-exosignal-text-muted hover:text-white'
-                    }`}
-                    title="Habitable Zone Donut Chart"
-                  >
-                    🪐 Donut
-                  </button>
-                  <button
-                    onClick={() => setActiveCircularTab('radar')}
-                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                      activeCircularTab === 'radar'
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-neon-emerald'
-                        : 'text-exosignal-text-muted hover:text-white'
-                    }`}
-                    title="Target Radar Polar Profile"
-                  >
-                    🕸️ Radar
-                  </button>
-                </div>
-              </div>
-
-              {/* CIRCULAR VIEW 1: Habitable Zone Donut Chart */}
-              {activeCircularTab === 'donut' && (
-                <div className="space-y-4 flex-1 flex flex-col justify-between">
-                  <div className="flex items-center justify-between text-xs font-mono text-exosignal-text-muted">
-                    <span>Circumstellar boundary classification</span>
-                    <span className="text-emerald-400 font-semibold">Kopparapu et al.</span>
-                  </div>
-
-                  {/* Circular Donut Canvas with Center Readout */}
-                  <div className="relative h-64 w-full flex items-center justify-center">
-                    {hzPieData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={hzPieData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={66}
-                            outerRadius={96}
-                            paddingAngle={4}
-                            dataKey="value"
-                            nameKey="name"
-                          >
-                            {hzPieData.map((entry, index) => (
-                              <Cell
-                                key={`donut-slice-${index}`}
-                                fill={entry.color}
-                                stroke="#030409"
-                                strokeWidth={2}
-                              />
-                            ))}
-                          </Pie>
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: '#070a16',
-                              borderColor: '#10b981',
-                              borderRadius: '12px',
-                              color: '#ffffff',
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: '11px',
-                              boxShadow: '0 0 20px rgba(16, 185, 129, 0.25)',
-                            }}
-                            formatter={(val, name, props) => [
-                              `${val.toLocaleString()} targets (${props.payload.percentage}%)`,
-                              name,
-                            ]}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center space-y-2 font-mono text-xs text-exosignal-text-muted">
-                        <div className="w-8 h-8 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin"></div>
-                        <span>Loading Habitable Zone distribution...</span>
-                      </div>
-                    )}
-
-                    {/* Centered Circular Metric Readout */}
-                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                      <span className="text-2xl font-black font-mono text-white tracking-tight">
-                        {stats?.total_planets?.toLocaleString() || '—'}
-                      </span>
-                      <span className="text-[10px] font-mono text-exosignal-text-muted uppercase tracking-wider">
-                        Catalog Targets
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Legend Pill Cards - 4 Columns for 4 Slices */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-slate-800">
-                    {hzPieData.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="p-2 rounded-xl bg-space-void/70 border border-slate-800/80 text-center hover:border-slate-700 transition-colors"
-                      >
-                        <div className="flex items-center justify-center space-x-1 mb-0.5">
-                          <span
-                            className="w-2 h-2 rounded-full shrink-0"
-                            style={{ backgroundColor: item.color }}
-                          ></span>
-                          <span className="text-[10px] font-mono text-white font-medium truncate">
-                            {item.name}
-                          </span>
-                        </div>
-                        <div className="text-sm font-black font-mono" style={{ color: item.color }}>
-                          {item.value.toLocaleString()}
-                        </div>
-                        <div className="text-[10px] font-mono text-exosignal-text-muted">
-                          {item.percentage}%
-                        </div>
-                      </div>
+        <figure className="glass-panel p-6 border-exosignal-cyan/30">
+          {featureChartData.length > 0 ? (
+            <div
+              className="h-72 w-full"
+              role="img"
+              aria-label={`Bar chart of model weights: ${featureSummary}`}
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={featureChartData}
+                  layout="vertical"
+                  margin={{ top: 5, right: 25, left: 110, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#131c38" horizontal={false} />
+                  <XAxis
+                    type="number"
+                    tick={{ fill: '#94a3b8', fontSize: 11 }}
+                    axisLine={{ stroke: '#1e293b' }}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="feature"
+                    tick={{ fill: '#f8fafc', fontSize: 11 }}
+                    axisLine={{ stroke: '#1e293b' }}
+                    width={105}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#070a16',
+                      borderColor: '#00d4ff',
+                      borderRadius: '12px',
+                      color: '#ffffff',
+                      fontSize: '12px',
+                    }}
+                    formatter={(value, name, item) => [
+                      `${item.payload.coefficient > 0 ? '+' : ''}${item.payload.coefficient} (${
+                        item.payload.direction
+                      })`,
+                      'Standardized coefficient',
+                    ]}
+                  />
+                  <Bar dataKey="abs_coefficient" radius={[0, 6, 6, 0]}>
+                    {featureChartData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={entry.direction === 'positive' ? '#10b981' : '#f43f5e'}
+                      />
                     ))}
-                  </div>
-
-                  {hzPieData.length > 0 && (
-                    <p className="text-[11px] font-mono text-exosignal-text-muted text-center">
-                      🪐{' '}
-                      {hzPieData.find((d) => d.name === 'Inside HZ')?.value?.toLocaleString() ||
-                        '0'}{' '}
-                      exoplanets ({hzPieData.find((d) => d.name === 'Inside HZ')?.percentage || '0'}
-                      %) orbit inside the model habitable zone. This is an orbital distance range;
-                      it does not show that a planet has water or is habitable.
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* CIRCULAR VIEW 2: 5-Axis Observational Radar Chart */}
-              {activeCircularTab === 'radar' && (
-                <div className="space-y-4 flex-1 flex flex-col justify-between">
-                  <div className="flex items-center justify-between text-xs font-mono text-exosignal-text-muted">
-                    <span>Heuristic component scores (0–100), from the API</span>
-                    <span className="text-exosignal-cyan font-semibold">
-                      {RADAR_PLANETS.join(' • ')}
-                    </span>
-                  </div>
-
-                  {/* Circular Polar Radar Chart */}
-                  <div className="h-64 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart cx="50%" cy="50%" outerRadius="50%" data={radarProfileData}>
-                        <PolarGrid stroke="#1e293b" />
-                        <PolarAngleAxis
-                          dataKey="metric"
-                          tick={{ fill: '#94a3b8', fontSize: 9, fontFamily: 'JetBrains Mono' }}
-                        />
-                        <PolarRadiusAxis
-                          angle={30}
-                          domain={[0, 100]}
-                          tick={{ fill: '#475569', fontSize: 8, fontFamily: 'JetBrains Mono' }}
-                          stroke="#1e293b"
-                        />
-                        {RADAR_PLANETS.map((name, i) => (
-                          <Radar
-                            key={name}
-                            name={name}
-                            dataKey={`planet${i}`}
-                            stroke={RADAR_COLORS[i]}
-                            fill={RADAR_COLORS[i]}
-                            fillOpacity={0.25}
-                          />
-                        ))}
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: '#070a16',
-                            borderColor: '#00d4ff',
-                            borderRadius: '12px',
-                            color: '#ffffff',
-                            fontFamily: 'JetBrains Mono',
-                            fontSize: '11px',
-                            boxShadow: '0 0 20px rgba(0, 212, 255, 0.25)',
-                          }}
-                        />
-                        <Legend
-                          wrapperStyle={{
-                            paddingTop: '4px',
-                            fontFamily: 'JetBrains Mono',
-                            fontSize: '10px',
-                          }}
-                        />
-                      </RadarChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  <div className="p-2 rounded-xl bg-space-void/60 border border-slate-800 text-[11px] font-mono text-exosignal-text-muted text-center">
-                    {radarProfileData.length > 0
-                      ? 'Components of the heuristic score, which is not used for the ranking. They are not measurements of an atmosphere and not evidence of habitability.'
-                      : 'Component scores not loaded.'}
-                  </div>
-                </div>
-              )}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          </div>
-        </section>
-      </div>
-
-      {/* ────────────────────────────────────────────────────────── */}
-      {/* 3. KNOWN JWST TARGETS BENCHMARK SPOTLIGHT */}
-      {/* ────────────────────────────────────────────────────────── */}
-      <div className="space-y-6" data-testid="golden-benchmark-section">
-        <SectionDivider
-          number="03"
-          title="Labelled JWST targets: where our model ranks them"
-          subtitle="Out-of-fold ranks of planets labelled as JWST targets. The labels are not human-verified, so this is provisional"
-          badge="UNVERIFIED LABELS"
-          accent="emerald"
-        />
-
-        <section className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
-            <div>
-              <div className="text-xs font-mono text-emerald-400 uppercase tracking-wider font-bold">
-                Out-of-Fold Ranks (Unverified Labels)
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-white font-display">
-                Labelled JWST targets: where our model ranks them
-              </h2>
+          ) : (
+            <div className="h-72 w-full flex items-center justify-center text-sm text-exosignal-text-muted border border-dashed border-slate-800 rounded-xl">
+              Loading model weights…
             </div>
-            <p className="text-xs text-exosignal-text-muted font-mono max-w-md">
-              Out-of-fold ranks from Stratified Group Cross-Validation on the current JWST
-              transmission-target labels. No label has been human-verified yet; see
-              reports/LABEL_REVIEW.md.
-            </p>
-          </div>
+          )}
+          {featureChartData[0] && (
+            <figcaption className="mt-3 text-sm text-exosignal-text-secondary text-center">
+              {featureChartData[0].feature} has the largest weight (
+              {featureChartData[0].coefficient > 0 ? '+' : ''}
+              {featureChartData[0].coefficient.toFixed(2)}).
+            </figcaption>
+          )}
+        </figure>
+      </section>
 
-          <div
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5"
-            data-testid="golden-targets-grid"
-          >
-            {labelledTargets.map((t) => (
-              <div
-                key={t.name}
-                data-testid={`golden-target-${t.name}`}
-                className="glass-panel glass-panel-hover p-5 border-emerald-500/20 flex flex-col justify-between card-shine group"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                      OOF Rank #{t.oofRank}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                      {t.hz}
-                    </span>
-                  </div>
+      {/* 4. Labelled JWST targets */}
+      <section className="space-y-5" data-testid="golden-benchmark-section">
+        <SectionHeading title="Labelled JWST targets: where our model ranks them">
+          Out-of-fold ranks of planets that our label set lists as JWST targets. No label has been
+          human-verified yet, so these results are provisional.
+        </SectionHeading>
+        <div
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5"
+          data-testid="golden-targets-grid"
+        >
+          {labelledTargets.map((t) => (
+            <TargetCard
+              key={t.name}
+              testId={`golden-target-${t.name}`}
+              target={t}
+              rankLabel={`OOF Rank #${t.oofRank}`}
+              scoreLabel="Out-of-fold score"
+              accentText="text-emerald-400"
+              accentBorder="border-emerald-500/20"
+            />
+          ))}
+        </div>
+      </section>
 
-                  <Link
-                    to={`/planet/${encodeURIComponent(t.name)}`}
-                    className="block text-xl font-bold font-mono text-white group-hover:text-emerald-400 transition-colors"
-                  >
-                    {t.name}
-                  </Link>
-
-                  <div className="grid grid-cols-2 gap-2 my-3 text-xs font-mono text-exosignal-text-muted bg-space-void/60 p-2.5 rounded-lg border border-emerald-500/10">
-                    <div>
-                      <span className="block text-[10px]">Radius:</span>
-                      <span className="text-white font-semibold">{t.radius}</span>
-                    </div>
-                    <div>
-                      <span className="block text-[10px]">Period:</span>
-                      <span className="text-white font-semibold">{t.period}</span>
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-exosignal-text-secondary leading-relaxed mb-4">
-                    {t.featureNote}
-                  </p>
-                </div>
-
-                <div className="pt-3 border-t border-emerald-500/10 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-mono text-exosignal-text-muted">
-                      OOF ML Score
-                    </span>
-                    <div className="text-base font-bold font-mono text-emerald-400">
-                      {t.mlScore}
-                    </div>
-                  </div>
-                  <Link
-                    to={`/planet/${encodeURIComponent(t.name)}`}
-                    className="text-xs font-mono text-emerald-400 group-hover:translate-x-1 transition-transform inline-flex items-center space-x-1"
-                  >
-                    <span>Linear SHAP</span>
-                    <span>→</span>
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-
-      {/* ────────────────────────────────────────────────────────── */}
-      {/* 4. NEW RECOMMENDATIONS (NOT YET OBSERVED BY JWST) */}
-      {/* ────────────────────────────────────────────────────────── */}
-      <div className="space-y-6" data-testid="new-recommendations-section">
-        <SectionDivider
-          number="04"
+      {/* 5. New recommendations */}
+      <section className="space-y-5" data-testid="new-recommendations-section">
+        <SectionHeading
           title="New recommendations (not labelled as JWST targets)"
-          subtitle="Top candidates prioritized for upcoming transmission spectroscopy observation"
-          badge="DISCOVERY PICKS"
-          accent="cyan"
-        />
-
-        <section className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
-            <div>
-              <div className="text-xs font-mono text-exosignal-cyan uppercase tracking-wider font-bold">
-                Not Labelled As JWST Targets
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-white font-display">
-                New recommendations (not labelled as JWST targets)
-              </h2>
-            </div>
-            <p className="text-xs text-exosignal-text-muted font-mono max-w-md">
-              Highly ranked transiting planets that our label set does not list as JWST targets. The
-              label set is incomplete, so JWST may already have observed some of them.
-            </p>
-          </div>
-
-          <div
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5"
-            data-testid="unobserved-targets-grid"
-          >
-            {unobservedRecommendations.map((t) => (
-              <div
-                key={t.name}
-                data-testid={`recommendation-${t.name}`}
-                className="glass-panel glass-panel-hover p-5 border-exosignal-cyan/20 flex flex-col justify-between card-shine group"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-exosignal-cyan/15 text-exosignal-cyan border border-exosignal-cyan/30">
-                      Rank #{t.rank}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                      {t.hz}
-                    </span>
-                  </div>
-
-                  <Link
-                    to={`/planet/${encodeURIComponent(t.name)}`}
-                    className="block text-xl font-bold font-mono text-white group-hover:text-exosignal-cyan transition-colors"
-                  >
-                    {t.name}
-                  </Link>
-
-                  <div className="grid grid-cols-2 gap-2 my-3 text-xs font-mono text-exosignal-text-muted bg-space-void/60 p-2.5 rounded-lg border border-exosignal-cyan/10">
-                    <div>
-                      <span className="block text-[10px]">Radius:</span>
-                      <span className="text-white font-semibold">{t.radius}</span>
-                    </div>
-                    <div>
-                      <span className="block text-[10px]">Period:</span>
-                      <span className="text-white font-semibold">{t.period}</span>
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-exosignal-text-secondary leading-relaxed mb-4">
-                    {t.featureNote}
-                  </p>
-                </div>
-
-                <div className="pt-3 border-t border-exosignal-cyan/10 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-mono text-exosignal-text-muted">
-                      ML Score
-                    </span>
-                    <div className="text-base font-bold font-mono text-exosignal-cyan">
-                      {t.mlScore}
-                    </div>
-                  </div>
-                  <Link
-                    to={`/planet/${encodeURIComponent(t.name)}`}
-                    className="text-xs font-mono text-exosignal-cyan group-hover:translate-x-1 transition-transform inline-flex items-center space-x-1"
-                  >
-                    <span>Linear SHAP</span>
-                    <span>→</span>
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-
-      {/* ────────────────────────────────────────────────────────── */}
-      {/* 5. END-TO-END ML SYSTEMS ARCHITECTURE */}
-      {/* ────────────────────────────────────────────────────────── */}
-      <div className="space-y-6">
-        <SectionDivider
-          number="05"
-          title="End-to-End ML Systems Pipeline"
-          subtitle="From archive ingestion through supervised ranking to in-process columnar queries"
-          badge="ARCHITECTURE"
-          accent="purple"
-        />
-
-        <section className="glass-panel p-8 border-exosignal-cyan/25">
-          <div className="max-w-3xl mb-8">
-            <div className="text-xs font-mono text-exosignal-purple uppercase tracking-wider font-bold mb-1">
-              ML Systems Engineering
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-white font-display mb-3">
-              From Archive Data to a Ranked List
-            </h2>
-            <p className="text-sm text-exosignal-text-secondary leading-relaxed">
-              ExoSignal covers archive ingestion, supervised ranking and in-process analytical
-              queries. It does not plan or schedule observations.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div className="bg-space-void/80 p-4 rounded-xl border border-exosignal-cyan/20 space-y-2">
-              <div className="w-7 h-7 rounded-lg bg-exosignal-cyan/20 text-exosignal-cyan flex items-center justify-center font-mono font-bold text-xs">
-                01
-              </div>
-              <h4 className="font-bold text-white text-sm">NASA Archive Ingestion</h4>
-              <p className="text-xs text-exosignal-text-muted leading-relaxed">
-                Schema validation, deduplication, and an empirical mass-radius fallback (a known
-                defect affects large planets; see Methodology).
-              </p>
-            </div>
-
-            <div className="bg-space-void/80 p-4 rounded-xl border border-exosignal-cyan/20 space-y-2">
-              <div className="w-7 h-7 rounded-lg bg-exosignal-cyan/20 text-exosignal-cyan flex items-center justify-center font-mono font-bold text-xs">
-                02
-              </div>
-              <h4 className="font-bold text-white text-sm">Physical Features</h4>
-              <p className="text-xs text-exosignal-text-muted leading-relaxed">
-                TSM / ESM calculations (Kempton et al. 2018), atmospheric scale height, insolation
-                flux, and infrared brightness.
-              </p>
-            </div>
-
-            <div className="bg-space-void/80 p-4 rounded-xl border border-exosignal-purple/30 space-y-2">
-              <div className="w-7 h-7 rounded-lg bg-exosignal-purple/20 text-purple-300 flex items-center justify-center font-mono font-bold text-xs">
-                03
-              </div>
-              <h4 className="font-bold text-white text-sm">Regularized Logistic Regression</h4>
-              <p className="text-xs text-exosignal-text-muted leading-relaxed">
-                Supervised ranking trained on host-stratified cross-validation with regularized L2
-                loss.
-              </p>
-            </div>
-
-            <div className="bg-space-void/80 p-4 rounded-xl border border-emerald-500/30 space-y-2">
-              <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-mono font-bold text-xs">
-                04
-              </div>
-              <h4 className="font-bold text-white text-sm">DuckDB Parquet Engine</h4>
-              <p className="text-xs text-exosignal-text-muted leading-relaxed break-words">
-                Columnar analytical query engine with predicate pushdown over the Parquet artifact.
-                Latency under load: not yet measured (see reports/LOADTEST.md).
-              </p>
-            </div>
-
-            <div className="bg-space-void/80 p-4 rounded-xl border border-amber-500/30 space-y-2">
-              <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-mono font-bold text-xs">
-                05
-              </div>
-              <h4 className="font-bold text-white text-sm">SHAP & Model Registry</h4>
-              <p className="text-xs text-exosignal-text-muted leading-relaxed">
-                Exact feature attributions, pairwise differential attributions, and model registry
-                with SHA-256 checksums.
-              </p>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      {/* ────────────────────────────────────────────────────────── */}
-      {/* 6. TOP TARGETS PREVIEW TABLE */}
-      {/* ────────────────────────────────────────────────────────── */}
-      <div className="space-y-4">
-        <SectionDivider
-          number="06"
-          title="Highest Ranked Exoplanet Candidates"
-          subtitle="Order of the ranking model (trained on unverified labels)"
-          badge="TOP TARGETS"
-          accent="amber"
-        />
-
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-xs font-mono text-emerald-400 uppercase tracking-wider font-bold">
-                Observational Priorities
-              </div>
-              <h2 className="text-2xl font-bold text-white font-display">
-                Highest Ranked Exoplanet Targets
-              </h2>
-            </div>
+          action={
             <Link
               to="/top-targets"
-              className="text-xs font-mono text-exosignal-cyan hover:underline flex items-center space-x-1"
+              className="text-sm font-semibold text-exosignal-cyan hover:underline whitespace-nowrap"
             >
-              <span>View Full Top 50</span>
-              <span>→</span>
+              Full leaderboard →
             </Link>
-          </div>
+          }
+        >
+          Highly ranked planets that our label set does not list as JWST targets. The label set is
+          incomplete, so JWST may already have observed some of them.
+        </SectionHeading>
+        <div
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5"
+          data-testid="unobserved-targets-grid"
+        >
+          {newRecommendations.map((t) => (
+            <TargetCard
+              key={t.name}
+              testId={`recommendation-${t.name}`}
+              target={t}
+              rankLabel={`Rank #${t.rank}`}
+              scoreLabel="Score"
+              accentText="text-exosignal-cyan"
+              accentBorder="border-exosignal-cyan/20"
+            />
+          ))}
+        </div>
+      </section>
 
-          <div className="glass-panel overflow-hidden border-exosignal-cyan/20">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs font-mono">
-                <thead>
-                  <tr className="border-b border-exosignal-cyan/20 bg-space-void/60 text-exosignal-text-muted text-left">
-                    <th className="py-3 px-4">Rank</th>
-                    <th className="py-3 px-4">Planet Name</th>
-                    <th className="py-3 px-4">Radius (R⊕)</th>
-                    <th className="py-3 px-4">Period (days)</th>
-                    <th className="py-3 px-4">Host Star</th>
-                    <th className="py-3 px-4">Habitable Zone</th>
-                    <th className="py-3 px-4">ML Priority</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-exosignal-cyan/10">
-                  {topPlanets?.slice(0, 5).map((planet, idx) => (
-                    <tr
-                      key={planet.planet_name}
-                      className="hover:bg-space-card-hover transition-colors"
-                    >
-                      <td className="py-3 px-4 text-exosignal-text-muted font-bold">
-                        #{planet.priority_rank ?? planet.ml_rank ?? idx + 1}
-                      </td>
-                      <td className="py-3 px-4">
-                        <Link
-                          to={`/planet/${encodeURIComponent(planet.planet_name)}`}
-                          className="text-white font-bold hover:text-exosignal-cyan transition-colors"
-                        >
-                          {planet.planet_name}
-                        </Link>
-                      </td>
-                      <td className="py-3 px-4 text-exosignal-text-secondary">
-                        {planet.planet_radius ? planet.planet_radius.toFixed(2) : '—'}
-                      </td>
-                      <td className="py-3 px-4 text-exosignal-text-secondary">
-                        {planet.orbital_period ? planet.orbital_period.toFixed(2) : '—'}
-                      </td>
-                      <td className="py-3 px-4 text-exosignal-text-muted">
-                        {getCleanHostStar(planet)}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            planet.hz_status === 'Inside HZ'
-                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                              : planet.hz_status === 'Near HZ'
-                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                                : 'bg-slate-700/30 text-slate-400 border border-slate-600/30'
-                          }`}
-                        >
-                          {planet.hz_status || 'Insufficient data'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-exosignal-cyan font-bold text-sm">
-                        {planet.priority_score != null ? (
-                          formatPriority(planet.priority_score)
-                        ) : (
-                          <span
-                            className="cursor-help text-slate-400"
-                            title={getIneligibleTooltip(planet)}
-                          >
-                            -
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <Link
-                          to={`/planet/${encodeURIComponent(planet.planet_name)}`}
-                          className="inline-block whitespace-nowrap px-2.5 py-1 rounded bg-exosignal-cyan/10 hover:bg-exosignal-cyan/20 text-exosignal-cyan border border-exosignal-cyan/30 text-[11px] transition-colors"
-                        >
-                          Inspect SHAP
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-      </div>
+      {/* 6. How it works */}
+      <section className="space-y-5">
+        <SectionHeading
+          title="How it works"
+          action={
+            <Link
+              to="/methodology"
+              className="text-sm font-semibold text-exosignal-cyan hover:underline whitespace-nowrap"
+            >
+              Full methodology →
+            </Link>
+          }
+        >
+          From archive data to a ranked list. ExoSignal does not plan or schedule observations.
+        </SectionHeading>
+        <ol className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {[
+            [
+              'Ingest',
+              'NASA archive data, validated and deduplicated. Missing masses use an empirical mass-radius relation (a known limitation for large planets).',
+            ],
+            [
+              'Derive features',
+              'Spectroscopy metrics (TSM / ESM, Kempton et al. 2018), scale height, insolation and infrared brightness.',
+            ],
+            [
+              'Rank',
+              'A regularized logistic regression, evaluated with host-grouped cross-validation.',
+            ],
+            [
+              'Serve',
+              'DuckDB queries the catalogue straight from a Parquet file, behind a FastAPI API.',
+            ],
+            [
+              'Explain',
+              'Per-planet feature contributions, side-by-side comparisons, and a model registry with checksums.',
+            ],
+          ].map(([title, text], i) => (
+            <li
+              key={title}
+              className="bg-space-void/80 p-4 rounded-xl border border-slate-800 space-y-2"
+            >
+              <div className="text-xs font-mono font-bold text-exosignal-cyan">
+                {String(i + 1).padStart(2, '0')}
+              </div>
+              <h3 className="font-bold text-white text-sm">{title}</h3>
+              <p className="text-xs text-exosignal-text-secondary leading-relaxed">{text}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
     </div>
   );
 };
