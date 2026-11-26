@@ -74,7 +74,7 @@ describe('formatters', () => {
     it('maps HZ statuses to appropriate badge classes', () => {
       expect(getHZColor('Inside HZ')).toBe('bg-emerald-500');
       expect(getHZColor('Near HZ')).toBe('bg-yellow-500');
-      expect(getHZColor('Outside HZ')).toBe('bg-gray-500');
+      expect(getHZColor('Outside HZ')).toBe('bg-gray-400');
       expect(getHZColor('Insufficient data')).toBe('bg-gray-400');
       expect(getHZColor('Unknown')).toBe('bg-gray-400');
     });

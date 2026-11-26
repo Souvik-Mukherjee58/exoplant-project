@@ -141,7 +141,7 @@ const Footer = () => {
         </div>
 
         {/* Disclaimer & Copyright */}
-        <div className="pt-8 border-t border-exosignal-cyan/10 flex flex-col md:flex-row items-center justify-between text-[11px] text-exosignal-text-subtle gap-4">
+        <div className="pt-8 border-t border-exosignal-cyan/10 flex flex-col md:flex-row items-center justify-between text-[11px] text-exosignal-text-muted gap-4">
           <p>
             Scientific Disclaimer: Target Priority Scores represent comparative observational
             utility for spectroscopic follow-up. Priority and anomaly scores are exploratory; they

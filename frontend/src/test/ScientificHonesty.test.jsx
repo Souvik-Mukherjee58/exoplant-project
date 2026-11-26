@@ -104,6 +104,12 @@ describe('planet illustration', () => {
   });
 });
 
+it('never writes a planet name in capitals: a capital letter means a stellar companion', () => {
+  show({ planet_name: 'TRAPPIST-1 e' });
+  expect(screen.getByRole('heading', { level: 1 }).className).toContain('normal-case');
+  cleanup();
+});
+
 describe('source text', () => {
   const files = (dir) =>
     readdirSync(dir).flatMap((name) => {

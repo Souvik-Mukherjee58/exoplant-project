@@ -381,6 +381,8 @@ h4,
 
 /* Compartment Section Header Bar */
 .compartment-header {
+  flex-wrap: wrap;
+  gap: 0.75rem;
   padding: 1.25rem 1.75rem;
   border-bottom: 1px solid rgba(56, 189, 248, 0.15);
   background: rgba(4, 7, 18, 0.45);

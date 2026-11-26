@@ -202,7 +202,7 @@ const ModelRegistry = () => {
                     </h3>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2 text-xs font-mono text-exosignal-text-muted bg-space-void/80 px-3 py-1.5 rounded-xl border border-exosignal-cyan/20">
+                <div className="flex flex-wrap items-center gap-x-2 text-xs font-mono text-exosignal-text-muted bg-space-void/80 px-3 py-1.5 rounded-xl border border-exosignal-cyan/20">
                   <span>Registered:</span>
                   <span className="text-white font-semibold">
                     {activeVersionData.registered_at?.slice(0, 19).replace('T', ' ')} UTC
@@ -263,7 +263,7 @@ const ModelRegistry = () => {
                     <span className="text-xs font-mono text-exosignal-text-muted">
                       Catalog Format
                     </span>
-                    <div className="text-2xl font-bold font-mono text-amber-400 mt-1">
+                    <div className="text-lg xl:text-2xl font-bold font-mono text-amber-400 mt-1">
                       Parquet + DuckDB
                     </div>
                     <span className="text-[11px] text-exosignal-text-muted">
@@ -580,7 +580,7 @@ const ModelRegistry = () => {
           />
 
           <div className="divided-compartment">
-            <div className="compartment-header flex-col md:flex-row gap-4">
+            <div className="compartment-header flex-col md:flex-row gap-4 [&>*]:max-w-full">
               <div>
                 <h3 className="text-base font-bold text-white font-display">
                   A/B Evaluation Console
@@ -590,7 +590,7 @@ const ModelRegistry = () => {
                   deltas
                 </p>
               </div>
-              <div className="flex items-center space-x-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <select
                   value={versionA}
                   onChange={(e) => setVersionA(e.target.value)}

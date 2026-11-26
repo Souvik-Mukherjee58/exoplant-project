@@ -238,6 +238,7 @@ const Explorer = () => {
                 <input
                   type="text"
                   name="name"
+                  aria-label="Target name"
                   value={filters.name}
                   onChange={handleFilterChange}
                   onKeyDown={(e) => {
@@ -272,6 +273,7 @@ const Explorer = () => {
               </label>
               <select
                 name="hzStatus"
+                aria-label="Habitable zone status"
                 value={filters.hzStatus}
                 onChange={handleFilterChange}
                 className="w-full bg-space-void/90 border border-exosignal-cyan/30 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-exosignal-cyan"
@@ -295,6 +297,7 @@ const Explorer = () => {
                 min="0"
                 max="100"
                 name="minPriority"
+                aria-label="Minimum priority"
                 value={filters.minPriority}
                 onChange={handleFilterChange}
                 className="w-full accent-exosignal-cyan cursor-pointer"
@@ -309,6 +312,7 @@ const Explorer = () => {
               <div className="flex space-x-1">
                 <select
                   name="sortBy"
+                  aria-label="Sort field"
                   value={filters.sortBy}
                   onChange={handleFilterChange}
                   className="w-full bg-space-void/90 border border-exosignal-cyan/30 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-exosignal-cyan"
@@ -699,7 +703,7 @@ const Explorer = () => {
                       </td>
                       <td className="py-3 px-4">
                         <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-bold ${
                             planet.hz_status === 'Inside HZ'
                               ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
                               : planet.hz_status === 'Near HZ'
@@ -716,7 +720,7 @@ const Explorer = () => {
                       <td className="py-3 px-4 text-exosignal-cyan font-bold text-sm">
                         <PriorityScoreDisplay planet={planet} />
                       </td>
-                      <td className="py-3 px-4 text-right space-x-2">
+                      <td className="py-3 px-4 text-right space-x-2 whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => setInspectingPlanet(planet.planet_name)}

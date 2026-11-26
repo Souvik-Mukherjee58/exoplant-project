@@ -104,7 +104,7 @@ export function getHZColor(status) {
   const colors = {
     'Inside HZ': 'bg-emerald-500',
     'Near HZ': 'bg-yellow-500',
-    'Outside HZ': 'bg-gray-500',
+    'Outside HZ': 'bg-gray-400',
     'Insufficient data': 'bg-gray-400',
   };
   return colors[status] || colors['Insufficient data'];

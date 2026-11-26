@@ -218,7 +218,10 @@ const Methodology = () => {
               </div>
 
               <div className="bg-space-void/90 rounded-xl p-5 border border-exosignal-cyan/20">
-                <pre className="text-xs font-mono text-exosignal-cyan leading-relaxed overflow-x-auto">
+                <pre
+                  className="text-xs font-mono text-exosignal-cyan leading-relaxed overflow-x-auto"
+                  tabIndex={0}
+                >
                   {`Heuristic Composite Score (0–100; not used for the ranking)
 ├── Planetary Relevance (${weightsData?.percentages?.planetary_relevance ?? '—'}%)
 │   ├── Earth Similarity Index (ESI) (Schulze-Makuch et al. 2011)

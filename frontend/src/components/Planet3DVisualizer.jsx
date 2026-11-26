@@ -423,7 +423,7 @@ const Planet3DVisualizer = ({
         {/* Floating Planetary HUD Badge - positioned cleanly in top-left */}
         {!isCompact && (
           <div className="absolute top-2 left-2 pointer-events-none bg-space-void/90 border border-exosignal-cyan/30 rounded-xl px-2.5 py-1 backdrop-blur-md font-mono text-[11px] shadow-lg max-w-[55%] z-10">
-            <div className="text-exosignal-cyan font-bold tracking-wider uppercase flex items-center space-x-1.5 truncate">
+            <div className="text-exosignal-cyan font-bold tracking-wider flex items-center space-x-1.5 truncate">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
               <span className="truncate">{planet.name}</span>
             </div>

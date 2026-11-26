@@ -31,7 +31,7 @@ const Favorites = () => {
       <h1 className="text-3xl font-bold text-exosignal-text mb-4">Your Favorites</h1>
       <p className="text-exosignal-text/70 mb-6">Your bookmarked exoplanets for quick access.</p>
 
-      <div className="bg-space-darker rounded-lg border border-exosignal-blue/20 overflow-hidden">
+      <div className="bg-space-darker rounded-lg border border-exosignal-blue/20 overflow-x-auto">
         <table className="min-w-full divide-y divide-exosignal-blue/10">
           <thead className="bg-space-dark">
             <tr>
@@ -88,7 +88,7 @@ const Favorites = () => {
                 </td>
                 <td className="px-6 py-4">
                   <span
-                    className={`text-xs px-2 py-1 rounded-full text-white
+                    className={`inline-block whitespace-nowrap text-xs px-2 py-1 rounded-full font-semibold text-space-void
                     ${getHZColor(planet.hz_status)}`}
                   >
                     {planet.hz_status || 'Insufficient data'}

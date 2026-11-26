@@ -1,6 +1,7 @@
+@import 'tailwindcss/base';
 @import './App.css';
 
-/* Tailwind-like utility classes for the ExoSignal project */
+/* Hand-written utilities. Tailwind's own utilities come last (end of this file), so responsive and state variants win. */
 
 /* Colors */
 .bg-space-dark {
@@ -808,3 +809,6 @@ td {
 .card-shine:hover::before {
   left: 150%;
 }
+
+@tailwind components;
+@tailwind utilities;

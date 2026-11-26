@@ -56,7 +56,7 @@ const Navbar = () => {
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur-xl bg-space-void/85 border-b border-exosignal-cyan/20 shadow-2xl">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl 2xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Logo & Brand */}
           <div className="flex items-center space-x-3">
@@ -92,15 +92,15 @@ const Navbar = () => {
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center space-x-2">
-                  <span className="font-orbitron text-2xl font-black tracking-wider text-white group-hover:text-exosignal-cyan transition-colors">
+                  <span className="font-orbitron text-lg min-[380px]:text-xl sm:text-2xl font-black tracking-wider text-white group-hover:text-exosignal-cyan transition-colors">
                     EXO<span className="planet-font-animated">SIGNAL</span>
                   </span>
 
-                  <span className="text-[10px] font-mono tracking-widest uppercase px-2 py-0.5 rounded-full bg-exosignal-cyan/15 text-exosignal-cyan border border-exosignal-cyan/30">
+                  <span className="hidden sm:inline lg:hidden whitespace-nowrap text-[10px] font-mono tracking-widest uppercase px-2 py-0.5 rounded-full bg-exosignal-cyan/15 text-exosignal-cyan border border-exosignal-cyan/30">
                     ML RANKER
                   </span>
                 </div>
-                <span className="text-[11px] font-mono text-exosignal-text-muted hidden xl:inline">
+                <span className="text-[11px] font-mono text-exosignal-text-muted hidden sm:inline xl:hidden">
                   Atmospheric Spectroscopy Prioritization
                 </span>
               </div>
@@ -108,20 +108,20 @@ const Navbar = () => {
           </div>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center space-x-1" aria-label="Main Navigation">
+          <nav className="hidden xl:flex items-center space-x-1" aria-label="Main Navigation">
             {NAV_ITEMS.map((item) => {
               const isActive = location.pathname === item.path;
               return (
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`relative px-3.5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center space-x-1.5 ${
+                  className={`relative px-1.5 2xl:px-2.5 py-2 rounded-xl text-[13px] 2xl:text-sm font-semibold whitespace-nowrap transition-all duration-200 flex items-center space-x-1.5 ${
                     isActive
                       ? 'text-white bg-exosignal-cyan/15 border border-exosignal-cyan/40 shadow-neon-cyan'
                       : 'text-exosignal-text-secondary hover:text-white hover:bg-space-card'
                   }`}
                 >
-                  <span className="text-xs" aria-hidden="true">
+                  <span className="text-xs hidden min-[2100px]:inline" aria-hidden="true">
                     {item.icon}
                   </span>
                   <span>{item.label}</span>
@@ -131,18 +131,18 @@ const Navbar = () => {
           </nav>
 
           {/* Telemetry Chip, Quick Search & Favorites (Desktop) */}
-          <div className="hidden lg:flex items-center space-x-3">
+          <div className="hidden xl:flex items-center space-x-2 whitespace-nowrap">
             {/* Quick Search Trigger Pill */}
             <button
               onClick={() => setQuickSearchOpen(true)}
-              aria-label="Search targets and launch SHAP (Ctrl+K or /)"
+              aria-label="Search Ctrl+K: find targets and launch SHAP (or press /)"
               className="glass-pill hover:border-exosignal-cyan/60 text-xs font-mono text-exosignal-text-secondary hover:text-white transition-all flex items-center space-x-1.5 cursor-pointer bg-space-void/60"
               title="Search targets & launch SHAP (Ctrl+K or /)"
             >
               <span className="text-exosignal-cyan" aria-hidden="true">
                 🔍
               </span>
-              <span>Search Target</span>
+              <span className="hidden 2xl:inline">Search</span>
               <kbd className="text-[10px] bg-space-card px-1.5 py-0.5 rounded border border-slate-700 text-slate-400 font-mono">
                 Ctrl+K
               </kbd>
@@ -151,13 +151,11 @@ const Navbar = () => {
             {/* Live System Telemetry */}
             <div
               className="glass-pill text-xs font-mono text-exosignal-text-secondary"
-              aria-label="DuckDB In-Memory telemetry"
+              aria-label="API status"
             >
               <span className={`pulsing-dot ${systemStatus.ok ? 'emerald' : 'cyan'}`}></span>
-              <span>DuckDB In-Memory</span>
-              <span className="text-exosignal-cyan/60">•</span>
-              <span className="text-exosignal-cyan">
-                {systemStatus.ok ? 'API online' : 'API status unknown'}
+              <span className="text-exosignal-cyan sr-only 2xl:not-sr-only">
+                {systemStatus.ok ? 'API online' : 'API unknown'}
               </span>
             </div>
 
@@ -171,7 +169,7 @@ const Navbar = () => {
               <span className="text-amber-400" aria-hidden="true">
                 ★
               </span>
-              <span>Watchlist</span>
+              <span className="hidden 2xl:inline">Watchlist</span>
               {favorites && favorites.length > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 font-bold text-[11px]">
                   {favorites.length}
@@ -181,7 +179,7 @@ const Navbar = () => {
           </div>
 
           {/* Quick Search & Favorites on Tablet/Mobile */}
-          <div className="flex lg:hidden items-center space-x-2 mr-2">
+          <div className="flex xl:hidden items-center space-x-2 ml-auto mr-2">
             <button
               onClick={() => setQuickSearchOpen(true)}
               aria-label="Quick Search Targets"
@@ -189,7 +187,7 @@ const Navbar = () => {
               title="Quick Search"
             >
               <span aria-hidden="true">🔍</span>
-              <span>Search</span>
+              <span className="hidden sm:inline">Search</span>
             </button>
             <Link
               to="/favorites"
@@ -201,7 +199,7 @@ const Navbar = () => {
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="lg:hidden flex items-center">
+          <div className="xl:hidden flex items-center">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
@@ -238,7 +236,7 @@ const Navbar = () => {
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-exosignal-cyan/20 bg-space-void/95 px-4 pt-3 pb-4 space-y-2">
+        <div className="xl:hidden border-t border-exosignal-cyan/20 bg-space-void/95 px-4 pt-3 pb-4 space-y-2">
           {NAV_ITEMS.map((item) => (
             <Link
               key={item.path}

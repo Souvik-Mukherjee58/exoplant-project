@@ -168,7 +168,7 @@ const TopTargets = () => {
 
       {/* View Switcher Tabs */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 p-2 bg-space-void/90 rounded-2xl border border-exosignal-cyan/20">
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setActiveTab('unobserved')}
             className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl font-mono text-xs font-bold transition-all ${
@@ -353,7 +353,7 @@ const TopTargets = () => {
 
                   {/* Percentile Rank & TSM Context */}
                   <div className="pt-3 border-t border-exosignal-cyan/15 space-y-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2">
                       <span className="text-[10px] font-mono text-exosignal-text-muted uppercase">
                         Percentile Rank
                       </span>
@@ -372,7 +372,7 @@ const TopTargets = () => {
                           {planet.tsm != null ? planet.tsm.toFixed(1) : '—'}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between mt-1 text-[10px]">
+                      <div className="flex items-center justify-between gap-2 mt-1 text-[10px]">
                         <span className="text-exosignal-text-muted">Kempton Threshold:</span>
                         {renderKemptonThreshold(planet)}
                       </div>
@@ -619,7 +619,7 @@ const TopTargets = () => {
                         </td>
                         <td className="py-3.5 px-4">
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-bold ${
                               planet.hz_status === 'Inside HZ'
                                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
                                 : planet.hz_status === 'Near HZ'
@@ -641,7 +641,7 @@ const TopTargets = () => {
                         <td className="py-3.5 px-4 text-right">
                           <Link
                             to={`/planet/${encodeURIComponent(planet.planet_name)}`}
-                            className="px-2.5 py-1 rounded bg-exosignal-cyan/10 hover:bg-exosignal-cyan/25 text-exosignal-cyan border border-exosignal-cyan/30 text-[11px] transition-colors"
+                            className="inline-block whitespace-nowrap px-2.5 py-1 rounded bg-exosignal-cyan/10 hover:bg-exosignal-cyan/25 text-exosignal-cyan border border-exosignal-cyan/30 text-[11px] transition-colors"
                           >
                             SHAP Waterfall
                           </Link>

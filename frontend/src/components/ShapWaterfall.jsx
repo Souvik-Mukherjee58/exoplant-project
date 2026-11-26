@@ -205,7 +205,7 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
       </p>
 
       {/* Toggle View Mode */}
-      <div className="flex items-center justify-between mt-6 mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mt-6 mb-4">
         <h3 className="text-base font-semibold text-exosignal-text">
           {viewMode === 'summary'
             ? 'Key Physical Drivers & Barriers (Δ log-odds)'
@@ -298,13 +298,13 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
 
       {/* Explanatory Physical Legend */}
       <div className="mt-6 pt-4 border-t border-exosignal-blue/10 flex flex-wrap items-center justify-between text-xs text-exosignal-text/60 gap-4 font-mono">
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-emerald-400 inline-block" />
+            <span className="w-3 h-3 shrink-0 rounded-full bg-emerald-400 inline-block" />
             <span>Positive Driver (+Δ log-odds elevates rank)</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-rose-500 inline-block" />
+            <span className="w-3 h-3 shrink-0 rounded-full bg-rose-500 inline-block" />
             <span>Negative Barrier (-Δ log-odds suppresses rank)</span>
           </div>
         </div>

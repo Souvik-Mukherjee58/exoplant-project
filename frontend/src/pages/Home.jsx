@@ -280,7 +280,7 @@ const Home = () => {
           {/* Left Column: Heading & Planetary Typography */}
           <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
             {/* Micro-pill badge with Orbitron styling */}
-            <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-space-surface/90 border border-exosignal-cyan/40 text-xs font-orbitron text-exosignal-cyan shadow-neon-cyan">
+            <div className="inline-flex flex-wrap items-center justify-center gap-x-2 px-3.5 py-1.5 rounded-2xl sm:rounded-full bg-space-surface/90 border border-exosignal-cyan/40 text-xs font-orbitron text-exosignal-cyan shadow-neon-cyan">
               <span className="pulsing-dot emerald"></span>
               <span>NASA ARCHIVE</span>
               <span className="text-exosignal-cyan/50">•</span>
@@ -292,9 +292,9 @@ const Home = () => {
             </div>
 
             {/* Main Heading with Planetary Animated Shimmer Font */}
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.1] font-display">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.1] font-display">
               Target Prioritization for{' '}
-              <span className="planet-font-animated font-orbitron block mt-2 text-3xl sm:text-4xl lg:text-5xl">
+              <span className="planet-font-animated font-orbitron block mt-2 text-2xl sm:text-4xl lg:text-5xl">
                 Exoplanet Spectroscopy
               </span>
             </h1>
@@ -383,7 +383,7 @@ const Home = () => {
           </div>
 
           <div className="glass-panel p-5 border-exosignal-cyan/30">
-            <div className="flex items-center justify-between text-xs font-mono text-exosignal-text-muted mb-2">
+            <div className="flex flex-wrap items-center justify-between gap-x-2 text-xs font-mono text-exosignal-text-muted mb-2">
               <span>MODEL QUALITY (VARIANT A)</span>
               <span className="text-exosignal-cyan">AP & RECALL</span>
             </div>
@@ -505,7 +505,7 @@ const Home = () => {
                 </div>
 
                 {/* Bar Chart Sub-tabs */}
-                <div className="flex items-center space-x-1 bg-space-void/90 p-1 rounded-xl border border-exosignal-cyan/20 font-mono text-xs">
+                <div className="flex flex-wrap items-center gap-1 bg-space-void/90 p-1 rounded-xl border border-exosignal-cyan/20 font-mono text-xs">
                   <button
                     onClick={() => setActiveChartTab('features')}
                     className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
@@ -951,7 +951,7 @@ const Home = () => {
                   {/* Circular Polar Radar Chart */}
                   <div className="h-64 w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarProfileData}>
+                      <RadarChart cx="50%" cy="50%" outerRadius="50%" data={radarProfileData}>
                         <PolarGrid stroke="#1e293b" />
                         <PolarAngleAxis
                           dataKey="metric"
@@ -1222,7 +1222,7 @@ const Home = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="bg-space-void/80 p-4 rounded-xl border border-exosignal-cyan/20 space-y-2">
               <div className="w-7 h-7 rounded-lg bg-exosignal-cyan/20 text-exosignal-cyan flex items-center justify-center font-mono font-bold text-xs">
                 01
@@ -1246,7 +1246,7 @@ const Home = () => {
             </div>
 
             <div className="bg-space-void/80 p-4 rounded-xl border border-exosignal-purple/30 space-y-2">
-              <div className="w-7 h-7 rounded-lg bg-exosignal-purple/20 text-exosignal-purple flex items-center justify-center font-mono font-bold text-xs">
+              <div className="w-7 h-7 rounded-lg bg-exosignal-purple/20 text-purple-300 flex items-center justify-center font-mono font-bold text-xs">
                 03
               </div>
               <h4 className="font-bold text-white text-sm">Regularized Logistic Regression</h4>
@@ -1261,7 +1261,7 @@ const Home = () => {
                 04
               </div>
               <h4 className="font-bold text-white text-sm">DuckDB Parquet Engine</h4>
-              <p className="text-xs text-exosignal-text-muted leading-relaxed">
+              <p className="text-xs text-exosignal-text-muted leading-relaxed break-words">
                 Columnar analytical query engine with predicate pushdown over the Parquet artifact.
                 Latency under load: not yet measured (see reports/LOADTEST.md).
               </p>
@@ -1355,7 +1355,7 @@ const Home = () => {
                       </td>
                       <td className="py-3 px-4">
                         <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-bold ${
                             planet.hz_status === 'Inside HZ'
                               ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
                               : planet.hz_status === 'Near HZ'
@@ -1381,7 +1381,7 @@ const Home = () => {
                       <td className="py-3 px-4 text-right">
                         <Link
                           to={`/planet/${encodeURIComponent(planet.planet_name)}`}
-                          className="px-2.5 py-1 rounded bg-exosignal-cyan/10 hover:bg-exosignal-cyan/20 text-exosignal-cyan border border-exosignal-cyan/30 text-[11px] transition-colors"
+                          className="inline-block whitespace-nowrap px-2.5 py-1 rounded bg-exosignal-cyan/10 hover:bg-exosignal-cyan/20 text-exosignal-cyan border border-exosignal-cyan/30 text-[11px] transition-colors"
                         >
                           Inspect SHAP
                         </Link>

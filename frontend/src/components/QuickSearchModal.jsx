@@ -161,7 +161,7 @@ export const QuickSearchModal = ({ isOpen, onClose }) => {
       {/* Modal Container */}
       <div
         ref={modalRef}
-        className="relative w-full max-w-2xl bg-space-card/95 border border-exosignal-cyan/40 rounded-2xl shadow-[0_0_50px_rgba(6,182,212,0.25)] overflow-hidden flex flex-col max-h-[85vh]"
+        className="relative w-full max-w-2xl bg-space-dark border border-exosignal-cyan/40 rounded-2xl shadow-[0_0_50px_rgba(6,182,212,0.25)] overflow-hidden flex flex-col max-h-[85vh]"
       >
         {/* Header / Search Input */}
         <div className="p-4 border-b border-exosignal-cyan/20 flex items-center space-x-3 bg-space-void/90">
@@ -217,7 +217,7 @@ export const QuickSearchModal = ({ isOpen, onClose }) => {
                   <span className="text-xs font-mono text-purple-300 uppercase tracking-wider">
                     Target Linear SHAP Waterfall:
                   </span>
-                  <h3 className="text-base font-orbitron font-bold text-white">
+                  <h3 className="text-base font-orbitron normal-case font-bold text-white">
                     {activeShapPlanet}
                   </h3>
                 </div>
@@ -255,7 +255,7 @@ export const QuickSearchModal = ({ isOpen, onClose }) => {
                       <div
                         key={planet.planet_name}
                         onClick={() => setSelectedIndex(idx)}
-                        className={`flex items-center justify-between p-3 rounded-xl transition-all cursor-pointer ${
+                        className={`flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl transition-all cursor-pointer ${
                           isSelected
                             ? 'bg-space-void border-2 border-exosignal-cyan shadow-neon-cyan ring-1 ring-exosignal-cyan'
                             : 'bg-space-void/80 border border-exosignal-cyan/20 hover:border-exosignal-cyan/50 hover:bg-space-void'
@@ -263,7 +263,7 @@ export const QuickSearchModal = ({ isOpen, onClose }) => {
                       >
                         <div className="space-y-1">
                           <div className="flex items-center space-x-2">
-                            <span className="font-orbitron font-bold text-sm text-white">
+                            <span className="font-orbitron normal-case font-bold text-sm text-white">
                               {planet.planet_name}
                             </span>
                             <span
@@ -276,7 +276,7 @@ export const QuickSearchModal = ({ isOpen, onClose }) => {
                               {planet.hz_status || 'Unknown'}
                             </span>
                           </div>
-                          <div className="text-xs font-mono text-exosignal-text-muted flex items-center space-x-3">
+                          <div className="text-xs font-mono text-exosignal-text-muted flex flex-wrap items-center gap-x-3">
                             {(planet.priority_rank ?? planet.ml_rank) && (
                               <span>
                                 Rank:{' '}

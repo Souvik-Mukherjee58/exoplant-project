@@ -93,7 +93,7 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
           </p>
         </div>
 
-        <div className="text-right">
+        <div className="md:text-right md:shrink-0">
           <span className="text-xs text-exosignal-text/60 block">
             Difference of the final-model scores
           </span>
@@ -113,7 +113,7 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
             {primary_drivers_for_advantage.slice(0, 3).map((item) => (
               <li
                 key={item.feature}
-                className="flex justify-between items-center text-exosignal-text/80"
+                className="flex justify-between items-center gap-2 text-exosignal-text/80"
               >
                 <span>
                   {item.display_name} ({item.planet_a_value} vs {item.planet_b_value})
@@ -132,7 +132,7 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
             {primary_drivers_for_disadvantage.slice(0, 3).map((item) => (
               <li
                 key={item.feature}
-                className="flex justify-between items-center text-exosignal-text/80"
+                className="flex justify-between items-center gap-2 text-exosignal-text/80"
               >
                 <span>
                   {item.display_name} ({item.planet_b_value} vs {item.planet_a_value})
@@ -158,7 +158,12 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
       </div>
 
       {/* Differential Table */}
-      <div className="overflow-x-auto">
+      <div
+        className="overflow-x-auto"
+        tabIndex={0}
+        role="region"
+        aria-label="Differences of model inputs"
+      >
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="border-b border-exosignal-blue/20 text-exosignal-text/60">

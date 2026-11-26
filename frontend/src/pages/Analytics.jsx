@@ -337,8 +337,6 @@ const Analytics = () => {
                         outerRadius={95}
                         dataKey="value"
                         nameKey="name"
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        labelLine={false}
                       >
                         {hzDistribution.map((entry) => (
                           <Cell key={entry.name} fill={entry.color} />
@@ -360,6 +358,9 @@ const Analytics = () => {
                         ]}
                       />
                       <Legend
+                        formatter={(name, entry) =>
+                          `${name}: ${entry?.payload?.percentage ?? '—'}%`
+                        }
                         wrapperStyle={{
                           paddingTop: '10px',
                           fontFamily: 'JetBrains Mono',
@@ -395,7 +396,7 @@ const Analytics = () => {
                       <BarChart
                         data={discoveryDistribution}
                         layout="vertical"
-                        margin={{ top: 5, right: 30, left: 140, bottom: 5 }}
+                        margin={{ top: 5, right: 16, left: 0, bottom: 5 }}
                       >
                         <defs>
                           <linearGradient id="purpleHorizontalGrad" x1="0" y1="0" x2="1" y2="0">
@@ -412,9 +413,9 @@ const Analytics = () => {
                         <YAxis
                           type="category"
                           dataKey="method"
-                          tick={{ fill: '#f8fafc', fontSize: 11, fontFamily: 'JetBrains Mono' }}
+                          tick={{ fill: '#f8fafc', fontSize: 9, fontFamily: 'JetBrains Mono' }}
                           axisLine={{ stroke: '#1e293b' }}
-                          width={135}
+                          width={170}
                         />
                         <Tooltip
                           contentStyle={{

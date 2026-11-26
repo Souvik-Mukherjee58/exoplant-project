@@ -209,7 +209,7 @@ const PlanetDetail = () => {
               </div>
 
               {/* Planetary Animated Title */}
-              <h1 className="text-3xl sm:text-5xl font-black font-orbitron planet-font-animated tracking-wider">
+              <h1 className="text-3xl sm:text-5xl font-black font-orbitron normal-case planet-font-animated tracking-wider">
                 {planet.planet_name}
               </h1>
               <p className="text-xs font-mono text-exosignal-cyan mt-1">
