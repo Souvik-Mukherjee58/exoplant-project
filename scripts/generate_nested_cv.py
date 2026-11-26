@@ -66,7 +66,9 @@ def run_nested_cv() -> dict:
     df = catalog[eligible_mask].copy().reset_index(drop=True)
 
     # Generate ground truth labels (fallback to reference fixture if live review pending)
-    fixture_path = Path(__file__).resolve().parent.parent / "backend" / "tests" / "fixtures" / "fixture_jwst_reference.csv"
+    fixture_path = (
+        Path(__file__).resolve().parent.parent / "backend" / "tests" / "fixtures" / "fixture_jwst_reference.csv"
+    )
     if fixture_path.exists():
         df = generate_ground_truth_labels(df, reference_path=fixture_path)
     else:
@@ -76,7 +78,7 @@ def run_nested_cv() -> dict:
     groups = df["hostname"].fillna(df["planet_name"]).to_numpy()
 
     n_pos = int(np.sum(y))
-    print(f"Dataset Size : {len(df)} eligible candidates ({n_pos} verified JWST positives)")
+    print(f"Dataset Size : {len(df)} eligible candidates ({n_pos} JWST positives, labels not human-verified)")
     print(f"Stellar Hosts: {len(np.unique(groups))} unique host stars")
 
     candidate_configs = [
@@ -188,7 +190,7 @@ def write_nested_cv_report(res: dict, out_path: Path) -> None:
         "",
         "**Methodology**: 5-Fold Outer StratifiedGroupKFold × 3-Fold Inner GroupKFold  ",
         "**Grouping Key**: `hostname` (Host star system isolation)  ",
-        f"**Dataset Population**: {res['n_candidates']} eligible candidates ({res['n_positives']} verified JWST positives)  ",
+        f"**Dataset Population**: {res['n_candidates']} eligible candidates ({res['n_positives']} JWST positives, labels not human-verified)  ",
         f"**Runtime**: {res['elapsed_sec']:.2f} seconds  ",
         "",
         "---",
@@ -214,21 +216,23 @@ def write_nested_cv_report(res: dict, out_path: Path) -> None:
             f"| Fold {r['fold']} | {r['selected_model']} | **{r['ap']:.4f}** | **{r['recall@50']:.4f}** | {r['pr_auc']:.4f} | {r['n_test_pos']} | {r['n_test_total']} |"
         )
 
-    lines.extend([
-        "",
-        "### Summary Aggregate Performance",
-        f"- **Mean Nested AP**: **{res['mean_nested_ap']:.4f} ± {res['std_nested_ap']:.4f}**",
-        f"- **Mean Nested Recall@50**: **{res['mean_nested_recall50']:.4f} ± {res['std_nested_recall50']:.4f}**",
-        f"- **Empirical 95% Interval (AP)**: `[{res['ci_low']:.4f}, {res['ci_high']:.4f}]`",
-        "",
-        "---",
-        "",
-        "## 3. Generalization & Zero-Leakage Assessment",
-        "",
-        "- **Zero Host-Star Leakage**: At no point do planets sharing a host star cross between training, validation, or test folds.",
-        "- **Consistent Regularization**: The inner cross-validation consistently selected regularized logistic regression ($C \\le 1.0$), confirming that L2 regularization prevents overfitting on stellar brightness proxies.",
-        "- **Honest Generalization Estimate**: The nested cross-validation AP and Recall@50 provide the unbiased benchmark of generalization to completely unseen planetary systems.",
-    ])
+    lines.extend(
+        [
+            "",
+            "### Summary Aggregate Performance",
+            f"- **Mean Nested AP**: **{res['mean_nested_ap']:.4f} ± {res['std_nested_ap']:.4f}**",
+            f"- **Mean Nested Recall@50**: **{res['mean_nested_recall50']:.4f} ± {res['std_nested_recall50']:.4f}**",
+            f"- **Empirical 95% Interval (AP)**: `[{res['ci_low']:.4f}, {res['ci_high']:.4f}]`",
+            "",
+            "---",
+            "",
+            "## 3. Generalization & Zero-Leakage Assessment",
+            "",
+            "- **Zero Host-Star Leakage**: At no point do planets sharing a host star cross between training, validation, or test folds.",
+            "- **Consistent Regularization**: The inner cross-validation consistently selected regularized logistic regression ($C \\le 1.0$), confirming that L2 regularization prevents overfitting on stellar brightness proxies.",
+            "- **Honest Generalization Estimate**: The nested cross-validation AP and Recall@50 provide the unbiased benchmark of generalization to completely unseen planetary systems.",
+        ]
+    )
 
     out_path.write_text("\n".join(lines), encoding="utf-8")
     print(f"\n[+] Generated Nested CV report: {out_path}")

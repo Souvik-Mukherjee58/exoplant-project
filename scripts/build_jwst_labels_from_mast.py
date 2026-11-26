@@ -22,11 +22,15 @@ What this script does
 
 Time systems
 ------------
-MAST ``t_min``/``t_max`` are MJD. ``pl_tranmid`` is BJD_TDB expressed as a Julian Date. Converting
-with MJD = JD - 2400000.5 leaves a systematic offset of at most ~10 minutes (barycentric light-travel
-time <= ~8.3 min plus TDB-UTC ~69 s). ``--margin-hours`` (default 0.25 h) absorbs that offset and
-small unmodelled transit-timing variations. Linear ephemerides do not model TTVs; systems with large
-TTVs can still be mis-assigned, which is why every candidate goes to a human reviewer.
+MAST ``t_min``/``t_max`` are MJD and are kept unmodified. ``pl_tranmid`` is a Julian Date in the time system named by
+the archive. MJD = JD - 2400000.5 is an exact epoch shift; it is not a conversion between time scales and does not
+correct for light-travel time. That conversion and its uncertainty have not been derived and independently checked, and
+no margin is used in its place. While VALIDATED_TIME_SYSTEMS is empty, every row is ``ambiguous``.
+
+Eclipses
+--------
+No orbit is assumed to be circular and no eclipse time is predicted. ``eclipse_status`` says which orbital inputs are
+missing, unmeasured or ambiguous. No eclipse is excluded, so every row is listed for review.
 
 Nothing here decides a label. ``match_status`` and ``likely_type`` are triage hints only.
 """
@@ -40,8 +44,10 @@ import hashlib
 import io
 import json
 import math
+import os
 import re
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -56,16 +62,19 @@ STSCI_PROGRAM_URL = "https://www.stsci.edu/jwst/science-execution/program-inform
 NASA_TAP_URL = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync"
 EPHEMERIS_ADQL = (
     "select pl_name,hostname,ra,dec,pl_orbper,pl_orbpererr1,pl_orbpererr2,"
-    "pl_tranmid,pl_tranmiderr1,pl_tranmiderr2,pl_orbeccen,tran_flag "
+    "pl_tranmid,pl_tranmiderr1,pl_tranmiderr2,pl_tranmid_systemref,pl_tranmid_reflink,pl_orbper_reflink,"
+    "pl_orbeccen,pl_orbeccenerr1,pl_orbeccenerr2,pl_orbeccenlim,pl_orbeccen_reflink,"
+    "pl_orblper,pl_orblpererr1,pl_orblpererr2,pl_orblperlim,pl_orblper_reflink,tran_flag "
     "from pscomppars where tran_flag=1"
 )
 MAST_QUERY = {"obs_collection": "JWST", "dataproduct_type": "timeseries"}
 
 JD_MINUS_MJD = 2400000.5
-DEFAULT_MARGIN_HOURS = 0.25
+# Archive time systems whose conversion to the MAST time scale has been derived and independently checked.
+# Empty on purpose: adding an entry is a scientific decision that needs a reviewed derivation (PLAN.md Phase 2).
+VALIDATED_TIME_SYSTEMS: frozenset[str] = frozenset()
 DEFAULT_MIN_WINDOW_HOURS = 0.5
 DEFAULT_COORD_RADIUS_ARCSEC = 30.0
-ECCENTRIC_LIMIT = 0.1
 SIGMA_K = 3.0
 
 MAST_CACHE_STEM = "jwst_timeseries"
@@ -90,17 +99,119 @@ CANDIDATE_FIELDS = [
     "transit_epoch",
     "predicted_mid_transit",
     "timing_uncertainty_hours",
+    "uncertainty_status",
+    "time_system",
+    "eclipse_status",
+    "eclipse_reasons",
+    "ecc",
+    "ecc_err1",
+    "ecc_err2",
+    "ecc_limit_flag",
+    "ecc_reference",
+    "omega_deg",
+    "omega_err1",
+    "omega_err2",
+    "omega_limit_flag",
+    "omega_reference",
+    "omega_convention",
     "match_status",
     "match_note",
     "obs_title",
     "title_type",
     "likely_type",
     "stsci_url",
+    "calib_level",
+    "tranmid_reference",
+    "period_reference",
+    "mast_row_sha256",
+    "mast_cache_sha256",
+    "ephemeris_cache_sha256",
+]
+
+# Columns of the raw MAST row that define an observation (hashed per candidate row).
+MAST_COLUMNS = [
+    "proposal_id",
+    "obs_id",
+    "target_name",
+    "instrument_name",
+    "filters",
+    "t_min",
+    "t_max",
+    "obs_title",
+    "s_ra",
+    "s_dec",
+    "calib_level",
 ]
 
 
 class CacheIntegrityError(RuntimeError):
     """Raised when a cached raw response does not match its recorded SHA-256."""
+
+
+class ObservationIdentityError(RuntimeError):
+    """Raised when one obs_id has conflicting rows: the observation cannot be identified."""
+
+
+# --------------------------------------------------------------------------------------------
+# Safe write paths
+# --------------------------------------------------------------------------------------------
+
+# Inside the repository each flag may write to exactly one place.
+ALLOWED_REPO_PATHS = {
+    "--cache-dir": "reports/.mast_cache",
+    "--output": "reports/jwst_mast_candidates.csv",
+    "--summary": "reports/jwst_mast_summary.md",
+}
+
+
+def assert_safe_output(path: Path, flag: str = "--output") -> Path:
+    """Resolve a write target and refuse it unless it is allow-listed for this flag.
+
+    Allowed: the flag's one path inside the repository, or a path below the system temporary directory
+    (RUNNER_TEMP in CI). Everything else is refused, including other repositories and other worktrees.
+    The allow-listed location is compared without following links, so a link placed there cannot redirect writes.
+    """
+    resolved = path.resolve()
+    root = REPO_ROOT.resolve()
+    if resolved == root.joinpath(*ALLOWED_REPO_PATHS[flag].split("/")):
+        return resolved
+    if not resolved.is_relative_to(root):
+        temp_dirs = [Path(tempfile.gettempdir()).resolve()]
+        if os.environ.get("RUNNER_TEMP"):
+            temp_dirs.append(Path(os.environ["RUNNER_TEMP"]).resolve())
+        # a temp directory that contains this repository would also allow its sibling folders
+        if any(resolved.is_relative_to(t) and resolved != t and not root.is_relative_to(t) for t in temp_dirs):
+            return resolved
+    raise ValueError(
+        f"Refusing {flag} {path}: inside the repository only {ALLOWED_REPO_PATHS[flag]} is allowed, "
+        "elsewhere only the system temporary directory. Reference labels are only written by human review."
+    )
+
+
+def assert_plain_file_target(path: Path) -> None:
+    """Refuse links and non-files: writing through them would change another file."""
+    if path.is_symlink() or (path.exists() and (not path.is_file() or path.stat().st_nlink > 1)):
+        raise ValueError(f"Refusing to write {path}: it is a link, a hard link or not a regular file")
+
+
+def check_write_paths(cache_dir: Path, output: Path, summary: Path) -> Tuple[Path, Path, Path]:
+    """Validate every write target before anything is fetched or written."""
+    c = assert_safe_output(cache_dir, "--cache-dir")
+    o = assert_safe_output(output, "--output")
+    s = assert_safe_output(summary, "--summary")
+    if o == s or o.is_relative_to(c) or s.is_relative_to(c):
+        raise ValueError("--output, --summary and --cache-dir must be three separate locations")
+    if c.exists() and not c.is_dir():
+        raise ValueError(f"--cache-dir {c} exists and is not a directory")
+    assert_plain_file_target(o)
+    assert_plain_file_target(s)
+    for stem, ext in ((MAST_CACHE_STEM, ".ecsv"), (EPHEM_CACHE_STEM, ".csv")):
+        for target in cache_paths(c, stem, ext):
+            assert_plain_file_target(target)  # before any request, not only before the write
+    for target in (o, s):
+        if target.parent.exists() and not target.parent.is_dir():
+            raise ValueError(f"{target.parent} is not a directory")
+    return c, o, s
 
 
 # --------------------------------------------------------------------------------------------
@@ -117,9 +228,12 @@ def cache_paths(cache_dir: Path, stem: str, ext: str) -> Tuple[Path, Path]:
 
 
 def write_raw_cache(cache_dir: Path, stem: str, ext: str, raw: bytes, meta: Dict[str, Any]) -> Path:
-    """Write raw response bytes unmodified plus a metadata file with their SHA-256."""
-    cache_dir.mkdir(parents=True, exist_ok=True)
+    """Write the given bytes plus a metadata file with their SHA-256."""
+    assert_safe_output(cache_dir, "--cache-dir")
     data_path, meta_path = cache_paths(cache_dir, stem, ext)
+    assert_plain_file_target(data_path)
+    assert_plain_file_target(meta_path)
+    cache_dir.mkdir(parents=True, exist_ok=True)
     data_path.write_bytes(raw)
     full_meta = dict(meta)
     full_meta["sha256"] = sha256_bytes(raw)
@@ -171,21 +285,9 @@ def with_retries(fn: Callable[[], Any], retries: int, backoff_s: float, label: s
 
 def mast_table_to_frame(table: Any) -> pd.DataFrame:
     """Convert the columns we use to a DataFrame without altering any string value."""
-    cols = [
-        "proposal_id",
-        "obs_id",
-        "target_name",
-        "instrument_name",
-        "filters",
-        "t_min",
-        "t_max",
-        "obs_title",
-        "s_ra",
-        "s_dec",
-    ]
     out: Dict[str, List[Any]] = {}
     n = len(table)
-    for c in cols:
+    for c in MAST_COLUMNS:
         if c not in table.colnames:
             out[c] = [None] * n
             continue
@@ -357,6 +459,7 @@ class HostIndex:
     names: List[str]
     ra: np.ndarray
     dec: np.ndarray
+    letters: Dict[str, set]
 
 
 def build_host_index(ephem: pd.DataFrame) -> HostIndex:
@@ -377,6 +480,7 @@ def build_host_index(ephem: pd.DataFrame) -> HostIndex:
         names=list(hosts["hostname"]),
         ra=hosts["ra"].to_numpy(dtype=float),
         dec=hosts["dec"].to_numpy(dtype=float),
+        letters={str(h): {str(n).strip()[-1:].upper() for n in g["pl_name"]} for h, g in ephem.groupby("hostname")},
     )
 
 
@@ -396,8 +500,10 @@ def match_host(
     key = normalize_name(target_name)
     if key and key in index.by_norm:
         return index.by_norm[key], "name", None
-    if len(key) > 1 and key[-1] in "BCDEFGHIJK" and key[:-1] in index.by_norm:
-        return index.by_norm[key[:-1]], "name_planet_suffix", None
+    if len(key) > 1 and key[:-1] in index.by_norm:
+        host = index.by_norm[key[:-1]]
+        if key[-1] in index.letters.get(host, set()):  # only a letter of a known planet of this host
+            return host, "name_planet_suffix", None
     try:
         ra, dec = float(s_ra), float(s_dec)
     except (TypeError, ValueError):
@@ -412,6 +518,25 @@ def match_host(
     if len(within) > 1:
         return None, "coordinates_ambiguous", None
     return None, "none", None
+
+
+def host_position_check(
+    host: str, s_ra: Any, s_dec: Any, index: HostIndex, radius_arcsec: float
+) -> Tuple[str, Optional[float]]:
+    """Compare the observed position with the host: (agree | disagree | missing, separation in arcsec).
+
+    Proper motion is not applied (the archive position's epoch is not fetched), so a fast star can show up as
+    'disagree'. That is safe: it makes the row ambiguous, never confident and never dropped.
+    """
+    try:
+        i = index.names.index(host)
+        ra, dec = float(s_ra), float(s_dec)
+    except (TypeError, ValueError):
+        return "missing", None
+    if any(math.isnan(v) for v in (ra, dec, index.ra[i], index.dec[i])):
+        return "missing", None
+    sep = float(angular_sep_arcsec(ra, dec, index.ra[i : i + 1], index.dec[i : i + 1])[0])
+    return ("agree" if sep <= radius_arcsec else "disagree"), round(sep, 2)
 
 
 # --------------------------------------------------------------------------------------------
@@ -432,8 +557,10 @@ def to_mjd(t: Any) -> float:
 
 
 def symmetric_err(e1: Any, e2: Any) -> float:
+    """Larger of the two error bars; NaN unless a positive, finite uncertainty is given (never a silent zero)."""
     vals = [abs(float(x)) for x in (e1, e2) if x is not None and not pd.isna(x)]
-    return max(vals) if vals else float("nan")
+    best = max(vals, default=float("nan"))
+    return best if math.isfinite(best) and best > 0 else float("nan")
 
 
 @dataclass
@@ -454,25 +581,22 @@ def check_event(
     period: float,
     sigma_t0: float,
     sigma_p: float,
-    phase_offset: float,
-    margin_days: float,
 ) -> EventCheck:
-    """Strongest evidence of an event (transit: offset 0, eclipse: offset 0.5) inside [t_min, t_max].
+    """Strongest evidence of a transit inside [t_min, t_max]. Both must be in one time system; no margin is added.
 
-    yes   : predicted time +/- (3 sigma + margin) lies entirely inside the window
-    maybe : predicted time lies within the window widened by (3 sigma + margin)
+    yes   : predicted time +/- 3 sigma lies entirely inside the window
+    maybe : predicted time lies within the window widened by 3 sigma
     no    : otherwise
     Ties between epochs with the same status go to the epoch closest to the window centre.
     """
-    n_lo = math.floor((t_min - t0_mjd) / period - phase_offset) - 1
-    n_hi = math.ceil((t_max - t0_mjd) / period - phase_offset) + 1
+    n_lo = math.floor((t_min - t0_mjd) / period) - 1
+    n_hi = math.ceil((t_max - t0_mjd) / period) + 1
     centre = 0.5 * (t_min + t_max)
     best = EventCheck("no", None, None, float("nan"))
     for n in range(n_lo, n_hi + 1):
-        cycles = n + phase_offset
-        tc = t0_mjd + cycles * period
-        sigma = math.sqrt(sigma_t0**2 + (cycles * sigma_p) ** 2)
-        tol = SIGMA_K * sigma + margin_days
+        tc = t0_mjd + n * period
+        sigma = math.sqrt(sigma_t0**2 + (n * sigma_p) ** 2)
+        tol = SIGMA_K * sigma
         if t_min + tol <= tc <= t_max - tol:
             status = "yes"
         elif t_min - tol <= tc <= t_max + tol:
@@ -486,34 +610,6 @@ def check_event(
         ):
             best = EventCheck(status, n, tc, sigma)
     return best
-
-
-def check_phase_range(
-    t_min: float,
-    t_max: float,
-    t0_mjd: float,
-    period: float,
-    sigma_t0: float,
-    sigma_p: float,
-    phase_lo: float,
-    phase_hi: float,
-    margin_days: float,
-) -> EventCheck:
-    """'maybe' if any time with orbital phase in [phase_lo, phase_hi] overlaps the widened window.
-
-    Used when the event time is not predictable (eccentric orbit with unknown argument of periastron).
-    Never returns 'yes': the event's position inside the window is unknown.
-    """
-    n_lo = math.floor((t_min - t0_mjd) / period - phase_hi) - 1
-    n_hi = math.ceil((t_max - t0_mjd) / period - phase_lo) + 1
-    for n in range(n_lo, n_hi + 1):
-        start = t0_mjd + (n + phase_lo) * period
-        end = t0_mjd + (n + phase_hi) * period
-        sigma = math.sqrt(sigma_t0**2 + ((n + 0.5 * (phase_lo + phase_hi)) * sigma_p) ** 2)
-        tol = SIGMA_K * sigma + margin_days
-        if start - tol <= t_max and end + tol >= t_min:
-            return EventCheck("maybe", n, None, sigma)
-    return EventCheck("no", None, None, float("nan"))
 
 
 def orbital_phase(t_mjd: float, t0_mjd: float, period: float) -> float:
@@ -536,16 +632,111 @@ def phase_distance(a: float, b: float) -> float:
     return min(d, 1.0 - d)
 
 
+def finite_or_none(value: Any) -> Optional[float]:
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return None
+    return v if math.isfinite(v) else None
+
+
+def text_or_empty(value: Any) -> str:
+    """Archive value as text, exactly as received; missing values are empty."""
+    if value is None or (isinstance(value, float) and math.isnan(value)):
+        return ""
+    return str(value).strip()
+
+
+def eclipse_status(planet: Dict[str, Any]) -> Tuple[str, List[str]]:
+    """Why an eclipse cannot be predicted for this planet. Never a prediction, never an exclusion.
+
+    insufficient_parameters : no usable transit time or period
+    indeterminate           : eccentricity unknown
+    requires_review         : everything else, with every reason listed
+    """
+    reasons: List[str] = []
+    t0, period = finite_or_none(planet.get("pl_tranmid")), finite_or_none(planet.get("pl_orbper"))
+    no_orbit = [n for n, v in (("t0", t0), ("period", period)) if v is None or v <= 0]
+    reasons += [f"missing_{n}" for n in no_orbit]
+
+    ecc = finite_or_none(planet.get("pl_orbeccen"))
+    ecc_err = symmetric_err(planet.get("pl_orbeccenerr1"), planet.get("pl_orbeccenerr2"))
+    ecc_lim = text_or_empty(planet.get("pl_orbeccenlim"))
+    if text_or_empty(planet.get("pl_orbeccen")) == "":
+        reasons.append("eccentricity_unknown")
+    else:
+        if ecc is None or not 0 <= ecc < 1:
+            reasons.append("eccentricity_invalid")
+        if ecc_lim not in ("0", "0.0"):
+            reasons.append("eccentricity_is_limit_or_flag_not_understood")
+        if math.isnan(ecc_err):
+            reasons.append("eccentricity_uncertainty_missing")
+            if ecc == 0:
+                reasons.append("eccentricity_zero_may_be_assumed")
+
+    omega = finite_or_none(planet.get("pl_orblper"))
+    if omega is None:
+        reasons.append("omega_missing")
+    else:
+        if text_or_empty(planet.get("pl_orblperlim")) not in ("0", "0.0"):
+            reasons.append("omega_is_limit_or_flag_not_understood")
+        if math.isnan(symmetric_err(planet.get("pl_orblpererr1"), planet.get("pl_orblpererr2"))):
+            reasons.append("omega_uncertainty_missing")
+        reasons.append("omega_convention_not_confirmed")
+
+    if math.isnan(symmetric_err(planet.get("pl_tranmiderr1"), planet.get("pl_tranmiderr2"))):
+        reasons.append("t0_uncertainty_missing")
+    if math.isnan(symmetric_err(planet.get("pl_orbpererr1"), planet.get("pl_orbpererr2"))):
+        reasons.append("period_uncertainty_missing")
+    refs = {
+        text_or_empty(planet.get(c))
+        for c in ("pl_tranmid_reflink", "pl_orbper_reflink", "pl_orbeccen_reflink", "pl_orblper_reflink")
+    }
+    if "" in refs or len(refs) > 1:
+        reasons.append("references_missing_or_mixed")
+    if text_or_empty(planet.get("pl_tranmid_systemref")) not in VALIDATED_TIME_SYSTEMS:
+        reasons.append("time_system_not_validated")
+    reasons.append("prediction_deferred")
+
+    if no_orbit:
+        return "insufficient_parameters", reasons
+    if "eccentricity_unknown" in reasons:
+        return "indeterminate", reasons
+    return "requires_review", reasons
+
+
 def assign_planet_event(
-    t_min: float, t_max: float, planet: Dict[str, Any], margin_hours: float = DEFAULT_MARGIN_HOURS
+    t_min: float, t_max: float, planet: Dict[str, Any], validated_systems: frozenset[str] = VALIDATED_TIME_SYSTEMS
 ) -> Dict[str, Any]:
-    """Classify one planet's transit/eclipse visibility in one observation window."""
+    """Compare one planet's transit ephemeris with one observation window, and record the eclipse inputs.
+
+    Predicted times are MJD in the archive's own time system (column time_system), not converted to UTC.
+    'transit_result' (yes / maybe / no / unknown) is internal and never written to the CSV: it is not validated.
+    """
+    system = text_or_empty(planet.get("pl_tranmid_systemref"))
+    status_e, reasons_e = eclipse_status(planet)
     result: Dict[str, Any] = {
         "transit_epoch": "",
         "predicted_mid_transit": "",
         "timing_uncertainty_hours": "",
+        "uncertainty_status": "",
+        "time_system": system or "unknown",
+        "eclipse_status": status_e,
+        "eclipse_reasons": ";".join(reasons_e),
+        "ecc": text_or_empty(planet.get("pl_orbeccen")),
+        "ecc_err1": text_or_empty(planet.get("pl_orbeccenerr1")),
+        "ecc_err2": text_or_empty(planet.get("pl_orbeccenerr2")),
+        "ecc_limit_flag": text_or_empty(planet.get("pl_orbeccenlim")),
+        "ecc_reference": text_or_empty(planet.get("pl_orbeccen_reflink")),
+        "omega_deg": text_or_empty(planet.get("pl_orblper")),
+        "omega_err1": text_or_empty(planet.get("pl_orblpererr1")),
+        "omega_err2": text_or_empty(planet.get("pl_orblpererr2")),
+        "omega_limit_flag": text_or_empty(planet.get("pl_orblperlim")),
+        "omega_reference": text_or_empty(planet.get("pl_orblper_reflink")),
+        "omega_convention": "unconfirmed" if text_or_empty(planet.get("pl_orblper")) else "",
         "match_status": "ambiguous",
         "match_note": "",
+        "transit_result": "unknown",
     }
     try:
         t0 = to_mjd(planet.get("pl_tranmid"))
@@ -553,66 +744,49 @@ def assign_planet_event(
     except (TypeError, ValueError):
         result["match_note"] = "no_ephemeris"
         return result
-    if math.isnan(t0) or math.isnan(period) or period <= 0:
+    if not math.isfinite(t0) or not math.isfinite(period) or period <= 0:
         result["match_note"] = "no_ephemeris"
         return result
 
     sigma_t0 = symmetric_err(planet.get("pl_tranmiderr1"), planet.get("pl_tranmiderr2"))
     sigma_p = symmetric_err(planet.get("pl_orbpererr1"), planet.get("pl_orbpererr2"))
-    notes: List[str] = []
-    uncertainty_known = not (math.isnan(sigma_t0) or math.isnan(sigma_p))
-    if not uncertainty_known:
-        notes.append("ephemeris_uncertainty_missing")
-        sigma_t0 = 0.0 if math.isnan(sigma_t0) else sigma_t0
-        sigma_p = 0.0 if math.isnan(sigma_p) else sigma_p
-
-    margin_days = margin_hours / 24.0
-    transit = check_event(t_min, t_max, t0, period, sigma_t0, sigma_p, 0.0, margin_days)
-
-    ecc_raw = planet.get("pl_orbeccen")
-    ecc = float(ecc_raw) if ecc_raw is not None and not pd.isna(ecc_raw) else float("nan")
-    if not math.isnan(ecc) and ecc > ECCENTRIC_LIMIT:
-        # Secondary eclipse phase is 0.5 + (2/pi) e cos(w) to first order (Winn 2010, eq. 33).
-        # Without a reliable argument of periastron, search the whole physically possible range.
-        half_width = min(0.45, (2.0 / math.pi) * ecc)
-        eclipse = check_phase_range(
-            t_min, t_max, t0, period, sigma_t0, sigma_p, 0.5 - half_width, 0.5 + half_width, margin_days
+    missing = [name for name, s in (("t0", sigma_t0), ("period", sigma_p)) if math.isnan(s)]
+    if missing:
+        # Without an uncertainty nothing can be said about the window: not "transit", and not "no event" either.
+        epoch = round((0.5 * (t_min + t_max) - t0) / period)
+        result.update(
+            {
+                "transit_epoch": epoch,
+                "predicted_mid_transit": round(t0 + epoch * period, 6),
+                "uncertainty_status": "missing_" + "_and_".join(missing),
+                "match_note": "ephemeris_uncertainty_missing_" + "_and_".join(missing),
+            }
         )
-        if eclipse.status != "no":
-            notes.append("eccentric_orbit_eclipse_possible")
-    else:
-        eclipse = check_event(t_min, t_max, t0, period, sigma_t0, sigma_p, 0.5, margin_days)
+        return result
+    result["uncertainty_status"] = "known"
 
+    notes: List[str] = []
+    transit = check_event(t_min, t_max, t0, period, sigma_t0, sigma_p)
+    result["transit_result"] = transit.status
     if transit.mid_mjd is not None:
         result["transit_epoch"] = transit.epoch
         result["predicted_mid_transit"] = round(transit.mid_mjd, 6)
         result["timing_uncertainty_hours"] = round(transit.sigma_days * 24.0, 4)
-    elif eclipse.mid_mjd is not None:
-        result["timing_uncertainty_hours"] = round(eclipse.sigma_days * 24.0, 4)
 
-    relevant_sigma = transit.sigma_days if transit.mid_mjd is not None else eclipse.sigma_days
-    stale = not math.isnan(relevant_sigma) and relevant_sigma > period / 4.0
-
-    if stale:
-        status = "ambiguous"
+    status = "ambiguous"
+    if not math.isnan(transit.sigma_days) and transit.sigma_days > period / 4.0:
         notes.append("ephemeris_stale")
-    elif transit.status == "yes" and eclipse.status == "no":
+        result["transit_result"] = "unknown"
+    elif transit.status == "yes":
         status = "transit_in_window"
-    elif eclipse.status == "yes" and transit.status == "no":
-        status = "eclipse_in_window"
-    elif transit.status == "no" and eclipse.status == "no":
-        status = "no_event_in_window"
+    elif transit.status == "maybe":
+        notes.append("event_near_window_edge")
     else:
-        status = "ambiguous"
-        if transit.status == "yes" and eclipse.status == "yes":
-            notes.append("window_covers_transit_and_eclipse")
-        elif transit.status == "maybe" or (
-            eclipse.status == "maybe" and "eccentric_orbit_eclipse_possible" not in notes
-        ):
-            notes.append("event_near_window_edge")
+        notes.append("eclipse_not_excluded")  # so never 'no_event_in_window'
 
-    if not uncertainty_known and status in ("transit_in_window", "eclipse_in_window"):
+    if system not in validated_systems:
         status = "ambiguous"
+        notes.append("time_system_not_validated" if system else "time_system_unknown")
 
     result["match_status"] = status
     result["match_note"] = ";".join(notes)
@@ -669,8 +843,8 @@ def flag_phase_clusters(
     events: Dict[Tuple[int, str], Dict[str, Any]],
     planets_by_host: Dict[str, List[Dict[str, Any]]],
 ) -> List[Dict[str, Any]]:
-    """Re-label clustered 'no event' windows as ambiguous (possible ephemeris error). Mutates events."""
-    explained = {i for (i, _), ev in events.items() if ev["match_status"] in CONFIDENT_STATUSES}
+    """Note clustered windows without a predicted transit (possible ephemeris error). Mutates events."""
+    explained = {i for (i, _), ev in events.items() if ev["transit_result"] == "yes"}
     by_host: Dict[str, List[int]] = {}
     for i, k in enumerate(kept):
         by_host.setdefault(k["base"]["hostname"], []).append(i)
@@ -687,7 +861,7 @@ def flag_phase_clusters(
                 continue
             if math.isnan(t0) or math.isnan(period) or period <= 0:
                 continue
-            cand = [i for i in idxs if i not in explained and events[(i, name)]["match_status"] == "no_event_in_window"]
+            cand = [i for i in idxs if i not in explained and events[(i, name)]["transit_result"] == "no"]
             if len(cand) < PHASE_CLUSTER_MIN_OBS:
                 continue
             phases = [orbital_phase(0.5 * (kept[i]["t_min"] + kept[i]["t_max"]), t0, period) for i in cand]
@@ -715,8 +889,7 @@ def flag_phase_clusters(
             if attributable:
                 note = f"phase_cluster_{mean:.3f}_n{len(group)}_possible_ephemeris_error"
                 for i in group:
-                    events[(i, name)]["match_status"] = "ambiguous"
-                    events[(i, name)]["match_note"] = note
+                    demote(events[(i, name)], note)
             else:
                 for i in group:
                     kept[i]["unexplained_cluster"] = True
@@ -734,21 +907,70 @@ def flag_phase_clusters(
     return found
 
 
+def add_note(event: Dict[str, Any], note: str) -> None:
+    event["match_note"] = ";".join(n for n in (event["match_note"], note) if n)
+
+
+def demote(event: Dict[str, Any], note: str) -> None:
+    """Make an event ambiguous, whatever the timing says. Timing alone never establishes the target."""
+    event["match_status"] = "ambiguous"
+    add_note(event, note)
+
+
+def _plain(value: Any) -> Any:
+    if value is None or (isinstance(value, float) and math.isnan(value)):
+        return None
+    return value.item() if hasattr(value, "item") else value
+
+
+def row_sha256(rec: Dict[str, Any]) -> str:
+    """Hash of the raw MAST row (defined columns, values unchanged)."""
+    canonical = json.dumps([[c, _plain(rec.get(c))] for c in MAST_COLUMNS], ensure_ascii=False, default=str)
+    return sha256_bytes(canonical.encode("utf-8"))
+
+
+def unique_observations(obs: pd.DataFrame, stats: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """One record per obs_id. Identical rows are merged; conflicting rows abort the run; no id means no row."""
+    by_id: Dict[str, Dict[str, Any]] = {}
+    for rec in obs.to_dict("records"):
+        raw = _plain(rec.get("obs_id"))
+        obs_id = "" if raw is None else str(raw).strip()
+        if not obs_id:
+            stats["dropped_missing_obs_id"] += 1
+            continue
+        first = by_id.setdefault(obs_id, rec)
+        if first is rec:
+            continue
+        if row_sha256(first) != row_sha256(rec):
+            raise ObservationIdentityError(
+                f"obs_id {obs_id} appears with different content; refusing to choose one. "
+                "Inspect the cache and re-fetch with --force-refresh."
+            )
+        stats["merged_identical_rows"] += 1
+    return list(by_id.values())
+
+
 def build_candidates(
     obs: pd.DataFrame,
     ephem: pd.DataFrame,
     hosts_filter: Optional[Sequence[str]] = None,
     eligible: Optional[set] = None,
-    margin_hours: float = DEFAULT_MARGIN_HOURS,
+    provenance: Optional[Dict[str, str]] = None,
     min_window_hours: float = DEFAULT_MIN_WINDOW_HOURS,
     coord_radius_arcsec: float = DEFAULT_COORD_RADIUS_ARCSEC,
+    validated_systems: frozenset[str] = VALIDATED_TIME_SYSTEMS,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """Turn raw MAST rows + ephemerides into candidate rows and run statistics."""
     stats: Dict[str, Any] = {
         "mast_rows": len(obs),
         "dropped_not_tso_spectroscopy": 0,
         "dropped_short_window": 0,
-        "dropped_duplicate_obs_id": 0,
+        "merged_identical_rows": 0,
+        "dropped_missing_obs_id": 0,
+        "dropped_not_executed": 0,
+        "host_position": {},
+        "uncertainty_missing_rows": 0,
+        "eclipse_status": {},
         "dropped_missing_times": 0,
         "unmatched_targets": {},
         "host_match_methods": {},
@@ -762,14 +984,14 @@ def build_candidates(
 
     # Pass 1: filter observations and match them to hosts
     kept: List[Dict[str, Any]] = []
-    seen_obs: set = set()
-    for rec in obs.to_dict("records"):
+    for rec in unique_observations(obs, stats):
         if not is_time_series_spectroscopy(rec.get("instrument_name"), rec.get("filters")):
             stats["dropped_not_tso_spectroscopy"] += 1
             continue
-        obs_id = str(rec.get("obs_id") or "")
-        if obs_id in seen_obs:
-            stats["dropped_duplicate_obs_id"] += 1
+        obs_id = str(rec["obs_id"])
+        level = rec.get("calib_level")
+        if level is not None and not pd.isna(level) and float(level) < 0:
+            stats["dropped_not_executed"] += 1
             continue
         try:
             t_min, t_max = float(rec["t_min"]), float(rec["t_max"])
@@ -783,8 +1005,6 @@ def build_candidates(
         if window_hours < min_window_hours:
             stats["dropped_short_window"] += 1
             continue
-        seen_obs.add(obs_id)
-
         host, method, sep = match_host(
             rec.get("target_name"), rec.get("s_ra"), rec.get("s_dec"), index, coord_radius_arcsec
         )
@@ -796,17 +1016,25 @@ def build_candidates(
         if wanted is not None and normalize_name(host) not in wanted:
             continue
 
+        position, position_sep = host_position_check(
+            host, rec.get("s_ra"), rec.get("s_dec"), index, coord_radius_arcsec
+        )
+        stats["host_position"][position] = stats["host_position"].get(position, 0) + 1
+        suffix = normalize_name(rec.get("target_name"))[-1:] if method == "name_planet_suffix" else ""
+
         pid = str(rec.get("proposal_id") or "").strip()
         title = rec.get("obs_title") or ""
         kept.append(
             {
                 "t_min": t_min,
                 "t_max": t_max,
+                "position": position,
+                "suffix": suffix,
                 "base": {
                     "hostname": host,
                     "target_name": rec.get("target_name"),
                     "host_match_method": method,
-                    "host_match_sep_arcsec": "" if sep is None else sep,
+                    "host_match_sep_arcsec": "" if position_sep is None else position_sep,
                     "proposal_id": pid,
                     "obs_id": obs_id,
                     "instrument_name": rec.get("instrument_name"),
@@ -817,6 +1045,10 @@ def build_candidates(
                     "obs_title": title,
                     "title_type": classify_likely_type_from_title(title),
                     "stsci_url": STSCI_PROGRAM_URL.format(pid=pid) if pid else "",
+                    "calib_level": "" if level is None or pd.isna(level) else level,
+                    "mast_row_sha256": row_sha256(rec),
+                    "mast_cache_sha256": (provenance or {}).get("mast", ""),
+                    "ephemeris_cache_sha256": (provenance or {}).get("ephemeris", ""),
                 },
             }
         )
@@ -825,7 +1057,20 @@ def build_candidates(
     events: Dict[Tuple[int, str], Dict[str, Any]] = {}
     for i, k in enumerate(kept):
         for planet in planets_by_host.get(k["base"]["hostname"], []):
-            events[(i, planet["pl_name"])] = assign_planet_event(k["t_min"], k["t_max"], planet, margin_hours)
+            ev = assign_planet_event(k["t_min"], k["t_max"], planet, validated_systems)
+            if ev["uncertainty_status"].startswith("missing"):
+                stats["uncertainty_missing_rows"] += 1
+            stats["eclipse_status"][ev["eclipse_status"]] = stats["eclipse_status"].get(ev["eclipse_status"], 0) + 1
+            refs = [str(planet.get(c) or "").strip() for c in ("pl_tranmid_reflink", "pl_orbper_reflink")]
+            refs = ["" if r.lower() == "nan" else r for r in refs]
+            ev["tranmid_reference"], ev["period_reference"] = refs
+            if all(refs) and refs[0] != refs[1]:
+                add_note(ev, "t0_and_period_from_different_references")
+            if k["position"] != "agree":
+                demote(ev, f"host_position_{k['position']}")
+            if k["suffix"] and k["suffix"] != str(planet["pl_name"]).strip()[-1:].upper():
+                demote(ev, "target_name_gives_another_planet")
+            events[(i, planet["pl_name"])] = ev
 
     # Pass 3: phase clusters. Independent programs schedule visits on a planet's events, so several
     # unexplained windows bunching at one orbital phase point to an ephemeris error for that planet.
@@ -838,33 +1083,19 @@ def build_candidates(
         event_rows = []
         for planet in planets_by_host.get(base["hostname"], []):
             ev = events[(i, planet["pl_name"])]
-            if ev["match_status"] == "no_event_in_window":
-                continue
-            row = dict(base)
+            row = dict(base)  # no pair is dropped: no eclipse is excluded
             row.update(ev)
+            row.pop("transit_result", None)
+            if k.get("unexplained_cluster") and ev["transit_result"] == "no":
+                add_note(row, "unexplained_window_phase_clusters_in_multi_planet_system")
             row["assigned_planet"] = planet["pl_name"]
             row["in_eligible_catalog"] = "" if eligible is None else str(planet["pl_name"] in eligible)
             row["likely_type"] = combine_likely_type(ev["match_status"], base["title_type"])
             event_rows.append(row)
-        if not event_rows:
-            row = dict(base)
-            row.update(
-                {
-                    "assigned_planet": "",
-                    "in_eligible_catalog": "",
-                    "transit_epoch": "",
-                    "predicted_mid_transit": "",
-                    "timing_uncertainty_hours": "",
-                    "match_status": "no_event_in_window",
-                    "match_note": "",
-                    "likely_type": "no_event",
-                }
-            )
-            if k.get("unexplained_cluster"):
-                row["match_status"] = "ambiguous"
-                row["match_note"] = "unexplained_window_phase_clusters_in_multi_planet_system"
-                row["likely_type"] = "needs_review"
-            event_rows.append(row)
+        confident = [r for r in event_rows if r["match_status"] in CONFIDENT_STATUSES]
+        if len(confident) > 1:
+            for r in confident:
+                add_note(r, "several_planets_have_an_event_in_this_window")
         rows.extend(event_rows)
 
     rows.sort(
@@ -879,15 +1110,8 @@ def build_candidates(
     return rows, stats
 
 
-def assert_safe_output(path: Path) -> None:
-    ref_dir = (REPO_ROOT / "backend" / "data" / "reference").resolve()
-    resolved = path.resolve()
-    if ref_dir == resolved or ref_dir in resolved.parents:
-        raise ValueError(f"Refusing to write into {ref_dir}: reference labels are only written by human review")
-
-
 def write_candidates_csv(rows: List[Dict[str, Any]], out_path: Path) -> None:
-    assert_safe_output(out_path)
+    assert_plain_file_target(assert_safe_output(out_path, "--output"))
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=CANDIDATE_FIELDS)
@@ -923,9 +1147,16 @@ def render_summary(
         f"- Raw MAST rows: {stats['mast_rows']}",
         f"- Dropped (not a time-series spectroscopy mode): {stats['dropped_not_tso_spectroscopy']}",
         f"- Dropped (window shorter than minimum, e.g. target acquisition): {stats['dropped_short_window']}",
-        f"- Dropped (duplicate obs_id): {stats['dropped_duplicate_obs_id']}",
+        f"- Merged (identical rows with the same obs_id): {stats['merged_identical_rows']}",
+        f"- Dropped (no obs_id): {stats['dropped_missing_obs_id']}",
+        f"- Dropped (calib_level < 0, not executed): {stats['dropped_not_executed']}",
         f"- Dropped (missing t_min/t_max): {stats['dropped_missing_times']}",
         f"- Host match methods: {json.dumps(stats['host_match_methods'], sort_keys=True)}",
+        f"- Host position check: {json.dumps(stats['host_position'], sort_keys=True)}",
+        f"- Planet-window pairs without an ephemeris uncertainty (kept as ambiguous): {stats['uncertainty_missing_rows']}",
+        f"- Eclipse status (no prediction, nothing excluded): {json.dumps(stats['eclipse_status'], sort_keys=True)}",
+        "- Time reference: not converted and not validated; no margin is used. Every row is ambiguous until a time system "
+        "is validated (see ADR 0006).",
         "",
         "## Candidate rows by match_status",
         "",
@@ -996,29 +1227,50 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p.add_argument("--hosts", default=None, help="Comma-separated host names to restrict output to")
     p.add_argument("--force-refresh", action="store_true", help="Re-query MAST and NASA TAP, replacing the cache")
     p.add_argument("--offline", action="store_true", help="Fail instead of querying when the cache is missing")
-    p.add_argument("--dry-run", action="store_true", help="Compute and print the summary; write no output files")
-    p.add_argument("--margin-hours", type=float, default=DEFAULT_MARGIN_HOURS)
+    p.add_argument("--dry-run", action="store_true", help="Offline and read-only: print the summary from a valid cache")
     p.add_argument("--min-window-hours", type=float, default=DEFAULT_MIN_WINDOW_HOURS)
     p.add_argument("--coord-radius-arcsec", type=float, default=DEFAULT_COORD_RADIUS_ARCSEC)
     args = p.parse_args(argv)
 
-    cache_dir = REPO_ROOT / args.cache_dir
-    out_path = REPO_ROOT / args.output
-    summary_path = REPO_ROOT / args.summary
-    assert_safe_output(out_path)
-    assert_safe_output(summary_path)
+    if args.dry_run and args.force_refresh:
+        p.error("--dry-run is offline and read-only; it cannot be combined with --force-refresh")
+    if args.offline and args.force_refresh:
+        p.error("--offline cannot be combined with --force-refresh")
+    try:
+        cache_dir, out_path, summary_path = check_write_paths(
+            REPO_ROOT / args.cache_dir, REPO_ROOT / args.output, REPO_ROOT / args.summary
+        )
+    except ValueError as err:
+        p.error(str(err))
+    offline = args.offline or args.dry_run
 
-    print("[1/4] Loading JWST time-series observations from MAST")
-    obs, mast_meta = fetch_jwst_timeseries(cache_dir, args.force_refresh, args.offline)
-    print("[2/4] Loading transit ephemerides from NASA Exoplanet Archive")
-    ephem, ephem_meta = fetch_ephemerides(cache_dir, args.force_refresh, args.offline)
+    try:
+        print("[1/4] Loading JWST time-series observations from MAST")
+        obs, mast_meta = fetch_jwst_timeseries(cache_dir, args.force_refresh, offline)
+        print("[2/4] Loading transit ephemerides from NASA Exoplanet Archive")
+        ephem, ephem_meta = fetch_ephemerides(cache_dir, args.force_refresh, offline)
+    except (FileNotFoundError, CacheIntegrityError) as err:
+        print(f"[ERROR] No valid cache: {err}", file=sys.stderr)
+        if offline:
+            print("        This run is offline. Run without --dry-run/--offline to fetch.", file=sys.stderr)
+        return 2
+    needed = re.findall(r"\b(?:pl_|hostname|ra\b|dec\b|tran_flag)\w*", EPHEMERIS_ADQL.split(" from ")[0])
+    missing = [c for c in needed if c not in ephem.columns]
+    if missing:
+        print(f"[ERROR] The ephemeris cache lacks {missing}; re-fetch with --force-refresh.", file=sys.stderr)
+        return 2
 
     print("[3/4] Matching hosts and predicting transit/eclipse windows")
     hosts = [h.strip() for h in args.hosts.split(",")] if args.hosts else None
     eligible = load_eligible_planets(Path(args.catalog) if args.catalog else None)
-    rows, stats = build_candidates(
-        obs, ephem, hosts, eligible, args.margin_hours, args.min_window_hours, args.coord_radius_arcsec
-    )
+    provenance = {"mast": str(mast_meta.get("sha256", "")), "ephemeris": str(ephem_meta.get("sha256", ""))}
+    try:
+        rows, stats = build_candidates(
+            obs, ephem, hosts, eligible, provenance, args.min_window_hours, args.coord_radius_arcsec
+        )
+    except ObservationIdentityError as err:
+        print(f"[ERROR] {err}", file=sys.stderr)
+        return 2
     summary = render_summary(rows, stats, mast_meta, ephem_meta, REPO_ROOT / args.reference_csv)
 
     if args.dry_run:
@@ -1027,6 +1279,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 0
     print(f"[4/4] Writing {len(rows)} candidate rows to {out_path} and summary to {summary_path}")
     write_candidates_csv(rows, out_path)
+    assert_plain_file_target(assert_safe_output(summary_path, "--summary"))
     summary_path.write_text(summary, encoding="utf-8")
     print("\nDone. Next: python scripts/check_mast_cache.py, then human review with scripts/review_labels.py")
     return 0

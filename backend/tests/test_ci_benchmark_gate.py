@@ -48,7 +48,16 @@ def test_unverified_and_non_transmission_rows_are_not_counted(tmp_path):
             "SYN-3 b,4,1,x,u,emission,True,False,\n",
         ],
     )
-    assert gate.count_verified_planets(p) == 1
+    log = tmp_path / "REVIEW.md"
+    assert gate.count_verified_planets(p, log) == 0  # no review log, no label
+    log.write_text("# SYNTHETIC TEST DATA\n", encoding="utf-8")
+    assert gate.count_verified_planets(p, log) == 0  # verified=True without its approval
+    head = "| planet | program_id | source_url | checked_by | date | decision |\n|---|---|---|---|---|---|\n"
+    row = "| SYN-1 b | 1 | u | SYNTHETIC REVIEWER | 2026-11-01 | %s: transmission |\n"
+    log.write_text(head + row % "APPROVED", encoding="utf-8")
+    assert gate.count_verified_planets(p, log) == 1
+    log.write_text(head + row % "APPROVED" + row % "REJECTED", encoding="utf-8")
+    assert gate.count_verified_planets(p, log) == 0
 
 
 def test_valid_committed_report_has_no_errors(tmp_path):

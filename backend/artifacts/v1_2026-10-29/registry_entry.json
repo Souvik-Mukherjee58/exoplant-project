@@ -10,8 +10,8 @@
     },
     "parquet": {
       "path": "artifacts\\v1_2026-10-29\\planets.parquet",
-      "sha256": "054e0aa50451820fef4043f369890e4f8fd1aa5700b5b7e3cdd703824ca493ff",
-      "size_bytes": 2108985
+      "sha256": "8e3ec9cf07a5105f9b268cb2ce63ecc4e2475821c05174983ab7d430c6a60c64",
+      "size_bytes": 2252404
     }
   },
   "training": {
@@ -100,8 +100,19 @@
   },
   "environment": {
     "python_version": "3.13.5",
-    "platform": "Windows-11-10.0.26200-SP0",
-    "hostname": "souvik"
+    "platform": "Windows"
   },
-  "notes": "Auto-registered by pipeline build on 2026-10-28T20:24:57.958501+00:00 - Selected Logistic Regression (Variant A) (production model)"
+  "notes": "Auto-registered by pipeline build on 2026-10-28T20:24:57.958501+00:00 - Selected Logistic Regression (Variant A) (production model)",
+  "revisions": [
+    {
+      "date": "2026-11-25",
+      "changed": [
+        "artifacts.parquet.sha256",
+        "artifacts.parquet.size_bytes",
+        "environment"
+      ],
+      "previous_parquet_sha256": "054e0aa50451820fef4043f369890e4f8fd1aa5700b5b7e3cdd703824ca493ff",
+      "reason": "planets.parquet was rebuilt in commit 1e3570d (2026-11-02) with unrounded scores and a new rank rule, but this record was not updated. Same planets, features, labels and model. The new file was reproduced column by column: docs/ARTIFACT_PROVENANCE.md. The name of the build machine was removed."
+    }
+  ]
 }

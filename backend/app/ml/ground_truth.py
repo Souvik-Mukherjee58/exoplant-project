@@ -4,9 +4,10 @@ Implements published astronomical ground truth:
 1. Transmission Spectroscopy Metric (TSM) - Kempton et al. (2018), PASP 130:114401.
 2. Emission Spectroscopy Metric (ESM) - Kempton et al. (2018).
 3. NASA / STScI Approved JWST Cycle 1, 2, and 3 Atmospheric Characterization Programs.
-4. Empirical Mass-Radius relations (Chen & Kipping 2017) for missing masses.
+4. Empirical mass-radius relations for missing masses (see estimate_planet_mass for a known defect).
 """
 
+import importlib.util
 from pathlib import Path
 from typing import Any, Optional, Set, Tuple
 
@@ -14,6 +15,42 @@ import numpy as np
 import pandas as pd
 
 from app.config import settings
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+REVIEW_LOG = REPO_ROOT / "reports" / "LABEL_REVIEW.md"
+REVIEW_RULES = REPO_ROOT / "scripts" / "check_data_integrity.py"
+LIVE_REFERENCE = REPO_ROOT / "backend" / "data" / "reference" / "jwst_transmission_targets.csv"
+TEST_FIXTURES = REPO_ROOT / "backend" / "tests" / "fixtures"
+
+
+def approved_in_review_log(df: pd.DataFrame) -> pd.Series:
+    """Which rows have an approval in reports/LABEL_REVIEW.md that no rejection overrides.
+
+    The rules are those of scripts/check_data_integrity.py (one implementation). If the log or the rules are not available,
+    nothing counts as approved.
+    """
+    none = pd.Series(False, index=df.index)
+    if df.empty or "program_id" not in df.columns or not REVIEW_LOG.exists() or not REVIEW_RULES.exists():
+        return none
+    spec = importlib.util.spec_from_file_location("exosignal_review_rules", REVIEW_RULES)
+    if spec is None or spec.loader is None:
+        return none
+    rules = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rules)
+    text = REVIEW_LOG.read_text(encoding="utf-8", errors="replace")
+
+    def program(value: Any) -> str:  # pandas reads '1366' as 1366.0 when another row has no program
+        s = "" if pd.isna(value) else str(value).strip()
+        return s[:-2] if s.endswith(".0") and s[:-2].isdigit() else s
+
+    return pd.Series(
+        [
+            bool(pid := program(p)) and rules.has_approval_row(text, str(name), pid)
+            for name, p in zip(df["planet_name"], df["program_id"], strict=True)
+        ],
+        index=df.index,
+        dtype=bool,
+    )
 
 
 def load_jwst_transmission_targets(reference_path: Optional[str | Path] = None) -> pd.DataFrame:
@@ -66,7 +103,7 @@ def print_unverified_targets_warning(unverified_df: pd.DataFrame) -> None:
         [
             "",
             " Action Required: Review reports/jwst_reference_verification.csv and set",
-            " verified=True in backend/data/reference/jwst_transmission_targets.csv",
+            " record every decision with scripts/review_labels.py (verified=True alone is not enough).",
             border,
             "",
         ]
@@ -78,6 +115,9 @@ def get_verified_jwst_targets(reference_path: Optional[str | Path] = None) -> Se
     """
     Get set of verified JWST transmission targets.
     Excludes non-transiting planets and unverified entries with empty program_id (marked with TODO).
+
+    'verified=True' in the CSV is not enough: the row also needs its approval in the review log. Only a file that the caller
+    names explicitly (and that is not the live file) and the test fixtures are exempt; those labels are not human-verified.
     """
     df = load_jwst_transmission_targets(reference_path)
     if df.empty or "planet_name" not in df.columns:
@@ -100,6 +140,11 @@ def get_verified_jwst_targets(reference_path: Optional[str | Path] = None) -> Se
     is_verified = df["verified"].apply(_parse_bool)
     is_transmission = df["observation_type"].astype(str).str.strip().str.lower() == "transmission"
     verified_mask = is_verified & is_transmission
+    source = Path(reference_path) if reference_path else settings.get_jwst_targets_path()
+    source = source.resolve()
+    exempt = source.is_relative_to(TEST_FIXTURES) or (bool(reference_path) and source != LIVE_REFERENCE.resolve())
+    if not exempt and verified_mask.any():
+        verified_mask &= approved_in_review_log(df)
 
     unverified_df = df[~verified_mask]
     if len(unverified_df) > 0:
@@ -115,7 +160,9 @@ CONFIRMED_JWST_ATMOSPHERIC_TARGETS: Set[str] = get_verified_jwst_targets()
 
 def estimate_planet_mass(radius_earth: Optional[float]) -> float:
     """
-    Estimate planet mass from radius using Chen & Kipping (2017) empirical relations.
+    Estimate planet mass from radius. KNOWN DEFECT: above 1.23 R_earth this is not the Chen & Kipping (2017)
+    relation it was attributed to, and it underestimates giant planets (docs/SCIENTIFIC_LIMITATIONS.md). The formula is
+    unchanged until the model is rebuilt.
     Used when empirical RV or TTV mass measurement is missing in astronomical catalogs.
 
     - Terran regime (< 1.23 R_earth): M = 0.9718 * R^3.58
@@ -130,7 +177,7 @@ def estimate_planet_mass(radius_earth: Optional[float]) -> float:
 
 
 def estimate_planet_mass_vectorized(radius: np.ndarray | pd.Series) -> np.ndarray:
-    """Vectorized Chen & Kipping (2017) empirical mass estimation."""
+    """Vectorized estimate_planet_mass (same known defect)."""
     r = np.asarray(radius, dtype=float)
     result = np.full(r.shape, np.nan, dtype=float)
     valid = np.isfinite(r) & (r > 0)

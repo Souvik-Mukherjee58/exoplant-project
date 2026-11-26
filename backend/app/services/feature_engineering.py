@@ -3,6 +3,8 @@
 import numpy as np
 import pandas as pd
 
+from app.numeric import zero_where_missing
+
 
 class FeatureEngineering:
     """
@@ -228,9 +230,10 @@ class FeatureEngineering:
         w3 = np.where(v3.notna(), 0.25, 0.0)
 
         total_w = w1 + w2 + w3
-        weighted_sum = np.nan_to_num(v1) * w1 + np.nan_to_num(v2) * w2 + np.nan_to_num(v3) * w3
+        weighted_sum = zero_where_missing(v1) * w1 + zero_where_missing(v2) * w2 + zero_where_missing(v3) * w3
 
-        df["observational_accessibility"] = np.where(total_w > 0, weighted_sum / total_w, np.nan)
+        with np.errstate(invalid="ignore"):  # 0 / 0 where nothing is known
+            df["observational_accessibility"] = np.where(total_w > 0, weighted_sum / total_w, np.nan)
         return df
 
     def add_data_quality(self, df: pd.DataFrame) -> pd.DataFrame:

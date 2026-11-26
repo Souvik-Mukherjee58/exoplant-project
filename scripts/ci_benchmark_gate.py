@@ -21,11 +21,15 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from check_data_integrity import has_approval_row  # noqa: E402
+
 MIN_VERIFIED_PLANETS = 15
 MIN_LEADERBOARD_MODELS = 7
 DEFAULT_METRICS = ("ap", "ndcg@25")
 BACKEND = Path(__file__).resolve().parent.parent / "backend"
 LABELS_CSV = BACKEND / "data" / "reference" / "jwst_transmission_targets.csv"
+REVIEW_LOG = BACKEND.parent / "reports" / "LABEL_REVIEW.md"
 
 
 def annotate(level: str, message: str) -> None:
@@ -33,9 +37,11 @@ def annotate(level: str, message: str) -> None:
     print(f"::{level}::{message}")
 
 
-def count_verified_planets(path: Path = LABELS_CSV) -> int:
-    if not path.exists():
+def count_verified_planets(path: Path = LABELS_CSV, review_log: Path = REVIEW_LOG) -> int:
+    """Planets whose row is verified, is transmission and has an approval in the review log that no rejection overrides."""
+    if not path.exists() or not review_log.exists():
         return 0
+    review_text = review_log.read_text(encoding="utf-8", errors="replace")
     with open(path, newline="", encoding="utf-8") as f:
         return len(
             {
@@ -43,6 +49,7 @@ def count_verified_planets(path: Path = LABELS_CSV) -> int:
                 for row in csv.DictReader(f)
                 if str(row.get("verified", "")).strip().lower() in ("true", "1", "yes")
                 and str(row.get("observation_type", "")).strip().lower() == "transmission"
+                and has_approval_row(review_text, row.get("planet_name") or "", row.get("program_id") or "")
             }
         )
 

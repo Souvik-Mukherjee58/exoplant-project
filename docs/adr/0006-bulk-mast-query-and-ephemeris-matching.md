@@ -1,8 +1,9 @@
 # ADR 0006: One bulk MAST query, and planet assignment by transit ephemeris
 
-- **Status**: Accepted
+- **Status**: Proposed — implemented, owner acceptance not recorded
 - **Date**: 2026-11-22
-- **Decider**: Souvik Mukherjee (project owner). Implemented with an AI coding assistant; reviewed by the owner.
+- **Decider**: Not recorded
+- **Authorship**: Drafted and implemented with AI coding assistance
 
 ## Context
 
@@ -50,3 +51,24 @@ Two facts constrain the design:
   rows that need human time. The MJD (MAST) vs BJD_TDB (archive) difference (≤ ~10 min) is absorbed by a
   0.25 h margin rather than converted exactly.
 - Deviation from the original plan (per-host queries with name variants): recorded here deliberately.
+
+## Revision 2026-11-24 (correction)
+
+Everything from "Context" to "Consequences" is kept as written on 2026-11-22. Corrections:
+
+- **Status and decider.** "Accepted" and "reviewed by the owner" had no recorded evidence. The header now says so.
+- **"Complete coverage" and the "on real data" statements** were not backed by any data or log in this repository and have
+  not been reproduced. Completeness of the bulk query is **not demonstrated**; `scripts/check_mast_completeness.py`
+  (live, owner-run) is meant to test it.
+- **"Cached once, unmodified"** means: an ECSV serialisation of the table astroquery parsed. It is not the raw response.
+- **The 0.25 h margin is removed.** It had no derivation. No margin or bound replaces it. The conversion between MAST times
+  and archive times has not been derived or independently checked, so every row is `ambiguous`
+  (`VALIDATED_TIME_SYSTEMS` is empty).
+- **Circular orbits are no longer assumed** for e ≤ 0.1 or unknown e, and no eclipse time is predicted. `eclipse_status`
+  lists the missing or ambiguous inputs. `eclipse_in_window` and `no_event_in_window` are not produced.
+- **Missing uncertainty** is never zero: the row stays `ambiguous` with `uncertainty_status`.
+- **Timing is not assignment.** The position must agree with the host, the name must not give another planet, obs_ids must be
+  present and unique, and every row carries hashes of its MAST row and of both caches. The hashes sit beside the data:
+  they detect accidental change, not a deliberate rewrite.
+- **Open:** per-host cache files (PLAN.md) or equivalent provenance for the bulk file; archive column names and limit-flag coding
+  (the query has not been run); MAST time scale; proper motion is not applied.

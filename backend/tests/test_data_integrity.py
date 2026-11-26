@@ -25,7 +25,8 @@ def test_transmission_targets_valid(tmp_path: Path):
     )
     review_md = tmp_path / "REVIEW.md"
     review_md.write_text(
-        "# SYNTHETIC TEST DATA - Review\n| SYNTHETIC-1 b | 1234 | APPROVED: transmission | ReviewerA | 2026-11-01 |\n",
+        "# SYNTHETIC TEST DATA - Review\n| planet | program_id | decision | checked_by | date |\n|---|---|---|---|---|\n"
+        "| SYNTHETIC-1 b | 1234 | APPROVED: transmission | ReviewerA | 2026-11-01 |\n",
         encoding="utf-8",
     )
 
@@ -137,6 +138,7 @@ def test_approval_of_another_planet_does_not_validate_a_pending_one(tmp_path: Pa
     review_md = tmp_path / "REVIEW.md"
     review_md.write_text(
         "# SYNTHETIC TEST DATA\n"
+        "| planet | program_id | source_url | checked_by | date | decision |\n|---|---|---|---|---|---|\n"
         "| SYNTHETIC-4 b | 1111 | https://stsci.edu/1111 | | | [Pending Review] |\n"
         "| SYNTHETIC-5 b | 2222 | https://stsci.edu/2222 | ReviewerA | 2026-11-20 | APPROVED: transmission |\n",
         encoding="utf-8",
@@ -151,7 +153,8 @@ def test_approval_must_match_program_id(tmp_path: Path):
     ref_csv = _targets(tmp_path, "SYNTHETIC-6 b,3333,https://stsci.edu/3333,transmission,True\n")
     review_md = tmp_path / "REVIEW.md"
     review_md.write_text(
-        "# SYNTHETIC TEST DATA\n| SYNTHETIC-6 b | 9999 | APPROVED: transmission | ReviewerA | 2026-11-20 |\n",
+        "# SYNTHETIC TEST DATA\n| planet | program_id | decision | checked_by | date |\n|---|---|---|---|---|\n"
+        "| SYNTHETIC-6 b | 9999 | APPROVED: transmission | ReviewerA | 2026-11-20 |\n",
         encoding="utf-8",
     )
     fails, _, _ = check_transmission_targets(ref_csv, review_md)
@@ -163,6 +166,7 @@ def test_approval_requires_reviewer_and_date(tmp_path: Path):
     review_md = tmp_path / "REVIEW.md"
     review_md.write_text(
         "# SYNTHETIC TEST DATA\n"
+        "| planet | program_id | source_url | checked_by | date | decision |\n|---|---|---|---|---|---|\n"
         "| SYNTHETIC-7 b | 4444 | https://stsci.edu/4444 | | 2026-11-20 | APPROVED: transmission |\n"
         "| SYNTHETIC-7 b | 4444 | https://stsci.edu/4444 | ReviewerA | | APPROVED: transmission |\n",
         encoding="utf-8",
@@ -186,3 +190,31 @@ def test_approval_row_in_review_cli_format_passes(tmp_path: Path):
     fails, verified_cnt, _ = check_transmission_targets(ref_csv, review_md)
     assert fails == []
     assert verified_cnt == 1
+
+
+HEADER = "planet_name,program_id,source_url,observation_type,verified\n"
+
+
+def test_unusual_verified_spellings_and_missing_column(tmp_path: Path):
+    review = tmp_path / "R.md"
+    review.write_text("# SYNTHETIC TEST DATA\n", encoding="utf-8")
+    ref = tmp_path / "t.csv"
+    for value in ("TRUE", "t", "1.0", "verified", " yes "):
+        ref.write_text(HEADER + f"SYN-1 b,1,https://x,transmission,{value}\n", encoding="utf-8")
+        fails, verified, _ = check_transmission_targets(ref, review)
+        assert verified == 1 and fails, value
+    ref.write_text(HEADER.replace("verified", "Verified") + "SYN-1 b,1,https://x,transmission,True\n", encoding="utf-8")
+    assert "no 'verified' column" in check_transmission_targets(ref, review)[0][0]
+    bom = "verified,planet_name,program_id,source_url,observation_type\nTrue,SYN-1 b,1,https://x,transmission\n"
+    ref.write_text(bom, encoding="utf-8-sig")
+    assert check_transmission_targets(ref, review)[1] == 1
+
+
+def test_cache_files_need_metadata_and_csv_hashes_are_checked(tmp_path: Path):
+    (tmp_path / "a.ecsv").write_text("# SYNTHETIC TEST DATA\n")
+    assert any("without metadata" in f for f in check_mast_cache_files(tmp_path))
+    (tmp_path / "a.ecsv").unlink()
+    (tmp_path / "a.meta.json").write_text("{}")
+    assert any("without a data file" in f for f in check_mast_cache_files(tmp_path))
+    (tmp_path / "a.csv").write_text("SYNTHETIC TEST DATA\n")
+    assert any("SHA-256 mismatch" in f for f in check_mast_cache_files(tmp_path))

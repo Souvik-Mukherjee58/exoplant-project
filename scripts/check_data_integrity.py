@@ -20,6 +20,8 @@ import json
 import re
 import subprocess
 import sys
+import unicodedata
+from datetime import date
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -60,12 +62,15 @@ def check_transmission_targets(ref_csv_path: Path, review_md_path: Path) -> Tupl
 
     verified_rows: List[Dict[str, str]] = []
 
-    with open(ref_csv_path, "r", encoding="utf-8", errors="replace") as f:
+    with open(ref_csv_path, "r", encoding="utf-8-sig", errors="replace") as f:
         reader = csv.DictReader(f)
+        if "verified" not in (reader.fieldnames or []):
+            return [f"{ref_csv_path.name} has no 'verified' column"], 0, 0
         for row in reader:
             total_count += 1
             v_val = str(row.get("verified", "")).strip().lower()
-            if v_val in ("true", "1", "yes", "t"):
+            # anything that is not an explicit 'false' counts as verified, so odd spellings cannot slip through
+            if v_val not in ("false", "0", "no", "f", "n", ""):
                 verified_rows.append(row)
                 verified_count += 1
 
@@ -97,41 +102,128 @@ def check_transmission_targets(ref_csv_path: Path, review_md_path: Path) -> Tupl
     return failures, verified_count, total_count
 
 
-ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+APPROVED_DECISION = "approved: transmission"
+
+
+DASHES = dict.fromkeys(map(ord, "\u2010\u2011\u2012\u2013\u2014\u2212"), "-")
+MARKUP = dict.fromkeys(map(ord, "*`_"))
+
+
+def plain(text: str) -> str:
+    """Cell text without Markdown emphasis and with ordinary digits, letters and hyphens."""
+    return unicodedata.normalize("NFKC", text).translate(DASHES).translate(MARKUP).strip()
+
+
+def same_planet(text: str) -> str:
+    """Planet name for comparisons: letter case, spaces, hyphen style and emphasis do not make another planet."""
+    return "".join(plain(text).casefold().split())
+
+
+def same_program(text: str) -> str:
+    """Program number for comparisons: '01366' and ' 1366 ' are program 1366."""
+    t = plain(text)
+    return (t.lstrip("0") or "0") if t.isascii() and t.isdigit() else t.casefold()
+
+
+def review_lines(review_text: str) -> List[str]:
+    """Lines of the review log. Only a line feed ends a line: str.splitlines() also splits at form feeds, U+2028 and other
+    characters that may be inside a cell, so that the row of a rejection could fall apart and be missed."""
+    return review_text.replace("\r\n", "\n").split("\n")
+
+
+def split_cells(inner: str) -> List[str]:
+    cells = re.split(r"(?<!\\)\|", inner)  # an escaped pipe belongs to its cell
+    return [c.replace("\\|", "|").strip() for c in cells]
 
 
 def table_cells(line: str) -> List[str]:
     """Cells of a markdown table line ('| a | b |' -> ['a', 'b']); [] for non-table lines."""
     s = line.strip()
-    if not (s.startswith("|") and s.endswith("|")) or len(s) < 2:
+    if not (s.startswith("|") and s.endswith("|")) or s.endswith("\\|") or len(s) < 2:
         return []
-    return [c.strip() for c in s[1:-1].split("|")]
+    return split_cells(s[1:-1])
+
+
+def loose_cells(line: str) -> List[str]:
+    """Cells of any line with a pipe, also without the outer pipes. Only for finding rejections."""
+    s = line.strip()
+    if "|" not in s:
+        return []
+    s = s.removeprefix("|")
+    if s.endswith("|") and not s.endswith("\\|"):
+        s = s[:-1]
+    return split_cells(s)
+
+
+REVIEW_COLUMNS = {"planet", "program_id", "checked_by", "date", "decision"}
+
+
+def review_header(cells: List[str]) -> List[str]:
+    """Column names if this row is the header of a review table, else []. A repeated name makes columns ambiguous."""
+    names = [c.casefold() for c in cells]
+    return names if "planet" in names and "decision" in names and len(set(names)) == len(names) else []
+
+
+def has_rejection_row(review_text: str, planet: str, program_id: str) -> bool:
+    """True if any table row rejects this (planet, program_id). REJECTED overrides APPROVED.
+
+    Deliberately lenient (outer pipes, emphasis, wording and column order may differ): a doubtful row counts as a rejection.
+    In a regular row only the decision cell decides, so a note may mention an earlier rejection.
+    """
+    want_planet, want_pid = same_planet(planet), same_program(program_id)
+    columns: List[str] = []
+    for line in review_lines(review_text):
+        cells = loose_cells(line)
+        if not cells:
+            columns = []
+            continue
+        header = review_header(cells)
+        if header:
+            columns = header
+            continue
+        if want_planet not in map(same_planet, cells) or want_pid not in map(same_program, cells):
+            continue
+        # a row with a different number of cells than its header cannot be trusted column by column
+        regular = bool(columns) and len(cells) == len(columns)
+        looked_at = [cells[columns.index("decision")]] if regular else cells
+        if any("rejected" in x.casefold() for x in looked_at):
+            return True
+    return False
 
 
 def has_approval_row(review_text: str, planet: str, program_id: str) -> bool:
-    """True if ONE table line approves this (planet, program_id).
+    """True if ONE table line approves this (planet, program_id) and no line rejects it, whatever the order.
 
-    The line must have the planet as its first cell, a cell equal to program_id, a cell starting with
-    'APPROVED', a cell that is an ISO date and at least one further non-empty cell (the reviewer).
-    Matching is per line on purpose: an approval of another planet elsewhere in the file must never
-    count (an earlier DOTALL regex let any later APPROVED row validate every planet above it).
+    Strict: the line needs both outer pipes, a header with planet, program_id, checked_by, date and decision, and as many cells
+    as that header. The decision must be 'APPROVED: transmission', the date must exist and the reviewer must be named, each in
+    its own column. Matching is per line on purpose: an approval of another planet elsewhere in the file must never count (an
+    earlier DOTALL regex let any later APPROVED row validate every planet above it).
     """
-    want_planet = planet.strip().casefold()
-    want_pid = program_id.strip()
-    for line in review_text.splitlines():
+    want = (same_planet(planet), same_program(program_id))
+    if not all(want) or has_rejection_row(review_text, planet, program_id):
+        return False
+    columns: List[str] = []
+    for line in review_lines(review_text):
         cells = table_cells(line)
-        if len(cells) < 5 or cells[0].casefold() != want_planet:
+        if not cells:
+            columns = []
             continue
-        if want_pid not in cells[1:]:
+        header = review_header(cells)
+        if header:
+            columns = header
             continue
-        decision = [c for c in cells if c.upper().startswith("APPROVED")]
-        dates = [c for c in cells if ISO_DATE.match(c)]
-        if not decision or not dates:
+        if len(cells) != len(columns) or not set(columns) >= REVIEW_COLUMNS:
             continue
-        used = {cells[0], want_pid, decision[0], dates[0]}
-        others = [c for c in cells[1:] if c and c not in used and not c.lower().startswith("http")]
-        if others:
-            return True
+        row = dict(zip(columns, cells, strict=True))
+        if (same_planet(row["planet"]), same_program(row["program_id"])) != want:
+            continue
+        if not row["checked_by"] or row["decision"].casefold() != APPROVED_DECISION:
+            continue
+        try:
+            date.fromisoformat(row["date"])
+        except ValueError:
+            continue
+        return True
     return False
 
 
@@ -140,8 +232,17 @@ def check_mast_cache_files(mast_cache_dir: Path) -> List[str]:
     if not mast_cache_dir.exists():
         return failures
 
+    for data_file in sorted(p for p in mast_cache_dir.rglob("*") if p.is_file()):
+        if data_file.name.endswith(".meta.json"):
+            if not any(data_file.with_name(data_file.name[:-10] + ext).exists() for ext in (".ecsv", ".csv")):
+                failures.append(f"Metadata without a data file: {data_file.name}")
+        elif not data_file.with_name(data_file.stem + ".meta.json").exists():
+            failures.append(f"Cache file without metadata: {data_file.name}")
+
     for meta_file in mast_cache_dir.glob("*.meta.json"):
         ecsv_file = meta_file.with_suffix("").with_suffix(".ecsv")
+        if not ecsv_file.exists():
+            ecsv_file = ecsv_file.with_suffix(".csv")
         if not ecsv_file.exists():
             continue
 
@@ -157,6 +258,9 @@ def check_mast_cache_files(mast_cache_dir: Path) -> List[str]:
         actual_sha = hashlib.sha256(ecsv_file.read_bytes()).hexdigest()
         if not expected_sha or expected_sha.lower() != actual_sha.lower():
             failures.append(f"SHA-256 mismatch for {ecsv_file.name}: expected {expected_sha}, computed {actual_sha}")
+
+        if ecsv_file.suffix != ".ecsv":
+            continue
 
         # Check for round whole-number dates
         ecsv_text = ecsv_file.read_text(encoding="utf-8", errors="replace")

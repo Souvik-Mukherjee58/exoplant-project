@@ -1,8 +1,7 @@
 """Model Registry for versioned ML artifact lifecycle management.
 
 Tracks model lineage, training provenance, evaluation metrics, and deployment status
-across immutable versioned artifact directories. Designed for interview-grade MLOps
-demonstrations without requiring external infrastructure (MLflow, W&B, etc.).
+across versioned artifact directories, without external infrastructure (MLflow, W&B, etc.).
 
 Registry Structure:
     artifacts/
@@ -21,10 +20,12 @@ import datetime
 import hashlib
 import json
 import platform
-from pathlib import Path
+import re
+from pathlib import Path, PureWindowsPath
 from typing import Any, Dict, List, Optional, cast
 
 REGISTRY_FILE = "registry.json"
+VERSION_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 
 
 class ModelRegistry:
@@ -131,8 +132,7 @@ class ModelRegistry:
             "dataset": dataset_stats or {},
             "environment": {
                 "python_version": platform.python_version(),
-                "platform": platform.platform(),
-                "hostname": platform.node(),
+                "platform": platform.system(),  # no host name or exact build: the entry is committed
             },
             "notes": notes,
         }
@@ -205,14 +205,34 @@ class ModelRegistry:
         """Get metadata for a specific registered version.
 
         The central registry.json is a local, git-ignored index. A clean clone (CI, a fresh deploy)
-        only has the committed per-version artifacts/<version>/registry_entry.json, so fall back to it.
+        only has the committed per-version artifacts/<version>/registry_entry.json, which is authoritative.
         """
         entry = self._registry["versions"].get(version)
-        if entry is None:
+        if VERSION_PATTERN.fullmatch(version):
             per_version = self.artifacts_dir / version / "registry_entry.json"
             if per_version.exists():
-                entry = json.loads(per_version.read_text(encoding="utf-8"))
+                committed = json.loads(per_version.read_text(encoding="utf-8"))
+                # A local index can be older than the committed record: only the deployment status is taken from it.
+                entry = {**committed, "status": entry["status"]} if entry and "status" in entry else committed
         return cast(Optional[Dict[str, Any]], entry)
+
+    def _all_entries(self) -> Dict[str, Dict[str, Any]]:
+        """Entries of the local index plus the committed per-version entries it does not list."""
+        entries: Dict[str, Dict[str, Any]] = dict(self._registry["versions"])
+        for per_version in self.artifacts_dir.glob("*/registry_entry.json"):
+            tag = per_version.parent.name
+            entry = self.get_version(tag)
+            if entry is not None:
+                entries.setdefault(tag, entry)
+        return entries
+
+    def _artifact_file(self, version: str, recorded_path: str) -> Path:
+        """The artifact of THIS version directory.
+
+        The recorded path can come from another machine (Windows separators, another working directory),
+        so only its file name is used.
+        """
+        return self.artifacts_dir / version / PureWindowsPath(recorded_path).name
 
     def get_active_version(self) -> Optional[str]:
         """Get the currently active (production) version tag."""
@@ -225,7 +245,7 @@ class ModelRegistry:
         """List all registered versions with summary metadata."""
         versions = []
         for tag, entry in sorted(
-            self._registry["versions"].items(), key=lambda x: x[1].get("registered_at", ""), reverse=True
+            self._all_entries().items(), key=lambda x: x[1].get("registered_at", ""), reverse=True
         ):
             versions.append(
                 {
@@ -245,7 +265,7 @@ class ModelRegistry:
         Validate artifact integrity by recomputing SHA256 checksums
         and comparing against registered values.
         """
-        entry = self._registry["versions"].get(version)
+        entry = self.get_version(version)
         if not entry:
             return {"valid": False, "error": f"Version '{version}' not found in registry"}
 
@@ -254,11 +274,11 @@ class ModelRegistry:
 
         for artifact_key in ["model", "parquet"]:
             artifact_info = entry.get("artifacts", {}).get(artifact_key, {})
-            filepath = Path(artifact_info.get("path", ""))
+            filepath = self._artifact_file(version, artifact_info.get("path") or "missing")
             expected_sha = artifact_info.get("sha256")
 
-            if not filepath.exists():
-                results["checks"][artifact_key] = {"status": "MISSING", "path": str(filepath)}
+            if not filepath.is_file():
+                results["checks"][artifact_key] = {"status": "MISSING", "file": filepath.name}
                 all_valid = False
             elif expected_sha:
                 actual_sha = self._compute_checksum(filepath)
@@ -270,8 +290,9 @@ class ModelRegistry:
                 }
                 if not matched:
                     all_valid = False
-            else:
+            else:  # nothing to compare with: not evidence of integrity
                 results["checks"][artifact_key] = {"status": "NO_CHECKSUM"}
+                all_valid = False
 
         results["valid"] = all_valid
         return results
@@ -281,8 +302,8 @@ class ModelRegistry:
         Compare evaluation metrics between two registered versions.
         Useful for promotion decisions and A/B analysis.
         """
-        entry_a = self._registry["versions"].get(version_a)
-        entry_b = self._registry["versions"].get(version_b)
+        entry_a = self.get_version(version_a)
+        entry_b = self.get_version(version_b)
 
         if not entry_a or not entry_b:
             missing = version_a if not entry_a else version_b

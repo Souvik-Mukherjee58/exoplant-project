@@ -1,5 +1,5 @@
-pl_name,hostname,ra,dec,pl_orbper,pl_orbpererr1,pl_orbpererr2,pl_tranmid,pl_tranmiderr1,pl_tranmiderr2,pl_orbeccen,tran_flag,fixture_note
-SYN-1 b,SYN-1,150.25,-20.5,2.0,0.00001,-0.00001,2459000.6500,0.0001,-0.0001,0.0,1,SYNTHETIC TEST DATA
-SYN-2 b,SYN-2,250.0,-40.0,3.0,0.00001,-0.00001,2459000.7000,0.0001,-0.0001,0.3,1,SYNTHETIC TEST DATA
-SYN-3 b,SYN-3,200.0,30.0,4.0,,,2459000.8000,,,0.0,1,SYNTHETIC TEST DATA
-SYN-4 b,SYN-4,300.0,10.0,5.0,0.00001,-0.00001,2459001.1000,0.0001,-0.0001,0.0,1,SYNTHETIC TEST DATA
+pl_name,hostname,ra,dec,pl_orbper,pl_orbpererr1,pl_orbpererr2,pl_tranmid,pl_tranmiderr1,pl_tranmiderr2,pl_orbeccen,tran_flag,pl_tranmid_systemref,pl_tranmid_reflink,pl_orbper_reflink,pl_orbeccenerr1,pl_orbeccenerr2,pl_orbeccenlim,pl_orbeccen_reflink,pl_orblper,pl_orblpererr1,pl_orblpererr2,pl_orblperlim,pl_orblper_reflink,fixture_note
+SYN-1 b,SYN-1,150.25,-20.5,2.0,0.00001,-0.00001,2459000.6500,0.0001,-0.0001,0.0,1,BJD-TDB,SYNTHETIC ref A,SYNTHETIC ref A,0.01,-0.01,0,SYNTHETIC ref A,90.0,5.0,-5.0,0,SYNTHETIC ref A,SYNTHETIC TEST DATA
+SYN-2 b,SYN-2,250.0,-40.0,3.0,0.00001,-0.00001,2459000.7000,0.0001,-0.0001,0.3,1,BJD-TDB,SYNTHETIC ref A,SYNTHETIC ref A,0.02,-0.02,0,SYNTHETIC ref A,40.0,2.0,-2.0,0,SYNTHETIC ref A,SYNTHETIC TEST DATA
+SYN-3 b,SYN-3,200.0,30.0,4.0,,,2459000.8000,,,0.0,1,BJD-TDB,SYNTHETIC ref A,SYNTHETIC ref A,,,,,,,,,,SYNTHETIC TEST DATA
+SYN-4 b,SYN-4,300.0,10.0,5.0,0.00001,-0.00001,2459001.1000,0.0001,-0.0001,0.0,1,BJD-TDB,SYNTHETIC ref A,SYNTHETIC ref A,,,1,SYNTHETIC ref A,,,,,,SYNTHETIC TEST DATA

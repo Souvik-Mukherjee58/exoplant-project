@@ -5,6 +5,8 @@ from typing import Dict
 import numpy as np
 import pandas as pd
 
+from app.numeric import zero_where_missing
+
 
 class TargetPriorityScorer:
     """
@@ -77,7 +79,11 @@ class TargetPriorityScorer:
         w_rad = np.where(pd.notna(radius_score), 0.20, 0.0)
 
         total_w = w_esi + w_hz + w_rad
-        weighted_sum = np.nan_to_num(esi) * w_esi + np.nan_to_num(hz_score) * w_hz + np.nan_to_num(radius_score) * w_rad
+        weighted_sum = (
+            zero_where_missing(esi) * w_esi
+            + zero_where_missing(hz_score) * w_hz
+            + zero_where_missing(radius_score) * w_rad
+        )
 
         df["planetary_relevance"] = np.where(total_w > 0, weighted_sum / total_w, 0.3)
         return df
@@ -139,10 +145,13 @@ class TargetPriorityScorer:
 
         total_w = w_teff + w_rad + w_met
         weighted_sum = (
-            np.nan_to_num(teff_score) * w_teff + np.nan_to_num(rad_score) * w_rad + np.nan_to_num(met_score) * w_met
+            zero_where_missing(teff_score) * w_teff
+            + zero_where_missing(rad_score) * w_rad
+            + zero_where_missing(met_score) * w_met
         )
 
-        df["stellar_characteristics"] = np.where(total_w > 0, weighted_sum / total_w, 0.5)
+        with np.errstate(invalid="ignore"):  # 0 / 0 where nothing is known
+            df["stellar_characteristics"] = np.where(total_w > 0, weighted_sum / total_w, 0.5)
         return df
 
     def calculate_target_priority(self, df: pd.DataFrame) -> pd.DataFrame:

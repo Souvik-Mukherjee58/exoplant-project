@@ -9,7 +9,7 @@
   "catalog": {
     "total_planets": 6451,
     "parquet_file": "planets.parquet",
-    "parquet_size_bytes": 2108985
+    "parquet_size_bytes": 2252404
   },
   "models": {
     "anomaly_detector": "model.joblib",

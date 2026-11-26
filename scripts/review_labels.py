@@ -7,6 +7,12 @@ reviewer for a decision:
 
     [a]pprove transmission / [e]mission / [p]hase curve / [r]eject / [s]kip / [q]uit
 
+An approval is only possible when `approval_blockers` finds nothing against at least one row of the group: ambiguous rows,
+missing uncertainties, time systems the builder has not validated, missing provenance and earlier rejections all block it.
+A row must also equal the row that the builder computes again from the cached archive responses, so editing the candidate
+file cannot create an approvable row.
+Checkpoint H2 therefore stays blocked while VALIDATED_TIME_SYSTEMS is empty.
+
 Every decision is appended to reports/LABEL_REVIEW.md (reviewer, ISO date, decision, obs_ids) FIRST and
 then upserted into backend/data/reference/jwst_transmission_targets.csv. Only an approval sets
 verified=True and observation_type=transmission. Skips are not recorded, so a skipped group comes back
@@ -22,7 +28,9 @@ import argparse
 import builtins
 import csv
 import datetime as dt
+import io
 import os
+import re
 import sys
 import tempfile
 from dataclasses import dataclass, field
@@ -30,12 +38,21 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from check_data_integrity import has_approval_row, table_cells  # noqa: E402
+import build_jwst_labels_from_mast as builder  # noqa: E402
+from check_data_integrity import (  # noqa: E402
+    has_approval_row,
+    has_rejection_row,
+    review_lines,
+    same_planet,
+    same_program,
+    table_cells,
+)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 STSCI_PROGRAM_URL = "https://www.stsci.edu/jwst/science-execution/program-information?id={pid}"
 MAST_PORTAL_URL = "https://mast.stsci.edu/portal/Mashup/Clients/Mast/Portal.html"
 MIN_APPROVED_PLANETS = 15
+CACHE_DIR = REPO_ROOT / "reports" / ".mast_cache"
 
 REVIEW_SECTION = "## 3. Decisions recorded by scripts/review_labels.py"
 REVIEW_HEADER = "| planet | program_id | source_url | checked_by | date | decision | obs_ids | note |"
@@ -110,11 +127,137 @@ def build_groups(rows: Sequence[Dict[str, str]]) -> List[Group]:
     )
 
 
+PROVENANCE_FIELDS = ("mast_row_sha256", "mast_cache_sha256", "ephemeris_cache_sha256")
+
+
+class ApprovalRefused(ValueError):
+    """The group must not become a verified label."""
+
+
+def approval_blockers(row: Dict[str, str]) -> List[str]:
+    """Every reason why this candidate row cannot support a transmission label. Missing values are reasons too.
+
+    The time system is checked against the builder's own list, so an old, edited or foreign candidate file that merely
+    says 'transit_in_window' is not enough.
+    """
+    reasons: List[str] = []
+    if row.get("match_status") != "transit_in_window":
+        reasons.append(f"match_status is '{row.get('match_status', '')}', not 'transit_in_window'")
+    if row.get("uncertainty_status") != "known":
+        reasons.append(f"uncertainty_status is '{row.get('uncertainty_status', '')}', not 'known'")
+    if row.get("time_system") not in builder.VALIDATED_TIME_SYSTEMS:
+        reasons.append(f"time system '{row.get('time_system', '')}' is not validated")
+    if not row.get("assigned_planet"):
+        reasons.append("no planet is assigned")
+    if not row.get("obs_id"):
+        reasons.append("no obs_id")
+    reasons += [f"{name} is missing" for name in PROVENANCE_FIELDS if not row.get(name)]
+    return reasons
+
+
+RowKey = Tuple[str, str, str]
+
+
+def row_key(row: Dict[str, str]) -> RowKey:
+    return row.get("obs_id", ""), row.get("assigned_planet", ""), row.get("proposal_id", "")
+
+
+def rebuild_from_cache(cache_dir: Path) -> Dict[RowKey, Dict[str, str]]:
+    """Candidate rows computed again from the cached raw archive responses (no network), as the CSV would contain them."""
+    obs, mast_meta = builder.fetch_jwst_timeseries(cache_dir, force_refresh=False, offline=True)
+    ephem, ephem_meta = builder.fetch_ephemerides(cache_dir, force_refresh=False, offline=True)
+    rows, _ = builder.build_candidates(
+        obs,
+        ephem,
+        provenance={"mast": mast_meta["sha256"], "ephemeris": ephem_meta["sha256"]},
+        validated_systems=builder.VALIDATED_TIME_SYSTEMS,
+    )
+    text = io.StringIO()
+    writer = csv.DictWriter(text, fieldnames=builder.CANDIDATE_FIELDS)
+    writer.writeheader()
+    writer.writerows({k: r.get(k, "") for k in builder.CANDIDATE_FIELDS} for r in rows)
+    return {row_key(r): r for r in csv.DictReader(io.StringIO(text.getvalue(), newline=""))}
+
+
+def evidence_problems(rows: Sequence[Dict[str, str]]) -> List[List[str]]:
+    """For each row, why it is not the row that the cached archive data give. Read again for every decision."""
+    try:
+        rebuilt = rebuild_from_cache(CACHE_DIR)
+    except Exception as err:  # no cache, modified cache, unreadable data: nothing can be confirmed
+        return [[f"the cached archive data cannot confirm this row ({type(err).__name__})"] for _ in rows]
+    out: List[List[str]] = []
+    for r in rows:
+        want = rebuilt.get(row_key(r))
+        if want is None:
+            out.append(["the cached archive data do not give this row"])
+            continue
+        # in_eligible_catalog depends on our own catalog and is not evidence
+        wrong = [k for k in builder.CANDIDATE_FIELDS if k != "in_eligible_catalog" and (r.get(k) or "") != want[k]]
+        out.append([f"differs from the cached archive data: {', '.join(wrong)}"] if wrong else [])
+    return out
+
+
+EVIDENCE = re.compile(r"\[evidence ([0-9a-f]{16})\]")
+
+
+def evidence_mark(rows: Sequence[Dict[str, str]]) -> str:
+    """Fingerprint of the archive data behind an approval: the observations and the ephemerides used."""
+    parts = sorted({f"{r['obs_id']} {r['mast_row_sha256']} {r['ephemeris_cache_sha256']}" for r in rows})
+    return f"[evidence {builder.sha256_bytes(chr(10).join(parts).encode('utf-8'))[:16]}]"
+
+
+def obsolete_approval(decision: Dict[str, str], rebuilt: Optional[Dict[RowKey, Dict[str, str]]]) -> Optional[str]:
+    """Why a recorded approval no longer rests on the current archive data; None if it does."""
+    mark = EVIDENCE.search(decision.get("note", ""))
+    if not mark:
+        return "no evidence mark (not recorded by this tool, or edited)"
+    if rebuilt is None:
+        return "the cached archive data are not available, so it cannot be confirmed"
+    wanted = {o.strip() for o in decision.get("obs_ids", "").split(";")}
+    rows = [
+        r
+        for r in rebuilt.values()
+        if r["obs_id"] in wanted
+        and same_planet(r["assigned_planet"]) == same_planet(decision.get("planet", ""))
+        and same_program(r["proposal_id"]) == same_program(decision.get("program_id", ""))
+        and not approval_blockers(r)
+    ]
+    if {r["obs_id"] for r in rows} != wanted or evidence_mark(rows) != mark.group(0):
+        return "the archive data have changed since the approval"
+    return None
+
+
+def row_blockers(rows: Sequence[Dict[str, str]]) -> List[List[str]]:
+    """Reasons against each row. The archive data are only read when a row has no other blocker."""
+    reasons = [approval_blockers(r) for r in rows]
+    if any(not x for x in reasons):
+        reasons = [a + b for a, b in zip(reasons, evidence_problems(rows), strict=True)]
+    return reasons
+
+
+def approvable_rows(group: Group) -> List[Dict[str, str]]:
+    return [r for r, reasons in zip(group.rows, row_blockers(group.rows), strict=True) if not reasons]
+
+
+def why_not_approvable(group: Group, planet: str, review_text: str) -> List[str]:
+    """Reasons that block an approval of this group; empty means that a person may approve it."""
+    reasons: List[str] = []
+    if has_rejection_row(review_text, planet, group.proposal_id):
+        reasons.append("this planet and program were rejected before; REJECTED overrides APPROVED")
+    if planet != group.planet or not planet:
+        reasons.append("the planet is not the one assigned by the builder")
+    if not (group.proposal_id.isascii() and group.proposal_id.isdigit() and not group.proposal_id.startswith("0")):
+        reasons.append(f"program '{group.proposal_id}' is not a plain program number")
+    if not approvable_rows(group):
+        reasons += sorted({reason for blockers in row_blockers(group.rows) for reason in blockers})
+    return reasons
+
+
 def decision_rows(review_text: str) -> List[Dict[str, str]]:
     """Rows of the table written by this script (identified by its exact header)."""
     out: List[Dict[str, str]] = []
     header: Optional[List[str]] = None
-    for line in review_text.splitlines():
+    for line in review_lines(review_text):
         cells = table_cells(line)
         if not cells:
             header = None
@@ -123,15 +266,15 @@ def decision_rows(review_text: str) -> List[Dict[str, str]]:
             header = cells
             continue
         if header and not set(line.strip()) <= set("|:- "):
-            out.append(dict(zip(header, cells)))
+            out.append(dict(zip(header, cells, strict=False)))
     return out
 
 
 def is_decided(group: Group, decided: Sequence[Dict[str, str]]) -> bool:
     for d in decided:
-        if d.get("program_id") != group.proposal_id:
+        if same_program(d.get("program_id", "")) != same_program(group.proposal_id):
             continue
-        if group.planet and d.get("planet") == group.planet:
+        if group.planet and same_planet(d.get("planet", "")) == same_planet(group.planet):
             return True
         if not group.planet and (d.get("planet") == group.host or d.get("planet", "").startswith(group.host + " ")):
             return True
@@ -144,7 +287,7 @@ def is_decided(group: Group, decided: Sequence[Dict[str, str]]) -> bool:
 
 
 def md_escape(text: str) -> str:
-    return str(text).replace("|", "\\|").replace("\n", " ").strip()
+    return " ".join(str(text).split()).replace("|", "\\|")  # every kind of line break becomes a space
 
 
 def append_review_row(review_path: Path, cells: Sequence[str]) -> None:
@@ -228,12 +371,21 @@ def record_decision(
     review_path: Path,
 ) -> None:
     decision, obs_type, verified = DECISIONS[choice]
+    obs_ids = group.obs_ids
+    if verified:  # checked here too, so that no other caller can write a verified label
+        review_text = review_path.read_text(encoding="utf-8") if review_path.exists() else ""
+        blockers = why_not_approvable(group, planet, review_text)
+        if blockers:
+            raise ApprovalRefused("; ".join(blockers))
+        approved = approvable_rows(group)  # never the ambiguous ones
+        obs_ids = sorted({r["obs_id"] for r in approved})
+        note = f"{EVIDENCE.sub('', note)} {evidence_mark(approved)}".strip()
     url = STSCI_PROGRAM_URL.format(pid=group.proposal_id)
     # Review log first, then the label CSV. If the process dies in between, the worst case is a logged
     # decision with no label row (safe), never a verified=True row without its approval.
     append_review_row(
         review_path,
-        [planet, group.proposal_id, url, reviewer, date_iso, decision, "; ".join(group.obs_ids), note],
+        [planet, group.proposal_id, url, reviewer, date_iso, decision, "; ".join(obs_ids), note],
     )
     upsert_target(
         targets_path,
@@ -264,6 +416,46 @@ def mjd_to_iso(value: str) -> str:
     return (dt.datetime(1858, 11, 17) + dt.timedelta(days=mjd)).strftime("%Y-%m-%d %H:%M UTC")
 
 
+def timing_lines(r: Dict[str, str]) -> List[str]:
+    """Uncertainty flags and eclipse inputs of one candidate row (display only, no prediction)."""
+    out: List[str] = []
+    if r.get("uncertainty_status", "").startswith("missing"):
+        out.append(f"     UNVERIFIED TIMING: {r['uncertainty_status']} - the archive gives no usable uncertainty")
+    if r.get("time_system"):
+        out.append(f"     predicted times: archive time system {r['time_system']}, not converted and not validated")
+    out.append(f"     eclipse: {r.get('eclipse_status') or 'unknown'}, no predicted time")
+    if r.get("eclipse_reasons"):
+        out.append(f"       reasons: {r['eclipse_reasons'].replace(';', ', ')}")
+    if r.get("ecc"):
+        out.append(
+            f"       e = {r['ecc']} (+{r.get('ecc_err1') or '?'} {r.get('ecc_err2') or '?'}, limit flag "
+            f"{r.get('ecc_limit_flag') or '?'}), source {r.get('ecc_reference') or '?'}"
+        )
+    if r.get("omega_deg"):
+        try:
+            other = f"{(float(r['omega_deg']) + 180.0) % 360.0:g}"
+        except ValueError:
+            other = "?"
+        out.append(
+            f"       omega = {r['omega_deg']} deg, convention unconfirmed: if it is the star's orbit, the star's omega is "
+            f"{r['omega_deg']}; if it is the planet's orbit, the star's omega is {other}"
+        )
+    return out
+
+
+def format_eclipses(rows: Sequence[Dict[str, str]]) -> str:
+    """Every row whose eclipse is not excluded, for information. No decision is asked for or recorded here."""
+    listed = [r for r in rows if r.get("eclipse_status") != "excluded"]
+    lines = [f"{len(listed)} row(s) whose eclipse is not excluded (information only; no decision is recorded):"]
+    for r in listed:
+        lines.append(
+            f"   - {r.get('assigned_planet') or '(host-level)'}  proposal {r.get('proposal_id', '?')}  "
+            f"{r.get('obs_id', '?')}  start {mjd_to_iso(r.get('t_min', ''))}  note {r.get('match_note') or '-'}"
+        )
+        lines += timing_lines(r)
+    return "\n".join(lines)
+
+
 def format_group(group: Group, index: int, total: int) -> str:
     title = group.rows[0].get("obs_title", "")
     planet = group.planet or f"(host-level: {group.host}; planet not attributable)"
@@ -292,6 +484,7 @@ def format_group(group: Group, index: int, total: int) -> str:
             f"timing sigma {r.get('timing_uncertainty_hours') or '-'} h  note {r.get('match_note') or '-'}  "
             f"hint {r.get('likely_type', '')}"
         )
+        lines += timing_lines(r)
     lines += [
         " Check on the STScI page before approving:",
         "   1. The host star is listed as a target of this program.",
@@ -309,14 +502,6 @@ def ask(prompt: str, valid: Optional[Set[str]] = None, input_fn: Optional[InputF
         if valid is None or answer.lower() in valid:
             return answer.lower() if valid is not None else answer
         print(f"   Please enter one of: {', '.join(sorted(valid))}")
-
-
-def ask_planet(group: Group, input_fn: Optional[InputFn]) -> str:
-    while True:
-        planet = ask(f"   Planet name exactly as in the catalog (e.g. '{group.host} b'): ", input_fn=input_fn)
-        if planet.startswith(group.host + " ") and len(planet) > len(group.host) + 1:
-            return planet
-        print(f"   The planet name must start with '{group.host} '.")
 
 
 def run_review(
@@ -352,12 +537,16 @@ def run_review(
         if choice == "s":
             counts["skipped"] += 1
             continue
-        if group.planet:
-            planet = group.planet
-        elif choice == "a":
-            planet = ask_planet(group, input_fn)
-        else:
-            planet = group.host
+        planet = group.planet or group.host
+        if choice == "a":
+            current = review_path.read_text(encoding="utf-8") if review_path.exists() else ""
+            blockers = why_not_approvable(group, planet, current)
+            if blockers:
+                print("   Not recorded: this group cannot be approved (see docs/SCIENTIFIC_LIMITATIONS.md):")
+                for reason in blockers:
+                    print(f"     - {reason}")
+                counts["skipped"] += 1
+                continue
         cycle = ""
         if choice == "a":
             cycle = ask("   JWST cycle as shown on the STScI program page (blank = unknown): ", input_fn=input_fn)
@@ -404,7 +593,22 @@ def summarize(candidates_path: Path, targets_path: Path, review_path: Path) -> D
                     problems.append(f"{r['planet_name']} / {r.get('program_id')}: verified without an APPROVED row")
                     continue
                 verified_planets.add(r["planet_name"])
-    approved = sum(1 for d in decided if d.get("decision", "").startswith("APPROVED"))
+    for d in decided:
+        if d.get("decision", "").startswith("APPROVED") and has_rejection_row(
+            review_text, d.get("planet", ""), d.get("program_id", "")
+        ):
+            problems.append(f"{d.get('planet')} / {d.get('program_id')}: approved and rejected; REJECTED overrides")
+    approvals = [d for d in decided if d.get("decision", "").startswith("APPROVED")]
+    if approvals:
+        try:
+            rebuilt: Optional[Dict[RowKey, Dict[str, str]]] = rebuild_from_cache(CACHE_DIR)
+        except Exception:  # reported for every approval below
+            rebuilt = None
+        for d in approvals:
+            reason = obsolete_approval(d, rebuilt)
+            if reason:
+                problems.append(f"{d.get('planet')} / {d.get('program_id')}: approval not confirmed: {reason}")
+    approved = len(approvals)
     rejected = sum(1 for d in decided if d.get("decision", "").startswith("REJECTED"))
     return {
         "candidate_groups": len(groups),
@@ -441,10 +645,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p.add_argument("--targets", default="backend/data/reference/jwst_transmission_targets.csv")
     p.add_argument("--review", default="reports/LABEL_REVIEW.md")
     p.add_argument("--summary", action="store_true", help="print counts and exit")
+    p.add_argument(
+        "--eclipses", action="store_true", help="list every row whose eclipse is not excluded (display only) and exit"
+    )
     args = p.parse_args(argv)
     candidates = REPO_ROOT / args.candidates
     targets = REPO_ROOT / args.targets
     review = REPO_ROOT / args.review
+    if args.eclipses:
+        print(format_eclipses(load_candidates(candidates)))
+        return 0
     if args.summary:
         s = summarize(candidates, targets, review)
         print_summary(s)
