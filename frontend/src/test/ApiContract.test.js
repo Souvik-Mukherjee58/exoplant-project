@@ -32,7 +32,11 @@ describe('contract with the backend', () => {
   });
 
   it('checks the formatting in CI, and no CI step hides a failure', () => {
-    const ci = readFileSync(resolve(root, '.github/workflows/ci.yml'), 'utf-8');
+    // A Windows checkout can have CRLF line endings; the patterns below expect LF.
+    const ci = readFileSync(resolve(root, '.github/workflows/ci.yml'), 'utf-8').replace(
+      /\r\n/g,
+      '\n'
+    );
     const job = ci.slice(ci.indexOf('  frontend-build:'), ci.indexOf('  docker-build:'));
     expect(job).toMatch(/- name: Check formatting[^\n]*\n\s+run: npm run format:check\n/);
     expect(job.indexOf('npm ci')).toBeLessThan(job.indexOf('format:check'));
@@ -42,7 +46,9 @@ describe('contract with the backend', () => {
       const text = readFileSync(resolve(workflows, name), 'utf-8');
       expect(text, name).not.toMatch(/continue-on-error: true|\|\| true/);
     }
-    for (const [block] of ci.matchAll(/run: \|\n(?: {10,}[^\n]*\n)+/g)) {
+    const runBlocks = [...ci.matchAll(/run: \|\n(?: {10,}[^\n]*\n)+/g)].map(([block]) => block);
+    expect(runBlocks.length).toBeGreaterThan(0); // otherwise the pipefail check below checks nothing
+    for (const block of runBlocks) {
       if (block.includes('| tee')) expect(block).toContain('set -o pipefail');
     }
     const { scripts } = JSON.parse(readFileSync(resolve(root, 'frontend/package.json'), 'utf-8'));
