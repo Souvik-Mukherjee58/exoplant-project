@@ -1,0 +1,16 @@
+52801bb0dbef319cb419cf849c68287e64f7a52c52300c652b028473406583fa  untracked/.agent/PHASE2-IMPLEMENTATION-PLAN-2026-11-24.md
+45eaae65ae369c331e689bb502d498c18c4f0069e8e5a966bb448a60fce6181e  untracked/.agent/PHASE2-REPAIR-PLAN-2026-11-24.md
+c3c75c05b7daa82d2dd9f79cc3d9fb88cdbe9972c6ed49829e95e41d5cca9e61  untracked/.agent/PHASE2-VERIFICATION-2026-11-23.md
+541acc9bbb6803b1a10cceca71b5b74318b5a232e583b52cced5c6af636947de  untracked/.agent/patches/phase2-repair-2026-11-24/0001-build_jwst_labels_from_mast.py.diff
+770bbb66651007351d49f978f64b6b057aaeeaad324eecfbd08a2af255809fe8  untracked/.agent/patches/phase2-repair-2026-11-24/0002-check_mast_cache-and-completeness.diff
+26769e4b063ceb5ae6872195d2729d993b575768d57f156b730f08411fa3ac3e  untracked/.agent/patches/phase2-repair-2026-11-24/0003-review_labels.py.diff
+ec845737592dbe4f9716326b13400b37babc731e67ee56ac3f4827f99fd8cb59  untracked/.agent/patches/phase2-repair-2026-11-24/0004-tests-and-fixture.diff
+d762f4ab9c456522ba90645987264cac6a68a03fbdbbcb096bcf18f266198dac  untracked/.agent/patches/phase2-repair-2026-11-24/0005-adr-0006.diff
+b0c5071a5b199046ef225cdada78a035057c19ecb6f0494bfcfdf8f852e56faf  untracked/.agent/patches/phase2-repair-r2/A/A-1-build_jwst_labels_from_mast.py.diff
+5c4acf2753685984bb8dd48db2d6fc5850cf815cdf42b166a660fabe848acaf2  untracked/.agent/patches/phase2-repair-r2/A/A-2-test_mast_label_builder.py.diff
+1347aec8015b305404dd8590e9e8313550dfff17e4e55df8aa69c065f289f328  untracked/.agent/patches/phase2-repair-r2/README.md
+4c91ccb909a62093bb61819ded52ab9d760d93a6b3d5c772640e9c172760c5f9  untracked/.agent/proposals/2026-11-24/ADR-0006.proposed-vs-committed.diff
+d60680d88dfe78b5fbbbde852bad7e685440fcf849ed77575a57da13ad71c8ff  untracked/.agent/proposals/2026-11-24/ADR-0006.proposed-vs-working.diff
+b7a3c9ff81f5393e34d68da9a7997fbf1e972ec967900773426ee901c5f1664b  untracked/.agent/proposals/2026-11-24/ECLIPSE-DESIGN.md
+85ece528b3f41883751ecdd5407f700f5662280112562e8be570a007e003c9e7  worktree-tracked/.gitignore
+788a6bb3349cd9d3fb879b5f1e197b2a7473de5d7ca1059700c6dc53874e6640  worktree-tracked/docs/adr/0006-bulk-mast-query-and-ephemeris-matching.md

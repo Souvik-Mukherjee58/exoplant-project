@@ -1,0 +1,20 @@
+PROPOSAL. Not applied. Supersedes r6. To be appended to the END of the COMMITTED .agent/PROGRESS.md (git HEAD). No existing
+line is changed, so the committed lines for Phase 1 and H0 stay unticked. The uncommitted working copy, which ticks Phase 1
+and H0, is kept privately; its added sections are summarised below, not adopted.
+
+---8<--- text to append ---8<---
+
+## Appended 2026-11-24: corrections and state
+
+Words used: Proposed = a diff only. Applied = in the working tree. Committed = in git. Verified = by the evidence named.
+
+- **H0**: not complete. Nothing in git shows that the owner created and removed `.guard-allow`. Needs the owner's explicit confirmation.
+- **Phase 1**: deliverables committed in `46ad858`, with an out-of-phase guard edit. Not marked complete (H0).
+- **Phase G**: reopened. The repair (v3.3) is proposed, tested in scratch clones, not applied; GitHub behaviour untested.
+- **Section 0 / R1-R11**: real but uncommitted work; preserved privately. Not adopted as it is.
+- **Phase 2**: repaired, not complete. Every row is `ambiguous` until a time system is validated. No live query has been run. H1 not done; H2 blocked.
+- **Phase 6 (reopened)**: interface repairs of 2026-11-24 (units, invented values, claims). The heading "not yet observed" became "not labelled as JWST targets", because the label set is incomplete.
+- **API and registry**: defects repaired with regression tests (`backend/tests/test_api_regressions.py`).
+- **ADRs 0001-0007**: corrected by appended revisions. Owner acceptance not recorded.
+- **`0,`**: removed in `ce4fcff`.
+- Evidence: `.agent/REPAIR/`, `.agent/ERRATA.md`, `.agent/archive/`.
