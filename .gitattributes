@@ -2,3 +2,5 @@
 # The small .joblib models are committed as ordinary files, not in Git LFS.
 *.joblib binary
 *.sh text eol=lf
+# Prettier expects LF; without this, 'npm run format:check' fails on Windows with core.autocrlf=true.
+frontend/src/** text eol=lf

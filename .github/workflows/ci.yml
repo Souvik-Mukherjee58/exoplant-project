@@ -10,6 +10,10 @@ env:
   PYTHON_VERSION: '3.11'
   NODE_VERSION: '22' # jsdom 30 / undici 8 / jest-dom 7 require Node >= 22; Node 20 is EOL
 
+# Least privilege: these jobs run project code, so the token can only read and is not kept in the checkout.
+permissions:
+  contents: read
+
 jobs:
   # ──────────────────────────────────────────────────────────────
   # Job 1: Backend Linting, Formatting, Strict Typing & Pytest
@@ -23,6 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          persist-credentials: false
           lfs: true
 
       - name: Set up Python ${{ env.PYTHON_VERSION }}
@@ -48,6 +53,7 @@ jobs:
 
       - name: Run pytest with coverage (fail under 80% on app/ml and app/scoring)
         run: |
+          set -o pipefail # otherwise 'tee' hides a failing test run
           pytest --cov=app.ml --cov=app.scoring --cov-fail-under=80 -v --junitxml=test-results.xml 2>&1 | tee pytest-output.txt
 
       - name: Upload test results
@@ -71,6 +77,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          persist-credentials: false
           lfs: true
 
       - name: Set up Python ${{ env.PYTHON_VERSION }}
@@ -102,6 +109,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          persist-credentials: false
           lfs: true
 
       - name: Set up Python ${{ env.PYTHON_VERSION }}
@@ -141,6 +149,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          persist-credentials: false
           lfs: true
 
       - name: Set up Python ${{ env.PYTHON_VERSION }}
@@ -154,6 +163,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+
+      - name: Verify checksums and reproduce the catalog from its sources
+        run: python ../scripts/reproduce_artifact.py
 
       - name: Validate artifact structure
         run: |
@@ -202,6 +214,8 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
@@ -215,6 +229,9 @@ jobs:
 
       - name: Run ESLint
         run: npm run lint
+
+      - name: Check formatting with Prettier (same version as the commit hook)
+        run: npm run format:check
 
       - name: Run unit & component tests
         run: npm test
@@ -242,6 +259,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          persist-credentials: false
           lfs: true
 
       - name: Set up Docker Buildx

@@ -3,12 +3,7 @@ import React from 'react';
 /**
  * SegmentedTabs - Modular high-tech tab rail to divide dense pages into dedicated views
  */
-const SegmentedTabs = ({
-  tabs = [],
-  activeTab,
-  onChange,
-  className = '',
-}) => {
+const SegmentedTabs = ({ tabs = [], activeTab, onChange, className = '' }) => {
   return (
     <div className={`w-full overflow-x-auto pb-1 ${className}`}>
       <div className="flex items-center space-x-2 p-1.5 rounded-2xl bg-space-void/90 border border-exosignal-cyan/25 backdrop-blur-xl shadow-inner min-w-max">

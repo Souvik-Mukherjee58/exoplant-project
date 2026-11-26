@@ -14,17 +14,17 @@ describe('Methodology Component', () => {
   const mockWeightsResponse = {
     scoring_config: {
       planetary_relevance_weight: 0.35,
-      observational_accessibility_weight: 0.30,
+      observational_accessibility_weight: 0.3,
       stellar_characteristics_weight: 0.15,
-      data_quality_weight: 0.10,
-      anomaly_score_weight: 0.10,
+      data_quality_weight: 0.1,
+      anomaly_score_weight: 0.1,
     },
     weights: {
       planetary_relevance: 0.35,
-      observational_accessibility: 0.30,
+      observational_accessibility: 0.3,
       stellar_characteristics: 0.15,
-      data_quality: 0.10,
-      anomaly_score: 0.10,
+      data_quality: 0.1,
+      anomaly_score: 0.1,
     },
     percentages: {
       planetary_relevance: 35,
@@ -59,4 +59,3 @@ describe('Methodology Component', () => {
     expect(screen.queryByText(/20%/)).not.toBeInTheDocument();
   });
 });
-

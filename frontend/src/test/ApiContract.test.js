@@ -22,6 +22,33 @@ describe('contract with the backend', () => {
     expect(productionMetrics({})).toBeNull();
   });
 
+  it('formats with the same Prettier version as the commit hook', () => {
+    const hooks = readFileSync(resolve(root, '.pre-commit-config.yaml'), 'utf-8');
+    const rev = hooks.match(/mirrors-prettier\s+rev: v([\d.]+)/)[1];
+    const dependencies = JSON.parse(
+      readFileSync(resolve(root, 'frontend/package.json'), 'utf-8')
+    ).devDependencies;
+    expect(dependencies.prettier).toBe(rev);
+  });
+
+  it('checks the formatting in CI, and no CI step hides a failure', () => {
+    const ci = readFileSync(resolve(root, '.github/workflows/ci.yml'), 'utf-8');
+    const job = ci.slice(ci.indexOf('  frontend-build:'), ci.indexOf('  docker-build:'));
+    expect(job).toMatch(/- name: Check formatting[^\n]*\n\s+run: npm run format:check\n/);
+    expect(job.indexOf('npm ci')).toBeLessThan(job.indexOf('format:check'));
+    expect(ci).toContain('run: python ../scripts/reproduce_artifact.py');
+    const workflows = resolve(root, '.github/workflows');
+    for (const name of readdirSync(workflows)) {
+      const text = readFileSync(resolve(workflows, name), 'utf-8');
+      expect(text, name).not.toMatch(/continue-on-error: true|\|\| true/);
+    }
+    for (const [block] of ci.matchAll(/run: \|\n(?: {10,}[^\n]*\n)+/g)) {
+      if (block.includes('| tee')) expect(block).toContain('set -o pipefail');
+    }
+    const { scripts } = JSON.parse(readFileSync(resolve(root, 'frontend/package.json'), 'utf-8'));
+    expect(scripts['format:check']).toBe('prettier --check "src/**/*.{js,jsx,css}"');
+  });
+
   it('reads only latency fields that the API sends', () => {
     const engine = readFileSync(resolve(root, 'backend/app/services/query_engine.py'), 'utf-8');
     const body = engine.slice(engine.indexOf('def benchmark_latency'));

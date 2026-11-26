@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+# Least privilege: these jobs run project code, so the token can only read and is not kept in the checkout.
+permissions:
+  contents: read
+
 jobs:
   data-integrity:
     name: Scientific Ground Truth & Cache Verification
@@ -15,14 +19,14 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
       - name: Run Data Integrity Check
         run: |
           python scripts/check_data_integrity.py
-
