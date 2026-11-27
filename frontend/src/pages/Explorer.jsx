@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import HzBadge from '../components/HzBadge';
 import { usePlanets } from '../hooks/usePlanets';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useFavorites } from '../context/FavoritesContext';
 import { formatRadius, formatPeriod, formatTemperature, formatAnomaly } from '../utils/formatters';
 import SectionDivider from '../components/SectionDivider';
@@ -30,22 +32,27 @@ const Explorer = () => {
   const [shapSearchInput, setShapSearchInput] = useState('');
   const { toggleFavorite, isFavorite } = useFavorites();
 
+  // Typing and dragging send one request when the input settles, not one per keystroke or slider step.
+  const debouncedName = useDebouncedValue(filters.name, 250);
+  const debouncedMin = useDebouncedValue(filters.minPriority, 250);
+  const debouncedMax = useDebouncedValue(filters.maxPriority, 250);
+
   const queryParams = useMemo(() => {
     const params = { limit: MAX_ROWS };
-    if (filters.name && filters.name.trim()) {
-      params.q = filters.name.trim();
+    if (debouncedName && debouncedName.trim()) {
+      params.q = debouncedName.trim();
     }
     if (filters.hzStatus && filters.hzStatus !== 'All') {
       params.hz_status = filters.hzStatus;
     }
-    const minP = Number(filters.minPriority);
-    const maxP = Number(filters.maxPriority);
+    const minP = Number(debouncedMin);
+    const maxP = Number(debouncedMax);
     if (!isNaN(minP) && !isNaN(maxP) && minP <= maxP) {
       params.min_priority = minP;
       params.max_priority = maxP;
     }
     return params;
-  }, [filters.name, filters.hzStatus, filters.minPriority, filters.maxPriority]);
+  }, [debouncedName, filters.hzStatus, debouncedMin, debouncedMax]);
 
   const { planets, loading, error, refetch } = usePlanets(queryParams);
 
@@ -489,15 +496,7 @@ const Explorer = () => {
                     <span className="text-white font-bold text-sm">
                       {activeShapPlanet.planet_name}
                     </span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        activeShapPlanet.hz_status === 'Inside HZ'
-                          ? 'bg-emerald-500/20 text-emerald-400'
-                          : 'bg-slate-700/40 text-slate-300'
-                      }`}
-                    >
-                      {activeShapPlanet.hz_status || 'Insufficient data'}
-                    </span>
+                    <HzBadge status={activeShapPlanet.hz_status} />
                     <span className="text-exosignal-text-muted">
                       Radius: {formatRadius(activeShapPlanet.planet_radius)} • Period:{' '}
                       {formatPeriod(activeShapPlanet.orbital_period)}
@@ -541,17 +540,7 @@ const Explorer = () => {
                 >
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                          planet.hz_status === 'Inside HZ'
-                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                            : planet.hz_status === 'Near HZ'
-                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                              : 'bg-slate-700/30 text-slate-400 border border-slate-600/30'
-                        }`}
-                      >
-                        {planet.hz_status || 'Insufficient data'}
-                      </span>
+                      <HzBadge status={planet.hz_status} className="font-mono" />
                       <button
                         onClick={() => toggleFavorite(planet)}
                         className="text-base transition-transform hover:scale-125"
@@ -705,17 +694,7 @@ const Explorer = () => {
                         {formatTemperature(planet.equilibrium_temperature)}
                       </td>
                       <td className="py-3 px-4">
-                        <span
-                          className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            planet.hz_status === 'Inside HZ'
-                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                              : planet.hz_status === 'Near HZ'
-                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                                : 'bg-slate-700/30 text-slate-400 border border-slate-600/30'
-                          }`}
-                        >
-                          {planet.hz_status || 'Insufficient data'}
-                        </span>
+                        <HzBadge status={planet.hz_status} />
                       </td>
                       <td className="py-3 px-4 text-amber-400 font-semibold">
                         {formatAnomaly(planet.anomaly_score)}

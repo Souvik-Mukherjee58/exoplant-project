@@ -1,109 +1,36 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
 import { planetsApi } from '../services/api';
+import { useApiResource } from './useApiResource';
+
+const EMPTY = [];
 
 export function usePlanets(params = {}) {
-  const [planets, setPlanets] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const mounted = useRef(true);
-
-  const paramsKey = JSON.stringify(params);
-
-  const fetchPlanets = useCallback(async () => {
-    if (!mounted.current) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const queryParams = paramsKey ? JSON.parse(paramsKey) : undefined;
-      const data = await planetsApi.getAll(queryParams);
-      if (mounted.current) {
-        setPlanets(data);
-      }
-    } catch (err) {
-      if (mounted.current) {
-        setError('Failed to load exoplanet data');
-        console.error('Error fetching planets:', err);
-      }
-    } finally {
-      if (mounted.current) {
-        setLoading(false);
-      }
-    }
-  }, [paramsKey]);
-
-  useEffect(() => {
-    mounted.current = true;
-    fetchPlanets();
-    return () => {
-      mounted.current = false;
-    };
-  }, [fetchPlanets]);
-
-  return { planets, loading, error, refetch: fetchPlanets };
+  const key = JSON.stringify(params);
+  const { data, loading, error, refetch } = useApiResource(
+    (signal) => planetsApi.getAll(JSON.parse(key), { signal }),
+    key,
+    { initialData: EMPTY, errorMessage: 'Failed to load exoplanet data' }
+  );
+  return { planets: data, loading, error, refetch };
 }
 
 export function useTopTargets(limit = 10, excludeObserved = true) {
-  const [planets, setPlanets] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const mounted = useRef(true);
-
-  const fetchTopTargets = useCallback(async () => {
-    if (!mounted.current) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await planetsApi.getTopTargets({ limit, exclude_observed: excludeObserved });
-      if (mounted.current) {
-        setPlanets(data);
-      }
-    } catch (err) {
-      if (mounted.current) {
-        setError('Failed to load top targets');
-        console.error('Error fetching top targets:', err);
-      }
-    } finally {
-      if (mounted.current) {
-        setLoading(false);
-      }
-    }
-  }, [limit, excludeObserved]);
-
-  useEffect(() => {
-    mounted.current = true;
-    fetchTopTargets();
-    return () => {
-      mounted.current = false;
-    };
-  }, [fetchTopTargets]);
-
-  return { planets, loading, error, refetch: fetchTopTargets };
+  const { data, loading, error, refetch } = useApiResource(
+    (signal) => planetsApi.getTopTargets({ limit, exclude_observed: excludeObserved }, { signal }),
+    `${limit}|${excludeObserved}`,
+    { initialData: EMPTY, errorMessage: 'Failed to load top targets' }
+  );
+  return { planets: data, loading, error, refetch };
 }
 
 export function usePlanetDetail(planetName) {
-  const [planet, setPlanet] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const fetchPlanet = useCallback(async () => {
-    if (!planetName) return;
-
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await planetsApi.getByName(planetName);
-      setPlanet(data);
-    } catch (err) {
-      setError(`Failed to load planet: ${planetName}`);
-      console.error('Error fetching planet:', err);
-    } finally {
-      setLoading(false);
+  const { data, loading, error, refetch } = useApiResource(
+    (signal) => planetsApi.getByName(planetName, { signal }),
+    planetName ?? '',
+    {
+      initialData: null,
+      errorMessage: `Failed to load planet: ${planetName}`,
+      enabled: Boolean(planetName),
     }
-  }, [planetName]);
-
-  useEffect(() => {
-    fetchPlanet();
-  }, [fetchPlanet]);
-
-  return { planet, loading, error, refetch: fetchPlanet };
+  );
+  return { planet: data, loading, error, refetch };
 }

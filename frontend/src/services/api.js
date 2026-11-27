@@ -27,7 +27,9 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response) {
+    if (axios.isCancel(error)) {
+      // A newer request replaced this one, or the component unmounted: not an API error.
+    } else if (error.response) {
       // Server responded with error status
       console.error(`API Error ${error.response.status}:`, error.response.data);
     } else if (error.request) {
@@ -42,18 +44,18 @@ api.interceptors.response.use(
 );
 
 export const planetsApi = {
-  getAll: async (params = {}) => {
-    const response = await api.get('/planets', { params });
+  getAll: async (params = {}, config = {}) => {
+    const response = await api.get('/planets', { params, ...config });
     return response.data;
   },
 
-  getByName: async (planetName) => {
-    const response = await api.get(`/planets/${encodeURIComponent(planetName)}`);
+  getByName: async (planetName, config = {}) => {
+    const response = await api.get(`/planets/${encodeURIComponent(planetName)}`, config);
     return response.data;
   },
 
-  getTopTargets: async (params = {}) => {
-    const response = await api.get('/top-targets', { params });
+  getTopTargets: async (params = {}, config = {}) => {
+    const response = await api.get('/top-targets', { params, ...config });
     return response.data;
   },
 
@@ -69,13 +71,13 @@ export const planetsApi = {
 };
 
 export const analyticsApi = {
-  getAnalysis: async () => {
-    const response = await api.get('/analysis');
+  getAnalysis: async (config = {}) => {
+    const response = await api.get('/analysis', config);
     return response.data;
   },
 
-  getAnomalyPCA: async () => {
-    const response = await api.get('/anomaly-pca');
+  getAnomalyPCA: async (config = {}) => {
+    const response = await api.get('/anomaly-pca', config);
     return response.data;
   },
 };
@@ -153,15 +155,7 @@ export const registryApi = {
     return response.data;
   },
 
-  promote: async (version, reason = '') => {
-    const response = await api.post(`/models/registry/promote/${version}`, { reason });
-    return response.data;
-  },
-
-  rollback: async (reason = '') => {
-    const response = await api.post('/models/registry/rollback', { reason });
-    return response.data;
-  },
+  // There is no endpoint that changes the live model: promotion is by deployment (see DEPLOY.md).
 };
 
 export const systemApi = {
