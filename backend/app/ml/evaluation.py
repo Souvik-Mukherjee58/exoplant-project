@@ -109,20 +109,16 @@ def pr_auc_score(y_true: np.ndarray, y_score: np.ndarray) -> float:
     return float(average_precision_score(y_bin, y_score))
 
 
-def mean_average_precision(y_true: np.ndarray, y_score: np.ndarray, max_k: Optional[int] = None) -> float:
+def mean_average_precision(y_true: np.ndarray, y_score: np.ndarray) -> float:
     """
-    Compute Average Precision (AP) for a ranking query.
-    Matches sklearn.metrics.average_precision_score on full candidate rankings.
+    Compute Average Precision (AP) of one ranking over the full candidate list.
+
+    AP is the mean, over the relevant items (label > 0), of the precision at each one's rank. It equals
+    sklearn.metrics.average_precision_score. 0.0 when the labels contain a single class.
     """
     y_bin = (np.asarray(y_true) > 0).astype(int)
     if len(np.unique(y_bin)) < 2:
         return 0.0
-
-    if max_k is not None:
-        k = min(max_k, len(y_bin))
-        order = np.argsort(y_score)[::-1][:k]
-        return float(average_precision_score(y_bin[order], y_score[order]))
-
     return float(average_precision_score(y_bin, y_score))
 
 

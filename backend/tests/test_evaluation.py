@@ -378,3 +378,35 @@ def test_recommendations_and_reasons_api():
         assert vt["already_observed_jwst"] is True
         assert vt["oof_ml_rank"] is not None
         assert vt["oof_priority_score"] is not None
+
+
+@pytest.mark.parametrize(
+    "labels, scores, expected",
+    [
+        # Relevant at ranks 1, 2 and 4: (1/1 + 2/2 + 3/4) / 3
+        ([1, 1, 0, 1, 0, 0], [0.9, 0.8, 0.7, 0.6, 0.5, 0.4], (1.0 + 1.0 + 0.75) / 3),
+        # Relevant at ranks 2 and 4: (1/2 + 2/4) / 2
+        ([0, 1, 0, 1], [4.0, 3.0, 2.0, 1.0], 0.5),
+        # The input order does not matter, only the score order: relevant at ranks 1 and 3: (1/1 + 2/3) / 2
+        ([0, 1, 1], [2.0, 3.0, 1.0], (1.0 + 2.0 / 3.0) / 2),
+        # Graded labels count as relevant when > 0: relevant at ranks 1 and 3
+        ([3, 0, 2], [3.0, 2.0, 1.0], (1.0 + 2.0 / 3.0) / 2),
+        # Only the last item is relevant: 1/5
+        ([0, 0, 0, 0, 1], [5.0, 4.0, 3.0, 2.0, 1.0], 0.2),
+    ],
+)
+def test_average_precision_by_hand(labels: list, scores: list, expected: float) -> None:
+    """Calculated by hand from the definition, not by calling sklearn (audit finding F-12)."""
+    assert mean_average_precision(np.array(labels), np.array(scores)) == pytest.approx(expected, abs=1e-12)
+
+
+@pytest.mark.parametrize("labels", [[0, 0, 0], [1, 1, 1], [2, 0.5, 1]])
+def test_average_precision_of_a_single_class_is_zero(labels: list) -> None:
+    assert mean_average_precision(np.array(labels), np.array([3.0, 2.0, 1.0])) == 0.0
+
+
+def test_average_precision_has_no_truncation_parameter() -> None:
+    """The unused max_k parameter computed AP of the top k against only the relevant items inside them."""
+    import inspect
+
+    assert list(inspect.signature(mean_average_precision).parameters) == ["y_true", "y_score"]
