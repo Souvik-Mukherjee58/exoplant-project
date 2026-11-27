@@ -9,19 +9,19 @@ import argparse
 import datetime
 import hashlib
 import json
+import logging
 from pathlib import Path
 from typing import Optional
 
 import numpy as np
 import pandas as pd
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
 
 from app.config import settings
 from app.ml.anomaly_detection import AnomalyDetector
 from app.ml.evaluation import RankingBenchmarkSuite
 from app.ml.ground_truth import generate_ground_truth_labels
 from app.ml.ltr_model import ExoSignalLTRModel
+from app.ml.pca_projection import project_catalog
 from app.scoring.priority_scorer import TargetPriorityScorer
 from app.services.data_cleaning import DataCleaning
 from app.services.feature_engineering import FeatureEngineering
@@ -176,52 +176,7 @@ def build_artifacts(
 
     # 8. Precompute 2D PCA feature projection
     print("[7/8] Precomputing PCA feature projections...")
-    pca_features = [
-        "planet_radius",
-        "planet_mass",
-        "equilibrium_temperature",
-        "orbital_period",
-        "semi_major_axis",
-        "eccentricity",
-        "earth_similarity",
-        "observational_accessibility",
-    ]
-    available_pca_cols = [c for c in pca_features if c in scored_df.columns]
-
-    # Precompute representative PCA points for fluid rendering
-    if len(scored_df) > 500:
-        top_sample = scored_df.head(200)
-        anom_sample = scored_df.nlargest(150, "anomaly_score")
-        rand_sample = scored_df.sample(n=150, random_state=42)
-        pca_sample_df = (
-            pd.concat([top_sample, anom_sample, rand_sample])
-            .drop_duplicates(subset=["planet_name"])
-            .reset_index(drop=True)
-        )
-    else:
-        pca_sample_df = scored_df.reset_index(drop=True)
-
-    X_pca_in = pca_sample_df[available_pca_cols].copy()
-    for col in available_pca_cols:
-        X_pca_in[col] = pd.to_numeric(X_pca_in[col], errors="coerce")
-    X_pca_in = X_pca_in.fillna(X_pca_in.median()).fillna(0.0)
-
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X_pca_in)
-    pca = PCA(n_components=2, random_state=42)
-    X_pca_out = pca.fit_transform(X_scaled)
-
-    precomputed_pca = {
-        "planets": pca_sample_df["planet_name"].tolist(),
-        "pca_x": [round(float(v), 3) for v in X_pca_out[:, 0]],
-        "pca_y": [round(float(v), 3) for v in X_pca_out[:, 1]],
-        "anomaly_score": [round(float(v), 3) for v in pca_sample_df["anomaly_score"]],
-        "priority_score": [round(float(v), 1) for v in pca_sample_df["priority_score"]],
-        "target_priority_score": [round(float(v), 1) for v in pca_sample_df["target_priority_score"]],
-        "hz_status": pca_sample_df["hz_status"].tolist(),
-        "explained_variance": [round(float(v), 4) for v in pca.explained_variance_ratio_],
-        "feature_names": available_pca_cols,
-    }
+    precomputed_pca = project_catalog(scored_df)
     with open(version_dir / "precomputed_pca.json", "w") as f:
         json.dump(precomputed_pca, f, indent=2)
 
@@ -380,8 +335,10 @@ def build_artifacts(
 
         registry.promote(version, reason="Pipeline auto-promotion after successful build")
         print(f"      [OK] Registered and promoted {version} in model registry")
-    except Exception as e:
-        print(f"      [WARNING] Registry registration failed (non-fatal): {e}")
+    except Exception as e:  # noqa: BLE001 - logged with traceback; the build stays valid, the version is not promoted
+        # Non-fatal: the artifact is built. promote() is all or nothing, so the active version is unchanged.
+        logging.getLogger(__name__).warning("Registry registration or promotion failed", exc_info=True)
+        print(f"      [WARNING] Registry step failed; {version} is NOT promoted (active version unchanged): {e}")
 
     print("\nBuild complete!")
     print(f"Artifact Version: {version}")
@@ -446,7 +403,7 @@ def inspect_ltr(version: Optional[str] = None, artifacts_dir: Optional[Path] = N
         )
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="ExoSignal Offline Build Pipeline")
     subparsers = parser.add_subparsers(dest="command", required=True)
 

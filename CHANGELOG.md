@@ -10,6 +10,15 @@ Format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), adh
 ### Added
 
 - `LICENSE`: MIT License, Copyright (c) 2026 Souvik Mukherjee.
+- **API (additive):** `GET /api/v1/explain/{planet_name}` and `GET /api/v1/planets/{planet_name}/explain` (the same endpoint and response) return two new fields. Both are always present in the response and may be `null`; neither is required in the OpenAPI schema, and the existing fields are unchanged (`ml_priority_score` is still the production model's score, rounded to 0.1; only its schema description was reworded to say so).
+  - `served_priority_score` (number or `null`): the score the catalog serves for this planet (its `priority_score`, rounded to 0.01). For planets labelled as JWST targets this is an out-of-fold score; for every other planet it is the production model's score. `null` when the catalog row has no score (no ranked planet today).
+  - `explains_served_score` (boolean or `null`): `true` when the score this explanation breaks down (the production model's, unrounded) is within 0.01 points of the served score, `false` when it is not, and `null` when `served_priority_score` is `null`. With a model that passes the startup consistency check, `false` occurs only for planets labelled as JWST targets, whose out-of-fold score can differ from the production model's.
+  - The comparison endpoint (`GET /api/v1/planets/compare-explain`) does not return these fields.
+  - Compared with the published API (commit `665eec8`), these two fields and the removal of the promote and rollback endpoints (see Removed) are the only changes to the OpenAPI schema.
+
+### Removed
+
+- **Breaking (API):** `POST /api/v1/models/registry/promote/{version}` and `POST /api/v1/models/registry/rollback`, and the `ADMIN_TOKEN` setting that enabled them. The API runs several worker processes, and each loads the active artifact version when it starts, so a promotion over HTTP changed only the process that received it and the workers then served different versions. Both paths now answer `404`; `ADMIN_TOKEN` is ignored. A model now goes live only by deployment: `python -m app.pipeline build` (or `python -m app.pipeline registry rollback`) updates `artifacts/active_version.txt`, the change is reviewed and committed, and the API is redeployed or restarted, after which every worker serves the new version. `GET /api/v1/models/registry/active` reports the pointer (`active_version`), the version the answering process serves (`served_version`) and whether they agree (`serving_matches_pointer`).
 
 ### Fixed
 

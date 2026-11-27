@@ -13,21 +13,45 @@ import os
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, FrozenSet, List, Optional, Tuple, cast
 
 import duckdb
 import numpy as np
 
-from app.config import settings
+from app.config import resolve_artifacts_dir, settings
+from app.ml.pca_projection import project_catalog
 
 logger = logging.getLogger(__name__)
 
+# Every catalog query selects these; an artifact without them cannot be served.
+REQUIRED_COLUMNS = frozenset(
+    {
+        "planet_name",
+        "target_priority_score",
+        "ml_priority_score",
+        "ml_rank",
+        "rank_delta",
+        "planet_radius",
+        "planet_mass",
+        "orbital_period",
+        "equilibrium_temperature",
+        "distance",
+        "hz_status",
+        "anomaly_score",
+        "discovery_method",
+    }
+)
 
-def _rounded_or_none(df: Any, column: str, digits: int) -> List[Optional[float]]:
-    """Column values rounded for display; None (never 0.0) where a value or the whole column is missing."""
-    if column not in df:
-        return [None] * len(df)
-    return [None if v is None or np.isnan(float(v)) else round(float(v), digits) for v in df[column]]
+
+def _fetch_one(cursor: Any, sql: str) -> Tuple[Any, ...]:
+    """Run a query that always returns exactly one row (an aggregate such as COUNT).
+
+    No row means the engine is broken, not that there is no data, so it is an error rather than None.
+    """
+    row = cursor.execute(sql).fetchone()
+    if row is None:
+        raise RuntimeError(f"Query returned no row: {' '.join(sql.split())[:80]}")
+    return cast(Tuple[Any, ...], row)
 
 
 class CatalogQueryEngine:
@@ -41,21 +65,11 @@ class CatalogQueryEngine:
     _lock = threading.Lock()
 
     def __init__(self, artifacts_dir: Optional[str] = None):
-        if artifacts_dir:
-            p = Path(artifacts_dir)
-            if not p.exists() and (Path("backend") / p).exists():
-                p = Path("backend") / p
-            self.artifacts_dir = p
-        else:
-            if Path("artifacts").exists():
-                self.artifacts_dir = Path("artifacts")
-            elif Path("backend/artifacts").exists():
-                self.artifacts_dir = Path("backend/artifacts")
-            else:
-                self.artifacts_dir = Path("artifacts")
+        self.artifacts_dir = resolve_artifacts_dir(artifacts_dir)
         self.active_version: Optional[str] = None
         self.parquet_path: Optional[Path] = None
         self.conn: Optional[duckdb.DuckDBPyConnection] = None
+        self.columns: FrozenSet[str] = frozenset()
         self.manifest: Dict[str, Any] = {}
         self.precomputed_pca: Dict[str, Any] = {}
         self.precomputed_stats: Dict[str, Any] = {}
@@ -127,12 +141,19 @@ class CatalogQueryEngine:
         # Create in-memory table directly from Parquet
         self.conn.execute(f"CREATE TABLE planets AS SELECT * FROM read_parquet('{parquet_posix}');")
 
+        # The artifact's schema is fixed per version: read it once and fail fast if a required column is missing.
+        # Optional columns (absent from older artifacts) are looked up in self.columns by the queries.
+        self.columns = frozenset(row[0] for row in self.conn.execute("DESCRIBE planets").fetchall())
+        missing = sorted(REQUIRED_COLUMNS - self.columns)
+        if missing:
+            raise RuntimeError(f"Artifact {self.active_version} lacks required columns {missing}: rebuild it")
+
         # Secondary indexes for the common filters
         self.conn.execute("CREATE INDEX IF NOT EXISTS idx_ml_priority ON planets(ml_priority_score);")
         self.conn.execute("CREATE INDEX IF NOT EXISTS idx_heuristic_priority ON planets(target_priority_score);")
         self.conn.execute("CREATE INDEX IF NOT EXISTS idx_hz_status ON planets(hz_status);")
 
-        row_count = self.conn.execute("SELECT COUNT(*) FROM planets").fetchone()[0]
+        row_count = _fetch_one(self.conn, "SELECT COUNT(*) FROM planets")[0]
         logger.info(f"DuckDB Query Engine ready. Loaded {row_count} planets into memory.")
 
         # Preload artifact JSONs into memory once at startup
@@ -154,15 +175,15 @@ class CatalogQueryEngine:
                 try:
                     with open(v_file, "r", encoding="utf-8") as f:
                         return json.load(f)
-                except Exception as e:
-                    logger.warning(f"Failed to load {v_file}: {e}")
+                except (OSError, ValueError):  # unreadable or not JSON
+                    logger.warning("Failed to load %s", v_file, exc_info=True)
         root_file = self.artifacts_dir / filename
         if root_file.exists():
             try:
                 with open(root_file, "r", encoding="utf-8") as f:
                     return json.load(f)
-            except Exception as e:
-                logger.warning(f"Failed to load {root_file}: {e}")
+            except (OSError, ValueError):  # unreadable or not JSON
+                logger.warning("Failed to load %s", root_file, exc_info=True)
         return {}
 
     def get_precomputed_pca(self) -> Dict[str, Any]:
@@ -172,62 +193,8 @@ class CatalogQueryEngine:
         return self.precomputed_pca
 
     def _compute_pca_in_memory(self) -> Dict[str, Any]:
-        """Compute PCA projection in memory if artifact is not present."""
-        import pandas as pd
-        from sklearn.decomposition import PCA
-        from sklearn.preprocessing import StandardScaler
-
-        cursor = self.get_cursor()
-        df = cursor.execute("SELECT * FROM planets").df()
-        feature_cols = [
-            "planet_radius",
-            "planet_mass",
-            "equilibrium_temperature",
-            "orbital_period",
-            "semi_major_axis",
-            "eccentricity",
-            "earth_similarity",
-            "observational_accessibility",
-        ]
-        available_cols = [col for col in feature_cols if col in df.columns]
-        if len(available_cols) < 2:
-            return {"error": "Insufficient features for PCA"}
-
-        if len(df) > 500:
-            top_part = df.head(200)
-            anom_col = "anomaly_score" if "anomaly_score" in df.columns else None
-            anom_part = df.nlargest(150, anom_col) if anom_col else df.tail(150)
-            rand_part = df.sample(n=min(150, len(df)), random_state=42)
-            df_sample = (
-                pd.concat([top_part, anom_part, rand_part])
-                .drop_duplicates(subset=["planet_name"])
-                .reset_index(drop=True)
-            )
-        else:
-            df_sample = df.reset_index(drop=True)
-
-        X = df_sample[available_cols].copy()
-        for c in available_cols:
-            X[c] = pd.to_numeric(X[c], errors="coerce")
-        X = X.fillna(X.median()).fillna(0.0)
-
-        scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)
-        pca = PCA(n_components=2, random_state=42)
-        X_pca = pca.fit_transform(X_scaled)
-
-        return {
-            "planets": df_sample["planet_name"].tolist(),
-            "pca_x": [round(float(v), 3) for v in X_pca[:, 0]],
-            "pca_y": [round(float(v), 3) for v in X_pca[:, 1]],
-            "anomaly_score": _rounded_or_none(df_sample, "anomaly_score", 3),
-            "target_priority_score": _rounded_or_none(df_sample, "target_priority_score", 1),
-            "hz_status": (
-                df_sample["hz_status"].tolist() if "hz_status" in df_sample else ["Unknown"] * len(df_sample)
-            ),
-            "explained_variance": [round(float(v), 4) for v in pca.explained_variance_ratio_],
-            "feature_names": available_cols,
-        }
+        """The PCA projection, computed here only when the artifact has no precomputed_pca.json."""
+        return project_catalog(self.get_cursor().execute("SELECT * FROM planets").df())
 
     def get_ltr_info(self) -> Dict[str, Any]:
         """Return LTR model metadata from in-memory manifest."""
@@ -258,8 +225,14 @@ class CatalogQueryEngine:
             return self.benchmark_report
         return {"error": f"Evaluation benchmark report for split '{split}' not available."}
 
+    def count_records(self) -> int:
+        """Number of planets in the served catalog (one query, on a thread-local cursor)."""
+        return int(_fetch_one(self.get_cursor(), "SELECT COUNT(*) FROM planets")[0])
+
     def get_cursor(self) -> duckdb.DuckDBPyConnection:
         """Get a thread-safe connection cursor for concurrent query execution."""
+        if self.conn is None:
+            raise RuntimeError("The query engine is closed")
         return self.conn.cursor()
 
     # ---------------------------------------------------------------------------
@@ -285,12 +258,7 @@ class CatalogQueryEngine:
         Uses parameterized SQL to guarantee SQL-injection safety.
         """
         cursor = self.get_cursor()
-
-        # Check existing columns in table
-        try:
-            table_cols = {c[0] for c in cursor.execute("DESCRIBE planets").fetchall()}
-        except Exception:
-            table_cols = set()
+        table_cols = self.columns
 
         if sort_by == "heuristic":
             sort_order = "target_priority_score DESC"
@@ -303,8 +271,9 @@ class CatalogQueryEngine:
             sort_order = "ml_rank ASC NULLS LAST"  # ineligible planets have a score but no rank
             filter_col = "ml_priority_score"
         elif sort_by == "priority":
-            sort_order = "priority_rank ASC NULLS LAST" if "priority_rank" in table_cols else "priority_score DESC"
             filter_col = "priority_score" if "priority_score" in table_cols else "ml_priority_score"
+            # Older artifacts lack the rank or even the score: sort by what the filter uses.
+            sort_order = "priority_rank ASC NULLS LAST" if "priority_rank" in table_cols else f"{filter_col} DESC"
         else:
             sort_order = "target_priority_score DESC"
             filter_col = "target_priority_score"
@@ -429,7 +398,7 @@ class CatalogQueryEngine:
                 discovery_method{extra_sql}
             FROM planets
             WHERE {where_sql}
-            ORDER BY {sort_order}
+            ORDER BY {sort_order}, planet_name ASC
             LIMIT ? OFFSET ?
         """
 
@@ -474,10 +443,7 @@ class CatalogQueryEngine:
     def get_known_jwst_targets(self) -> List[Dict[str, Any]]:
         """Planets labelled as JWST targets in the artifact (unverified labels), by out-of-fold rank."""
         cursor = self.get_cursor()
-        try:
-            table_cols = {c[0] for c in cursor.execute("DESCRIBE planets").fetchall()}
-        except Exception:
-            table_cols = set()
+        table_cols = self.columns
 
         obs_col = "already_observed_jwst" if "already_observed_jwst" in table_cols else "is_jwst_target"
         order_col = (
@@ -488,7 +454,7 @@ class CatalogQueryEngine:
             SELECT *
             FROM planets
             WHERE ({obs_col} = true)
-            ORDER BY {order_col}
+            ORDER BY {order_col}, planet_name ASC
         """
         df = cursor.execute(sql).df()
         return df.to_dict(orient="records")
@@ -514,7 +480,9 @@ class CatalogQueryEngine:
         cursor = self.get_cursor()
 
         # Score distribution
-        score_stats = cursor.execute("""
+        score_stats = _fetch_one(
+            cursor,
+            """
             SELECT
                 COUNT(*) as total_planets,
                 min(target_priority_score) as min_score,
@@ -527,7 +495,8 @@ class CatalogQueryEngine:
                 avg(anomaly_score) as mean_anomaly,
                 median(anomaly_score) as median_anomaly
             FROM planets
-        """).fetchone()
+        """,
+        )
 
         # Empirical histogram bins (0-20, 20-40, 40-60, 60-80, 80-100)
         hist_rows = cursor.execute("""
@@ -553,7 +522,7 @@ class CatalogQueryEngine:
             SELECT hz_status, COUNT(*) as count
             FROM planets
             GROUP BY hz_status
-            ORDER BY count DESC
+            ORDER BY count DESC, hz_status
         """).fetchall()
         hz_distribution = {r[0]: r[1] for r in hz_rows if r[0] is not None}
 
@@ -563,7 +532,7 @@ class CatalogQueryEngine:
             FROM planets
             WHERE discovery_method IS NOT NULL
             GROUP BY discovery_method
-            ORDER BY count DESC
+            ORDER BY count DESC, discovery_method
         """).fetchall()
         discovery_distribution = {r[0]: r[1] for r in disc_rows}
 
@@ -596,7 +565,7 @@ class CatalogQueryEngine:
         cursor = self.get_cursor()
         latencies_ms = []
 
-        query_templates = [
+        query_templates: List[Tuple[str, List[Any]]] = [
             ("SELECT * FROM planets WHERE ml_priority_score >= 80 LIMIT 20", []),
             ("SELECT * FROM planets WHERE lower(planet_name) LIKE '%toi%' LIMIT 20", []),
             ("SELECT * FROM planets WHERE hz_status = 'Inside HZ' ORDER BY ml_priority_score DESC LIMIT 20", []),
@@ -616,7 +585,7 @@ class CatalogQueryEngine:
         return {
             "iterations": iterations,
             "engine": f"DuckDB {duckdb.__version__} (In-Memory Vectorized)",
-            "catalog_records": cursor.execute("SELECT COUNT(*) FROM planets").fetchone()[0],
+            "catalog_records": _fetch_one(cursor, "SELECT COUNT(*) FROM planets")[0],
             "min_ms": round(float(latencies_ms[0]), 3),
             "max_ms": round(float(latencies_ms[-1]), 3),
             "mean_ms": round(float(np.mean(latencies_ms)), 3),

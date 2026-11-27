@@ -10,9 +10,9 @@ from fastapi.testclient import TestClient
 from app import observability
 from app.api import v1
 from app.main import app
+from app.ml import pca_projection
 from app.ml.model_registry import ModelRegistry
 from app.observability import ETagCacheMiddleware
-from app.services import query_engine
 from app.services.query_engine import CatalogQueryEngine
 
 
@@ -320,5 +320,5 @@ def test_out_of_range_heuristic_scores_are_still_rejected():
 
 def test_pca_has_no_invented_zeros():
     frame = pd.DataFrame({"anomaly_score": [0.0, float("nan"), 0.1234]})
-    assert query_engine._rounded_or_none(frame, "anomaly_score", 3) == [0.0, None, 0.123]
-    assert query_engine._rounded_or_none(frame, "target_priority_score", 1) == [None, None, None]
+    assert pca_projection.rounded_or_none(frame, "anomaly_score", 3) == [0.0, None, 0.123]
+    assert pca_projection.rounded_or_none(frame, "target_priority_score", 1) == [None, None, None]

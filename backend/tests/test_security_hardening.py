@@ -1,4 +1,4 @@
-"""Security/reliability hardening: rate-limit client identity, memory bound, CORS validation, admin gate.
+"""Security/reliability hardening: rate-limit client identity, memory bound, CORS validation, no model changes over HTTP.
 
 SYNTHETIC TEST DATA: IP addresses are from documentation ranges (RFC 5737); no real clients.
 """
@@ -7,8 +7,9 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.config import settings
+from app.config import Settings
 from app.main import app, validate_cors_origins
+from app.ml.model_registry import ModelRegistry
 from app.observability import RateLimitingMiddleware
 
 
@@ -73,19 +74,21 @@ def test_cors_preflight_allows_only_read_methods():
     assert "POST" not in resp.headers.get("access-control-allow-methods", "")
 
 
-def test_promote_and_rollback_are_disabled_without_admin_token(monkeypatch):
-    monkeypatch.setattr(settings, "ADMIN_TOKEN", None)
-    client = TestClient(app)
-    assert client.post("/api/v1/models/registry/promote/v1_2026-10-29").status_code == 403
-    assert client.post("/api/v1/models/registry/rollback").status_code == 403
+def test_no_http_request_can_change_the_live_model(monkeypatch):
+    """The admin gate is gone with the endpoints: no request, not even with the old admin token, changes the model.
 
-
-def test_promote_requires_matching_bearer_token(monkeypatch):
-    monkeypatch.setattr(settings, "ADMIN_TOKEN", "synthetic-test-token")
+    Promotion is by deployment (audit finding F-02; the registry itself is tested in test_model_promotion.py).
+    """
+    monkeypatch.setenv("ADMIN_TOKEN", "synthetic-test-token")
+    calls = []
+    monkeypatch.setattr(ModelRegistry, "promote", lambda self, *a, **k: calls.append(("promote", a)))
+    monkeypatch.setattr(ModelRegistry, "rollback", lambda self, *a, **k: calls.append(("rollback", a)))
     client = TestClient(app)
-    assert client.post("/api/v1/models/registry/promote/does-not-exist").status_code == 401
-    bad = {"Authorization": "Bearer wrong"}
-    assert client.post("/api/v1/models/registry/promote/does-not-exist", headers=bad).status_code == 401
-    good = {"Authorization": "Bearer synthetic-test-token"}
-    # A non-existent version: authorised, but nothing changes on disk (404 from the registry)
-    assert client.post("/api/v1/models/registry/promote/does-not-exist", headers=good).status_code == 404
+    old_admin = {"Authorization": "Bearer synthetic-test-token"}
+
+    assert not hasattr(Settings(), "ADMIN_TOKEN")  # the setting that once enabled the endpoints is not read
+    assert client.post("/api/v1/models/registry/promote/v1_2026-10-29").status_code in (404, 405)
+    assert client.post("/api/v1/models/registry/rollback").status_code in (404, 405)
+    assert client.post("/api/v1/models/registry/promote/v1_2026-10-29", headers=old_admin).status_code in (404, 405)
+    assert client.post("/api/v1/models/registry/rollback", headers=old_admin).status_code in (404, 405)
+    assert calls == []  # no request reached the registry's promote or rollback

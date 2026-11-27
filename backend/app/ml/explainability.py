@@ -8,15 +8,45 @@ Implements Linear SHAP (Lundberg & Lee 2017, NeurIPS) for local model interpreta
 5. Human-readable physical labels and unit formatting.
 """
 
+import logging
 import os
+import threading
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Hashable, List, Mapping, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 
-from app.config import settings
-from app.ml.ltr_model import ExoSignalLTRModel
+from app.config import resolve_artifacts_dir, settings
+from app.ml.ltr_model import RAW_INPUT_COLUMNS, ExoSignalLTRModel
+from app.ml.model_consistency import ExplanationsUnavailable, ModelConsistencyReport, check_model_matches_catalog
+
+logger = logging.getLogger(__name__)
+
+# Features of one planet: scaled model input (shape (1, n)) and raw values. Bounded: the catalog has ~6,000 planets.
+FeatureCacheEntry = Tuple[np.ndarray, Dict[str, Any]]
+FEATURE_CACHE_MAX_ENTRIES = 20_000
+
+
+def _feature_key(record: Mapping[str, Any]) -> Optional[Tuple[Hashable, ...]]:
+    """The planet's values of every column the feature extractor reads; None if a value is not hashable.
+
+    Missing values (None, NaN, pd.NA) all become None: the extractor treats them alike.
+    """
+    key = tuple(None if _is_missing(record.get(c)) else record.get(c) for c in RAW_INPUT_COLUMNS)
+    try:
+        hash(key)
+    except TypeError:
+        return None
+    return key
+
+
+def _is_missing(value: Any) -> bool:
+    try:
+        return bool(pd.isna(value))
+    except (TypeError, ValueError):  # a list or array: not a catalog value
+        return False
+
 
 FEATURE_METADATA: Dict[str, Dict[str, str]] = {
     "transmission_snr_proxy": {
@@ -193,8 +223,8 @@ def format_plain_english_reason(feature: str, display_name: str, raw_value: str)
     if template_fn:
         try:
             return template_fn(raw_value)
-        except Exception:
-            pass
+        except (ValueError, TypeError, IndexError, KeyError):
+            pass  # an unexpected value format: use the generic sentence below
     return f"{display_name} ({raw_value}) is a primary positive driver for spectroscopic follow-up"
 
 
@@ -214,27 +244,81 @@ class SHAPExplainer:
     """
 
     _instance: Optional["SHAPExplainer"] = None
+    _lock = threading.Lock()
+    # Set when the startup check found that the model is not the served one: explanations stay off until restart.
+    _unavailable: Optional[ExplanationsUnavailable] = None
 
     def __init__(self, model_path: Optional[str] = None):
         self.model_path = model_path or self._resolve_model_path()
+        self.consistency: Optional[ModelConsistencyReport] = None
         self.ltr_model = ExoSignalLTRModel.load(str(self.model_path))
         self.feature_names = self.ltr_model.feature_extractor.feature_names
+        # Features per planet input: the per-row pandas path costs ~9 ms, a lookup ~0.01 ms.
+        self._feature_cache: Dict[Tuple[Hashable, ...], FeatureCacheEntry] = {}
+
+    def _features(self, planet: Mapping[str, Any]) -> FeatureCacheEntry:
+        """Scaled and raw features of one planet, computed by LTRFeatureExtractor (cached by input values)."""
+        key = _feature_key(planet)
+        entry = self._feature_cache.get(key) if key is not None else None
+        if entry is None:
+            entry = self.ltr_model.feature_extractor.transform_single(planet)
+            if key is not None and len(self._feature_cache) < FEATURE_CACHE_MAX_ENTRIES:
+                self._feature_cache[key] = entry
+        return entry[0].copy(), dict(entry[1])  # callers get their own copies
+
+    def warm_feature_cache(self, catalog: pd.DataFrame) -> int:
+        """Compute the features of a whole catalog in one vectorized transform; returns the number cached."""
+        X, raw = self.ltr_model.feature_extractor.transform_with_raw(catalog)
+        raw_records = raw.to_dict(orient="records")
+        for i, record in enumerate(catalog.to_dict(orient="records")):
+            key = _feature_key(record)
+            if key is None or len(self._feature_cache) >= FEATURE_CACHE_MAX_ENTRIES:
+                continue
+            self._feature_cache[key] = (X[i : i + 1], raw_records[i])
+        return len(self._feature_cache)
 
     @classmethod
     def get_instance(cls, model_path: Optional[str] = None) -> "SHAPExplainer":
-        """Singleton accessor for the SHAP explainer."""
-        if cls._instance is None:
-            cls._instance = cls(model_path=model_path)
-        return cls._instance
+        """The explainer of the served model, verified once against the served catalog.
+
+        Raises ExplanationsUnavailable when the model is not, or cannot be shown to be, the model that scored
+        the catalog. Nothing is kept in that case: no explainer instance, no cached features; the failure is
+        remembered, so every later call reports it without loading the model again.
+        """
+        with cls._lock:
+            if cls._instance is None:
+                if cls._unavailable is not None:
+                    raise cls._unavailable
+                explainer = cls(model_path=model_path)
+                explainer._verify_against_served_catalog()  # raises before the instance is published
+                cls._instance = explainer
+            return cls._instance
+
+    def _verify_against_served_catalog(self) -> None:
+        from app.services.query_engine import CatalogQueryEngine
+
+        engine = CatalogQueryEngine.get_instance()
+        catalog = engine.get_cursor().execute("SELECT * FROM planets").df()
+        report = check_model_matches_catalog(
+            self.ltr_model, Path(self.model_path), engine.active_version, Path(engine.artifacts_dir), catalog
+        )
+        if not report.ok:
+            error = ExplanationsUnavailable(report)
+            type(self)._unavailable = error
+            logger.error("Explanations disabled: %s (details: %s)", error, report.as_dict())
+            raise error
+        self.consistency = report
+        logger.info(
+            "Explanation model verified against artifact %s: SHA-256 %s..., %d planets, max difference %.2g points",
+            report.served_version,
+            report.model_sha256[:12],
+            report.planets_compared,
+            report.max_score_difference,
+        )
 
     def _resolve_model_path(self) -> Path:
         """Find the active versioned LTR model artifact."""
-        if Path("artifacts").exists():
-            artifacts_dir = Path("artifacts")
-        elif Path("backend/artifacts").exists():
-            artifacts_dir = Path("backend/artifacts")
-        else:
-            artifacts_dir = Path("artifacts")
+        artifacts_dir = resolve_artifacts_dir()
 
         # 1. Check explicit environment variable or settings override first
         env_version = os.environ.get("ARTIFACT_VERSION") or getattr(settings, "ARTIFACT_VERSION", None)
@@ -305,16 +389,9 @@ class SHAPExplainer:
         else:
             planet_dict = dict(planet_data)
 
-        if hasattr(self.ltr_model.feature_extractor, "extract_single"):
-            X, raw_features = self.ltr_model.feature_extractor.extract_single(planet_dict)
-        else:
-            df_row = pd.DataFrame([planet_dict])
-            raw_feats_df = self.ltr_model.feature_extractor._extract_raw_features(df_row)
-            imputed_feats = raw_feats_df.fillna(self.ltr_model.feature_extractor.median_impute_values).fillna(0.0)
-            if getattr(self.ltr_model.feature_extractor, "use_log_transform", False):
-                imputed_feats = self.ltr_model.feature_extractor._apply_log_transform(imputed_feats)
-            X = self.ltr_model.feature_extractor.scaler.transform(imputed_feats)
-            raw_features = raw_feats_df.iloc[0].to_dict()
+        # The same feature path as the served scores (LTRFeatureExtractor.transform), so the explanation
+        # explains exactly the model input and prediction behind the catalog's score.
+        X, raw_features = self._features(planet_dict)
 
         if getattr(self.ltr_model, "model_type", "lightgbm") == "logistic":
             # Exact Linear SHAP: phi_i = w_i * (x_i - mean_i)
@@ -386,9 +463,17 @@ class SHAPExplainer:
             for d in positive_drivers[:3]
         ]
 
+        # The catalog serves an out-of-fold score for planets labelled as JWST targets; the explanation can only
+        # explain the production model, so it says whether the two scores are the same.
+        served = pd.to_numeric(pd.Series([planet_dict.get("priority_score")]), errors="coerce").iloc[0]
+        served_score = None if pd.isna(served) else float(served)
+        exact_score = 100.0 / (1.0 + np.exp(-predicted_margin))
+
         return {
             "planet_name": planet_data.get("planet_name", "Target"),
             "ml_priority_score": calibrated_score,
+            "served_priority_score": None if served_score is None else round(served_score, 2),
+            "explains_served_score": None if served_score is None else bool(abs(exact_score - served_score) < 0.01),
             "base_score": base_score,
             "score_delta_from_base": round(calibrated_score - base_score, 1),
             "citation": "Lundberg & Lee (2017, NeurIPS)",

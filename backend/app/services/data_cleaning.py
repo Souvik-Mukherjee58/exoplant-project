@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 class DataCleaning:
     """Cleans, standardizes, validates, and transforms exoplanet archive data."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Mappings from NASA TAP pscomppars columns to standardized application schema
         self.tap_column_names = {
             "pl_name": "planet_name",

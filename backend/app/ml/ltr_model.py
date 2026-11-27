@@ -15,7 +15,7 @@ Redesigned Model Architecture:
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Union, cast
 
 import joblib
 import lightgbm as lgb
@@ -59,6 +59,25 @@ PROXY_LEAKAGE_FEATURES: List[str] = ["transmission_snr_proxy", "scale_height_pro
 
 FEATURE_NAMES_VARIANT_A: List[str] = LTR_FEATURE_NAMES
 FEATURE_NAMES_VARIANT_B: List[str] = [f for f in LTR_FEATURE_NAMES if f not in PROXY_LEAKAGE_FEATURES]
+
+# Every catalog column LTRFeatureExtractor._extract_raw_features reads: its output depends on these and nothing else
+# (tests/test_explanation_consistency.py checks it), so they identify a planet's features, e.g. for a cache.
+RAW_INPUT_COLUMNS: Tuple[str, ...] = (
+    "planet_radius",
+    "planet_mass",
+    "orbital_period",
+    "semi_major_axis",
+    "equilibrium_temperature",
+    "stellar_effective_temperature",
+    "stellar_radius",
+    "stellar_mass",
+    "stellar_metallicity",
+    "distance",
+    "j_magnitude",
+    "k_magnitude",
+    "earth_similarity",
+    "hz_status",
+)
 
 
 class LTRFeatureExtractor:
@@ -177,6 +196,13 @@ class LTRFeatureExtractor:
                 df_out[col] = np.log1p(np.maximum(0.0, df_out[col]))
         return df_out
 
+    def _scale(self, raw_feats: pd.DataFrame) -> np.ndarray:
+        """Impute with the training medians, log-transform and standardize: the one path for training, scoring and SHAP."""
+        imputed_feats = raw_feats.fillna(self.median_impute_values).fillna(0.0)
+        if self.use_log_transform:
+            imputed_feats = self._apply_log_transform(imputed_feats)
+        return cast(np.ndarray, self.scaler.transform(imputed_feats))
+
     def fit(self, df: pd.DataFrame) -> "LTRFeatureExtractor":
         """Fit scaler and store median imputation and background baseline on training set."""
         raw_feats = self._extract_raw_features(df)[self.feature_names]
@@ -194,129 +220,23 @@ class LTRFeatureExtractor:
 
     def transform(self, df: pd.DataFrame) -> np.ndarray:
         """Transform dataframe into scaled feature matrix."""
+        return self.transform_with_raw(df)[0]
+
+    def transform_with_raw(self, df: pd.DataFrame) -> Tuple[np.ndarray, pd.DataFrame]:
+        """Scaled feature matrix and the raw features (before imputation; NaN where the archive has no value)."""
         if not self.is_fitted:
             raise ValueError("LTRFeatureExtractor must be fitted before transform")
-
         raw_feats = self._extract_raw_features(df)[self.feature_names]
-        imputed_feats = raw_feats.fillna(self.median_impute_values).fillna(0.0)
-        if self.use_log_transform:
-            imputed_feats = self._apply_log_transform(imputed_feats)
+        return self._scale(raw_feats), raw_feats
 
-        scaled = self.scaler.transform(imputed_feats)
-        return scaled
+    def transform_single(self, record: Mapping[str, Any]) -> Tuple[np.ndarray, Dict[str, Any]]:
+        """Scaled features (shape (1, n)) and raw features of one planet.
 
-    def extract_single(self, d: Dict[str, Any]) -> Tuple[np.ndarray, Dict[str, float]]:
-        """Fast scalar feature extraction for single instance (sub-millisecond latency)."""
-
-        def _get_float(key: str, default: float = float(np.nan)) -> float:
-            v = d.get(key)
-            if v is None or v == "" or (isinstance(v, float) and np.isnan(v)):
-                return default
-            try:
-                return float(v)
-            except (ValueError, TypeError):
-                return default
-
-        r_p = _get_float("planet_radius")
-        m_p = _get_float("planet_mass")
-        if np.isnan(m_p) or m_p <= 0:
-            m_p = estimate_planet_mass(r_p) if not np.isnan(r_p) else np.nan
-
-        p_orb = _get_float("orbital_period")
-        sma = _get_float("semi_major_axis")
-        teq = _get_float("equilibrium_temperature")
-        t_star = _get_float("stellar_effective_temperature")
-        r_star = _get_float("stellar_radius")
-        m_star = _get_float("stellar_mass")
-        fe_h = _get_float("stellar_metallicity")
-        dist = _get_float("distance")
-        jmag = _get_float("j_magnitude")
-        kmag = _get_float("k_magnitude")
-        esi = _get_float("earth_similarity", 0.3)
-
-        if np.isnan(jmag) and not np.isnan(kmag):
-            jmag = kmag + 0.8
-        if np.isnan(kmag) and not np.isnan(jmag):
-            kmag = jmag - 0.8
-
-        rp_rs_ratio = (r_p * 0.009168) / max(0.01, r_star) if not np.isnan(r_p) and not np.isnan(r_star) else np.nan
-        transit_depth_proxy = min(0.1, max(0.0, rp_rs_ratio**2)) if not np.isnan(rp_rs_ratio) else np.nan
-
-        safe_mass = max(0.01, m_p) if not np.isnan(m_p) else np.nan
-        safe_radius = max(0.01, r_p) if not np.isnan(r_p) else np.nan
-        bulk_density_proxy = (
-            min(100.0, max(0.01, safe_mass / (safe_radius**3)))
-            if not np.isnan(safe_mass) and not np.isnan(safe_radius)
-            else np.nan
-        )
-
-        scale_height_proxy = (
-            (teq * (safe_radius**2)) / safe_mass
-            if not np.isnan(teq) and not np.isnan(safe_radius) and not np.isnan(safe_mass)
-            else np.nan
-        )
-        insolation_flux = (
-            (r_star**2) * ((t_star / 5778.0) ** 4) / max(1e-4, sma**2)
-            if not np.isnan(r_star) and not np.isnan(t_star) and not np.isnan(sma)
-            else np.nan
-        )
-        distance_attenuation = 1.0 / (1.0 + dist / 100.0) if not np.isnan(dist) else np.nan
-        infrared_brightness_proxy = 10.0 ** (-kmag / 5.0) if not np.isnan(kmag) else np.nan
-        transmission_snr_proxy = (
-            (transit_depth_proxy * scale_height_proxy * distance_attenuation) / (10.0 ** (0.2 * jmag))
-            if not np.isnan(transit_depth_proxy)
-            and not np.isnan(scale_height_proxy)
-            and not np.isnan(distance_attenuation)
-            and not np.isnan(jmag)
-            else np.nan
-        )
-
-        hz_status = str(d.get("hz_status", "Insufficient data"))
-        hz_mapping = {
-            "Inside HZ": 1.0,
-            "Optimistic HZ": 0.85,
-            "Near HZ": 0.65,
-            "Outside HZ": 0.15,
-            "Insufficient data": 0.30,
-        }
-        hz_prox = _get_float("hz_proximity_score", hz_mapping.get(hz_status, 0.30))
-
-        raw_map = {
-            "planet_radius": r_p,
-            "planet_mass": m_p,
-            "orbital_period": p_orb,
-            "semi_major_axis": sma,
-            "equilibrium_temperature": teq,
-            "stellar_effective_temperature": t_star,
-            "stellar_radius": r_star,
-            "stellar_mass": m_star,
-            "stellar_metallicity": fe_h,
-            "distance": dist,
-            "j_magnitude": jmag,
-            "k_magnitude": kmag,
-            "earth_similarity": esi if not np.isnan(esi) else 0.3,
-            "transit_depth_proxy": transit_depth_proxy,
-            "scale_height_proxy": scale_height_proxy,
-            "transmission_snr_proxy": transmission_snr_proxy,
-            "bulk_density_proxy": bulk_density_proxy,
-            "insolation_flux": insolation_flux,
-            "distance_attenuation": distance_attenuation,
-            "infrared_brightness_proxy": infrared_brightness_proxy,
-            "hz_proximity_score": hz_prox,
-        }
-
-        # Vectorize and scale
-        vec = np.zeros(len(self.feature_names), dtype=np.float64)
-        for i, feat in enumerate(self.feature_names):
-            val = raw_map.get(feat, np.nan)
-            if np.isnan(val):
-                val = self.median_impute_values.get(feat, 0.0)
-            if self.use_log_transform and feat not in ("stellar_metallicity", "hz_proximity_score"):
-                val = np.log1p(max(0.0, val))
-            vec[i] = val
-
-        scaled_vec = (vec - self.scaler.mean_) / self.scaler.scale_
-        return scaled_vec.reshape(1, -1), raw_map
+        Uses exactly the code of transform(), so an explanation explains the score that the catalog serves.
+        Raw features are the values before imputation (NaN where the archive has no value).
+        """
+        X, raw_feats = self.transform_with_raw(pd.DataFrame([dict(record)]))
+        return X, raw_feats.iloc[0].to_dict()
 
 
 def compute_reliability_calibration(y_true: np.ndarray, y_score: np.ndarray, n_bins: int = 5) -> Dict[str, Any]:
@@ -739,12 +659,9 @@ class ExoSignalLTRModel:
     def load(cls, filepath: Optional[Union[str, Path]] = None) -> "ExoSignalLTRModel":
         """Deserialize model bundle from disk. Defaults to active version if filepath is omitted."""
         if filepath is None:
-            if Path("artifacts").exists():
-                art_dir = Path("artifacts")
-            elif Path("backend/artifacts").exists():
-                art_dir = Path("backend/artifacts")
-            else:
-                art_dir = Path("artifacts")
+            from app.config import resolve_artifacts_dir
+
+            art_dir = resolve_artifacts_dir()
 
             active_file = art_dir / "active_version.txt"
             if active_file.exists():

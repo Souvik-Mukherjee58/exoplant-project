@@ -1,6 +1,7 @@
 """Data ingestion service for Exoplanet data."""
 
 import json
+import logging
 from pathlib import Path
 from typing import Optional
 
@@ -9,11 +10,13 @@ import requests
 
 from app.config import settings
 
+logger = logging.getLogger(__name__)
+
 
 class DataIngestion:
     """Handles downloading and loading exoplanet data."""
 
-    def __init__(self, raw_dir: str = None, processed_dir: str = None):
+    def __init__(self, raw_dir: Optional[str] = None, processed_dir: Optional[str] = None):
         self.raw_dir = Path(raw_dir or settings.RAW_DATA_DIR)
         self.processed_dir = Path(processed_dir or settings.PROCESSED_DATA_DIR)
         self.exoplanet_archive_url = (
@@ -36,8 +39,8 @@ class DataIngestion:
             if df.empty:
                 raise ValueError(f"CSV file is empty: {file_path}")
             return df
-        except Exception as e:
-            raise ValueError(f"Failed to load CSV from {file_path}: {str(e)}")
+        except (OSError, ValueError, pd.errors.ParserError) as e:  # EmptyDataError is a ValueError
+            raise ValueError(f"Failed to load CSV from {file_path}: {e}") from e
 
     def download_from_api(self, timeout: int = 60) -> Optional[pd.DataFrame]:
         """
@@ -83,11 +86,14 @@ class DataIngestion:
             print(f"Downloaded and cached {len(df)} planets to {cache_path} (SHA256: {sha256[:12]}...)")
             return df
 
-        except Exception as e:
-            print(f"Failed to download from NASA Exoplanet Archive TAP: {str(e)}")
+        except (requests.RequestException, ValueError, pd.errors.ParserError, OSError):
+            # The caller falls back to local files; network, parsing and cache-write failures are expected here.
+            logger.warning("Failed to download from NASA Exoplanet Archive TAP", exc_info=True)
             return None
 
-    def load_or_download_exoplanet_archive(self, use_api: bool = False, api_timeout: int = None) -> pd.DataFrame:
+    def load_or_download_exoplanet_archive(
+        self, use_api: bool = False, api_timeout: Optional[int] = None
+    ) -> pd.DataFrame:
         """
         Load exoplanet data with fallback strategy.
 

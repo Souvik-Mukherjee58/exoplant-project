@@ -2,14 +2,14 @@
 
 import ast
 import logging
-import secrets
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 import pandas as pd
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from app.ml.explainability import SHAPExplainer
+from app.ml.model_consistency import ExplanationsUnavailable
 from app.scoring.priority_scorer import TargetPriorityScorer
 from app.services.query_engine import CatalogQueryEngine
 
@@ -166,7 +166,15 @@ class MathematicalInvariants(BaseModel):
 
 class PlanetExplanationResponse(BaseModel):
     planet_name: str = Field(..., description="Exoplanet identifier")
-    ml_priority_score: float = Field(..., ge=0.0, le=100.0, description="Predicted ML priority score")
+    ml_priority_score: float = Field(
+        ..., ge=0.0, le=100.0, description="Score of the production model that is explained"
+    )
+    served_priority_score: Optional[float] = Field(
+        None, description="Score the catalog serves for this planet (out-of-fold for planets labelled as JWST targets)"
+    )
+    explains_served_score: Optional[bool] = Field(
+        None, description="True when the explained score is the served score (within 0.01)"
+    )
     base_score: float = Field(..., ge=0.0, le=100.0, description="Expected baseline score across population")
     score_delta_from_base: float = Field(..., description="Net score shift attributed to planetary features")
     citation: str = Field("Lundberg & Lee (2017, NeurIPS)", description="Theoretical attribution framework citation")
@@ -214,13 +222,14 @@ class MethodologyWeightsResponse(BaseModel):
     total_weight: float = Field(..., description="Sum of category weights")
 
 
-def _clean_val(val):
+def _clean_val(val: Any) -> Any:
+    """The value, or None when pandas reports it missing (NaN, NaT, None)."""
     if pd.isna(val):
         return None
     return val
 
 
-def _first_number(row, *keys: str) -> Optional[float]:
+def _first_number(row: Mapping[str, Any], *keys: str) -> Optional[float]:
     """First present, non-NaN value. (`a or b` is wrong here: NaN is truthy and 0.0 is falsy.)"""
     for key in keys:
         val = row.get(key)
@@ -229,13 +238,13 @@ def _first_number(row, *keys: str) -> Optional[float]:
     return None
 
 
-def _is_ranked(row) -> bool:
+def _is_ranked(row: Mapping[str, Any]) -> bool:
     """False only for planets the artifact marks as ineligible for transmission spectroscopy."""
     eligible = row.get("eligible_for_transmission")
     return eligible is None or pd.isna(eligible) or bool(eligible)
 
 
-def _require_ranked(row, label: str) -> None:
+def _require_ranked(row: Mapping[str, Any], label: str) -> None:
     if not _is_ranked(row):
         reason = _clean_val(row.get("exclusion_reason")) or "ineligible"
         raise HTTPException(
@@ -244,18 +253,19 @@ def _require_ranked(row, label: str) -> None:
         )
 
 
-def _true_flag(row, *keys: str) -> bool:
+def _true_flag(row: Mapping[str, Any], *keys: str) -> bool:
     """True when any of the flags is set; missing and NaN count as not set."""
     return any(pd.notna(row.get(k)) and bool(row.get(k)) for k in keys)
 
 
-def _parse_components(val):
+def _parse_components(val: object) -> Dict[str, Any]:
     if isinstance(val, dict):
         return val
     if isinstance(val, str):
         try:
-            return ast.literal_eval(val)
-        except Exception:
+            parsed = ast.literal_eval(val)
+            return parsed if isinstance(parsed, dict) else {}
+        except (ValueError, SyntaxError):  # not a Python literal: no components
             return {}
     return {}
 
@@ -355,7 +365,7 @@ def get_planets(
         pattern="^(priority|heuristic|ml)$",
         description="Ranking scheme: 'priority' (default, Supervised ML) or 'heuristic'",
     ),
-):
+) -> List[PlanetResponse]:
     """
     Get list of exoplanets with priority scores via vectorized DuckDB engine.
 
@@ -367,137 +377,93 @@ def get_planets(
             detail=f"min_priority ({min_priority}) cannot be greater than max_priority ({max_priority})",
         )
 
-    try:
-        engine = CatalogQueryEngine.get_instance()
-        planets = engine.query_planets(
-            limit=limit,
-            offset=offset,
-            min_priority=min_priority,
-            max_priority=max_priority,
-            q=q,
-            hz_status=hz_status,
-            sort_by=sort_by,
-        )
-        return [_row_to_planet_response(p) for p in planets]
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in get_planets via DuckDB: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred while querying planet catalog",
-        )
+    engine = CatalogQueryEngine.get_instance()
+    planets = engine.query_planets(
+        limit=limit,
+        offset=offset,
+        min_priority=min_priority,
+        max_priority=max_priority,
+        q=q,
+        hz_status=hz_status,
+        sort_by=sort_by,
+    )
+    return [_row_to_planet_response(p) for p in planets]
 
 
 @router.get("/planets/compare-explain", response_model=ComparisonExplanationResponse)
 def get_comparison_explanation(
     planet_a: str = Query(..., description="Target name of first exoplanet"),
     planet_b: str = Query(..., description="Target name of second exoplanet"),
-):
+) -> Dict[str, Any]:
     """
     Differential Linear SHAP attribution: explains ranking differentials between two planets.
 
     Computes Delta_phi_i = phi_i(A) - phi_i(B) to isolate why Planet A ranks higher or lower than Planet B.
     """
-    try:
-        if not planet_a.strip() or not planet_b.strip():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Both planet_a and planet_b must be non-empty strings"
-            )
-
-        engine = CatalogQueryEngine.get_instance()
-        row_a = engine.get_planet_by_name(planet_a)
-        if row_a is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=f"Planet A '{planet_a}' not found in catalog"
-            )
-
-        row_b = engine.get_planet_by_name(planet_b)
-        if row_b is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=f"Planet B '{planet_b}' not found in catalog"
-            )
-
-        _require_ranked(row_a, f"Planet A '{planet_a}'")
-        _require_ranked(row_b, f"Planet B '{planet_b}'")
-        explainer = SHAPExplainer.get_instance()
-        return explainer.explain_comparison(row_a, row_b)
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error comparing planets {planet_a} vs {planet_b}: {str(e)}", exc_info=True)
+    if not planet_a.strip() or not planet_b.strip():
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to compute differential Linear SHAP explanation",
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Both planet_a and planet_b must be non-empty strings"
         )
+
+    engine = CatalogQueryEngine.get_instance()
+    row_a = engine.get_planet_by_name(planet_a)
+    if row_a is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Planet A '{planet_a}' not found in catalog")
+
+    row_b = engine.get_planet_by_name(planet_b)
+    if row_b is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Planet B '{planet_b}' not found in catalog")
+
+    _require_ranked(row_a, f"Planet A '{planet_a}'")
+    _require_ranked(row_b, f"Planet B '{planet_b}'")
+    explainer = SHAPExplainer.get_instance()
+    return explainer.explain_comparison(row_a, row_b)
 
 
 @router.get("/planets/{planet_name}/explain", response_model=PlanetExplanationResponse)
 @router.get("/explain/{planet_name}", response_model=PlanetExplanationResponse)
-def get_planet_explanation(planet_name: str):
+def get_planet_explanation(planet_name: str) -> Dict[str, Any]:
     """
     Compute exact Linear SHAP feature attribution waterfall and ranking drivers for an individual exoplanet.
 
     Guarantees the mathematical conservation invariant: sum(phi_i) + base_margin = predicted_margin.
     """
-    try:
-        if not planet_name or len(planet_name.strip()) == 0:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Planet name cannot be empty")
+    if not planet_name or len(planet_name.strip()) == 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Planet name cannot be empty")
 
-        engine = CatalogQueryEngine.get_instance()
-        planet_row = engine.get_planet_by_name(planet_name)
+    engine = CatalogQueryEngine.get_instance()
+    planet_row = engine.get_planet_by_name(planet_name)
 
-        if planet_row is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=f"Planet '{planet_name}' not found in the dataset"
-            )
-
-        _require_ranked(planet_row, f"Planet '{planet_name}'")
-        explainer = SHAPExplainer.get_instance()
-        return explainer.explain_planet(planet_row)
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error explaining planet {planet_name}: {str(e)}", exc_info=True)
+    if planet_row is None:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to compute Linear SHAP explanation",
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Planet '{planet_name}' not found in the dataset"
         )
+
+    _require_ranked(planet_row, f"Planet '{planet_name}'")
+    explainer = SHAPExplainer.get_instance()
+    return explainer.explain_planet(planet_row)
 
 
 @router.get("/planets/{planet_name}", response_model=PlanetDetailResponse)
-def get_planet_details(planet_name: str):
+def get_planet_details(planet_name: str) -> PlanetDetailResponse:
     """
     Get detailed information for a specific exoplanet via DuckDB.
 
     Case-insensitive exact match (hyphens and spaces are interchangeable).
     """
-    try:
-        if not planet_name or len(planet_name.strip()) == 0:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Planet name cannot be empty")
+    if not planet_name or len(planet_name.strip()) == 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Planet name cannot be empty")
 
-        engine = CatalogQueryEngine.get_instance()
-        planet_row = engine.get_planet_by_name(planet_name)
+    engine = CatalogQueryEngine.get_instance()
+    planet_row = engine.get_planet_by_name(planet_name)
 
-        if planet_row is None:
-            logger.warning(f"Planet not found: {planet_name}")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=f"Planet '{planet_name}' not found in the dataset"
-            )
-
-        return _row_to_planet_detail_response(planet_row)
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in get_planet_details for {planet_name}: {str(e)}", exc_info=True)
+    if planet_row is None:
+        logger.warning(f"Planet not found: {planet_name}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred while retrieving planet details",
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Planet '{planet_name}' not found in the dataset"
         )
+
+    return _row_to_planet_detail_response(planet_row)
 
 
 @router.get("/top-targets", response_model=List[PlanetResponse])
@@ -512,43 +478,28 @@ def get_top_targets(
     exclude_observed: bool = Query(
         True, description="Exclude planets already in an approved JWST transmission program"
     ),
-):
+) -> List[PlanetResponse]:
     """
     Get top priority targets via vectorized DuckDB index scan.
     Main ranking defaults to unobserved candidate targets only.
     """
-    try:
-        engine = CatalogQueryEngine.get_instance()
-        targets = engine.get_top_targets(
-            limit=limit, min_priority=min_priority, sort_by=sort_by, exclude_observed=exclude_observed
-        )
-        return [_row_to_planet_response(t) for t in targets]
-
-    except Exception as e:
-        logger.error(f"Error in get_top_targets: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred while retrieving top targets",
-        )
+    engine = CatalogQueryEngine.get_instance()
+    targets = engine.get_top_targets(
+        limit=limit, min_priority=min_priority, sort_by=sort_by, exclude_observed=exclude_observed
+    )
+    return [_row_to_planet_response(t) for t in targets]
 
 
 @router.get("/validation/known-targets", response_model=List[PlanetResponse])
-def get_known_jwst_targets():
+def get_known_jwst_targets() -> List[PlanetResponse]:
     """
     Validation view: where planets labelled as JWST targets land, using out-of-fold ranks only.
 
     The labels are not human-verified (see reports/LABEL_REVIEW.md).
     """
-    try:
-        engine = CatalogQueryEngine.get_instance()
-        planets = engine.get_known_jwst_targets()
-        return [_row_to_planet_response(p) for p in planets]
-    except Exception as e:
-        logger.error(f"Error in get_known_jwst_targets: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred while retrieving known targets",
-        )
+    engine = CatalogQueryEngine.get_instance()
+    planets = engine.get_known_jwst_targets()
+    return [_row_to_planet_response(p) for p in planets]
 
 
 @router.get("/recommendations", response_model=List[RecommendationResponse])
@@ -559,203 +510,154 @@ def get_recommendations(
     ),
     limit: int = Query(25, ge=1, le=100, description="Maximum recommendations to return"),
     offset: int = Query(0, ge=0, le=1_000_000, description="Offset for pagination"),
-):
+) -> List[RecommendationResponse]:
     """
     Get prioritized target recommendations with plain-English scientific justifications.
     Filters out already-observed JWST targets by default and supports size class sub-filtering.
     """
+    engine = CatalogQueryEngine.get_instance()
+    planets = engine.get_recommendations(
+        limit=limit, offset=offset, exclude_observed=exclude_observed, size_class=size_class
+    )
     try:
-        engine = CatalogQueryEngine.get_instance()
-        planets = engine.get_recommendations(
-            limit=limit, offset=offset, exclude_observed=exclude_observed, size_class=size_class
-        )
-        explainer = SHAPExplainer.get_instance()
-        from app.ml.explainability import get_plain_english_reasons_for_planet
+        explainer: Optional[SHAPExplainer] = SHAPExplainer.get_instance()
+    except ExplanationsUnavailable:
+        explainer = None  # logged at startup; the recommendations are served without reasons
+    from app.ml.explainability import get_plain_english_reasons_for_planet
 
-        results = []
-        for idx, p in enumerate(planets):
-            known_rank = _first_number(p, "unobserved_rank", "priority_rank")
-            rank = int(known_rank) if known_rank is not None else offset + idx + 1
-            score = _first_number(p, "priority_score", "ml_priority_score")
-            if score is None:
-                continue  # eligible planets always have one; never substitute another quantity
-            tsm_val = _clean_val(p.get("tsm"))
-            thresh_val = _clean_val(p.get("tsm_threshold"))
-            ratio = round(tsm_val / thresh_val, 2) if (tsm_val is not None and thresh_val and thresh_val > 0) else None
+    results = []
+    for idx, p in enumerate(planets):
+        known_rank = _first_number(p, "unobserved_rank", "priority_rank")
+        rank = int(known_rank) if known_rank is not None else offset + idx + 1
+        score = _first_number(p, "priority_score", "ml_priority_score")
+        if score is None:
+            continue  # eligible planets always have one; never substitute another quantity
+        tsm_val = _clean_val(p.get("tsm"))
+        thresh_val = _clean_val(p.get("tsm_threshold"))
+        ratio = round(tsm_val / thresh_val, 2) if (tsm_val is not None and thresh_val and thresh_val > 0) else None
 
-            # Generate top 3 SHAP drivers in plain English
-            try:
-                reasons = get_plain_english_reasons_for_planet(p, explainer=explainer)
-            except Exception:
-                reasons = []
+        # Generate top 3 SHAP drivers in plain English
+        try:
+            reasons = [] if explainer is None else get_plain_english_reasons_for_planet(p, explainer=explainer)
+        except Exception:  # noqa: BLE001 - logged with traceback; the recommendation is still served
+            # The recommendation stays useful without its reasons, but the failure must be visible.
+            logger.warning("Explanation reasons unavailable for %s", p.get("planet_name"), exc_info=True)
+            reasons = []
 
-            results.append(
-                RecommendationResponse(
-                    planet_name=p.get("planet_name", ""),
-                    rank=rank,
-                    priority_score=score,
-                    percentile_rank=_clean_val(p.get("percentile_rank")),
-                    percentile_rank_string=_clean_val(p.get("percentile_rank_string")),
-                    tsm=tsm_val,
-                    tsm_threshold=thresh_val,
-                    kempton_size_class=_clean_val(p.get("kempton_size_class")),
-                    tsm_ratio=ratio,
-                    already_observed_jwst=_true_flag(p, "already_observed_jwst", "is_jwst_target"),
-                    reasons=reasons,
-                    planet_radius=_clean_val(p.get("planet_radius")),
-                    planet_mass=_clean_val(p.get("planet_mass")),
-                    orbital_period=_clean_val(p.get("orbital_period")),
-                    equilibrium_temperature=_clean_val(p.get("equilibrium_temperature")),
-                    distance=_clean_val(p.get("distance")),
-                    stellar_name=_clean_val(p.get("stellar_name")),
-                    hz_status=_clean_val(p.get("hz_status")),
-                    anomaly_score=_clean_val(p.get("anomaly_score")),
-                    is_jwst_target=_true_flag(p, "already_observed_jwst", "is_jwst_target"),
-                    mass_is_estimated=_mass_is_estimated(pd.Series(p)),
-                )
+        results.append(
+            RecommendationResponse(
+                planet_name=p.get("planet_name", ""),
+                rank=rank,
+                priority_score=score,
+                percentile_rank=_clean_val(p.get("percentile_rank")),
+                percentile_rank_string=_clean_val(p.get("percentile_rank_string")),
+                tsm=tsm_val,
+                tsm_threshold=thresh_val,
+                kempton_size_class=_clean_val(p.get("kempton_size_class")),
+                tsm_ratio=ratio,
+                already_observed_jwst=_true_flag(p, "already_observed_jwst", "is_jwst_target"),
+                reasons=reasons,
+                planet_radius=_clean_val(p.get("planet_radius")),
+                planet_mass=_clean_val(p.get("planet_mass")),
+                orbital_period=_clean_val(p.get("orbital_period")),
+                equilibrium_temperature=_clean_val(p.get("equilibrium_temperature")),
+                distance=_clean_val(p.get("distance")),
+                stellar_name=_clean_val(p.get("stellar_name")),
+                hz_status=_clean_val(p.get("hz_status")),
+                anomaly_score=_clean_val(p.get("anomaly_score")),
+                is_jwst_target=_true_flag(p, "already_observed_jwst", "is_jwst_target"),
+                mass_is_estimated=_mass_is_estimated(pd.Series(p)),
             )
-        return results
-
-    except Exception as e:
-        logger.error(f"Error in get_recommendations: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred while generating recommendations",
         )
+    return results
 
 
 @router.get("/analysis", response_model=AnalysisResponse)
-def get_analysis():
+def get_analysis() -> AnalysisResponse:
     """
     Get overall analysis and population statistics via vectorized DuckDB aggregations.
     """
-    try:
-        engine = CatalogQueryEngine.get_instance()
-        stats = engine.get_analysis_stats()
-        top_targets = engine.get_top_targets(limit=10)
+    engine = CatalogQueryEngine.get_instance()
+    stats = engine.get_analysis_stats()
+    top_targets = engine.get_top_targets(limit=10)
 
-        return AnalysisResponse(
-            total_planets=stats["total_planets"],
-            score_distribution=stats["score_distribution"],
-            priority_histogram=stats.get("priority_histogram"),
-            top_targets=[_row_to_planet_response(t) for t in top_targets],
-            anomaly_distribution=stats["anomaly_distribution"],
-            hz_distribution=stats["hz_distribution"],
-            discovery_method_distribution=stats["discovery_method_distribution"],
-        )
-
-    except Exception as e:
-        logger.error(f"Error in get_analysis via DuckDB: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred while calculating analysis statistics",
-        )
+    return AnalysisResponse(
+        total_planets=stats["total_planets"],
+        score_distribution=stats["score_distribution"],
+        priority_histogram=stats.get("priority_histogram"),
+        top_targets=[_row_to_planet_response(t) for t in top_targets],
+        anomaly_distribution=stats["anomaly_distribution"],
+        hz_distribution=stats["hz_distribution"],
+        discovery_method_distribution=stats["discovery_method_distribution"],
+    )
 
 
-@router.get("/system/latency-benchmark")
+@router.get("/system/latency-benchmark", response_model=None)
 def get_latency_benchmark(
     iterations: int = Query(100, ge=10, le=500, description="Number of query iterations to benchmark"),
-):
+) -> Dict[str, Any]:
     """
     Time a fixed set of in-process DuckDB queries, one after another (not an HTTP or concurrency measurement).
     """
-    try:
-        engine = CatalogQueryEngine.get_instance()
-        return engine.benchmark_latency(iterations=iterations)
-    except Exception as e:
-        logger.error(f"Error executing latency benchmark: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to benchmark query latency"
-        )
+    engine = CatalogQueryEngine.get_instance()
+    return engine.benchmark_latency(iterations=iterations)
 
 
 @router.get("/anomaly-pca", response_model=AnomalyPCAResponse)
-def get_anomaly_pca():
+def get_anomaly_pca() -> AnomalyPCAResponse:
     """
     Get PCA data for anomaly visualization from in-memory preloaded artifact.
 
     Returns 2D PCA projection of exoplanet features along with
     anomaly scores and other metadata for visualization.
     """
-    try:
-        engine = CatalogQueryEngine.get_instance()
-        pca_data = engine.get_precomputed_pca()
+    engine = CatalogQueryEngine.get_instance()
+    pca_data = engine.get_precomputed_pca()
 
-        if "error" in pca_data:
-            logger.warning(f"PCA error: {pca_data['error']}")
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=pca_data["error"])
+    if "error" in pca_data:
+        logger.warning(f"PCA error: {pca_data['error']}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=pca_data["error"])
 
-        return AnomalyPCAResponse(**pca_data)
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Unexpected error in get_anomaly_pca: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred while retrieving PCA data",
-        )
+    return AnomalyPCAResponse(**pca_data)
 
 
-@router.get("/evaluation/benchmark")
+@router.get("/evaluation/benchmark", response_model=None)
 def get_evaluation_benchmark(
     split: str = Query(
         "test",
         pattern="^(test|val)$",
         description="Dataset split to evaluate: 'test' (out-of-time >=2022) or 'val' (2018-2021)",
     ),
-):
+) -> Dict[str, Any]:
     """
     Get offline ML ranking evaluation benchmark leaderboard and metrics from in-memory artifact.
 
     The report compares ranking models and baselines against the artifact's JWST target labels. Those labels
     are NOT human-verified (see reports/LABEL_REVIEW.md), so every metric is provisional.
     """
-    try:
-        engine = CatalogQueryEngine.get_instance()
-        report = engine.get_benchmark_report(split=split)
-        if "error" in report:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=report["error"])
-        return report
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error computing evaluation benchmark: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to compute evaluation benchmark",
-        )
+    engine = CatalogQueryEngine.get_instance()
+    report = engine.get_benchmark_report(split=split)
+    if "error" in report:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=report["error"])
+    return report
 
 
-@router.get("/models/ltr/info")
-def get_ltr_info():
+@router.get("/models/ltr/info", response_model=None)
+def get_ltr_info() -> Dict[str, Any]:
     """
     Get the supervised ranking model's metadata, hyperparameters and benchmarks from the artifact manifest.
     """
-    try:
-        engine = CatalogQueryEngine.get_instance()
-        return engine.get_ltr_info()
-    except Exception as e:
-        logger.error(f"Error retrieving LTR model info: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve LTR model info"
-        )
+    engine = CatalogQueryEngine.get_instance()
+    return engine.get_ltr_info()
 
 
-@router.get("/models/ltr/feature-importance")
-def get_ltr_feature_importance():
+@router.get("/models/ltr/feature-importance", response_model=None)
+def get_ltr_feature_importance() -> Dict[str, Any]:
     """
     Get ranked feature importances for the supervised ranking model (for the logistic regression: standardized coefficients).
     """
-    try:
-        engine = CatalogQueryEngine.get_instance()
-        return engine.get_ltr_feature_importances()
-    except Exception as e:
-        logger.error(f"Error retrieving LTR feature importances: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve LTR feature importances",
-        )
+    engine = CatalogQueryEngine.get_instance()
+    return engine.get_ltr_feature_importances()
 
 
 # ================================================================
@@ -763,79 +665,61 @@ def get_ltr_feature_importance():
 # ================================================================
 
 
-class RollbackRequest(BaseModel):
-    reason: str = Field("", description="Reason for rolling back production model version")
-
-
-class PromoteRequest(BaseModel):
-    reason: str = Field("", description="Reason for promoting model version to production")
-
-
-@router.get("/models/registry/versions")
-def list_registered_versions():
+@router.get("/models/registry/versions", response_model=None)
+def list_registered_versions() -> Dict[str, Any]:
     """
     List all model versions tracked in the Model Registry,
     including their deployment status, offline evaluation metrics, and registration date.
     """
-    try:
-        from app.ml.model_registry import ModelRegistry
+    from app.ml.model_registry import ModelRegistry
 
-        registry = ModelRegistry()
-        active = registry.get_active_version()
-        versions = registry.list_versions()
-        return {"active_version": active, "total_versions": len(versions), "versions": versions}
-    except Exception as e:
-        logger.error(f"Error listing model registry versions: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to list model registry versions",
-        )
+    registry = ModelRegistry()
+    active = registry.get_active_version()
+    versions = registry.list_versions()
+    return {"active_version": active, "total_versions": len(versions), "versions": versions}
 
 
-@router.get("/models/registry/active")
-def get_active_model_version():
+@router.get("/models/registry/active", response_model=None)
+def get_active_model_version() -> Dict[str, Any]:
     """
     Get full metadata, provenance, and SHA256 integrity checksums
     for the currently deployed production model.
     """
-    try:
-        from app.ml.model_registry import ModelRegistry
+    from app.ml.model_registry import ModelRegistry
 
-        registry = ModelRegistry()
-        active_ver = registry.get_active_version()
-        if not active_ver:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="No active model version set in registry."
-            )
-        entry = registry.get_version(active_ver)
-        if not entry:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Active version '{active_ver}' not found in registry index.",
-            )
-        # The build environment (host name, platform) is provenance for the repository, not for the public API.
-        public = {k: v for k, v in entry.items() if k != "environment"}
-        # Entries written before 2026-11-24 record the length of the top-10 list as n_features: count the served model's inputs.
-        try:
-            from app.ml.explainability import SHAPExplainer
-
-            public["served_model_features"] = len(SHAPExplainer.get_instance().feature_names)
-        except Exception:
-            logger.exception("Model registry: served model unavailable")
-            public["served_model_features"] = None
-        return public
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error retrieving active model version: {str(e)}", exc_info=True)
+    registry = ModelRegistry()
+    active_ver = registry.get_active_version()
+    if not active_ver:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active model version set in registry.")
+    entry = registry.get_version(active_ver)
+    if not entry:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve active model version",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Active version '{active_ver}' not found in registry index.",
         )
+    # The build environment (host name, platform) is provenance for the repository, not for the public API.
+    public = {k: v for k, v in entry.items() if k != "environment"}
+    # Promotion is by deployment: the pipeline changes active_version.txt and the API serves the new version
+    # after a restart. Report both, so a pointer the processes have not loaded yet is never shown as live.
+    served = CatalogQueryEngine.get_instance().active_version
+    public["active_version"] = active_ver
+    public["served_version"] = served
+    public["serving_matches_pointer"] = served == active_ver
+    # Entries written before 2026-11-24 record the length of the top-10 list as n_features: count the served model's inputs.
+    try:
+        from app.ml.explainability import SHAPExplainer
+
+        public["served_model_features"] = len(SHAPExplainer.get_instance().feature_names)
+    except ExplanationsUnavailable:
+        public["served_model_features"] = None  # the mismatch is reported by /ready and /metrics
+    except Exception:
+        logger.exception("Model registry: served model unavailable")
+        public["served_model_features"] = None
+    return public
 
 
-@router.get("/models/registry/validate/{version}")
-def validate_model_integrity(version: str):
+@router.get("/models/registry/validate/{version}", response_model=None)
+def validate_model_integrity(version: str) -> Dict[str, Any]:
     """
     Perform cryptographic integrity validation on serialized model and parquet catalog artifacts
     for a given version. Detects file tampering or silent disk corruption.
@@ -848,22 +732,15 @@ def validate_model_integrity(version: str):
         if not report.get("valid") and "error" in report:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=report["error"])
         return report
-    except HTTPException:
-        raise
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error validating model integrity: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to validate model integrity"
-        )
 
 
-@router.get("/models/registry/compare")
+@router.get("/models/registry/compare", response_model=None)
 def compare_model_versions(
     version_a: str = Query(..., description="First version tag (candidate)"),
     version_b: str = Query(..., description="Second version tag (baseline)"),
-):
+) -> Dict[str, Any]:
     """
     Compare offline evaluation metrics (NDCG@10, MAP, PR-AUC), training configs,
     and dataset sizes between two registered model versions.
@@ -876,130 +753,43 @@ def compare_model_versions(
         if "error" in comparison:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=comparison["error"])
         return comparison
-    except HTTPException:
-        raise
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error comparing model versions: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to compare model versions"
-        )
-
-
-def require_admin(authorization: Optional[str] = Header(None)) -> None:
-    """Gate for operations that change the live model.
-
-    Disabled (403) unless ADMIN_TOKEN is configured; then a matching 'Authorization: Bearer <token>' is
-    required. The default deployment sets no token: a model goes live by deploying a new artifact version.
-    """
-    from app.config import settings
-
-    token = settings.ADMIN_TOKEN
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Model promotion over HTTP is disabled (ADMIN_TOKEN not set). Deploy a new artifact version.",
-        )
-    if not authorization or not secrets.compare_digest(authorization, f"Bearer {token}"):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing admin token.")
-
-
-@router.post("/models/registry/promote/{version}", dependencies=[Depends(require_admin)])
-def promote_model_version(version: str, req: Optional[PromoteRequest] = None):
-    """
-    Promote a registered model version to active production status.
-    Updates the active pointer and records an immutable audit trail entry.
-    """
-    try:
-        from app.ml.model_registry import ModelRegistry
-
-        registry = ModelRegistry()
-        reason = req.reason if req else "Promoted via API"
-        registry.promote(version, reason=reason)
-        return {
-            "status": "success",
-            "promoted_version": version,
-            "message": f"Successfully promoted {version} to production.",
-        }
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error promoting model version: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to promote model version")
-
-
-@router.post("/models/registry/rollback", dependencies=[Depends(require_admin)])
-def rollback_model_version(req: Optional[RollbackRequest] = None):
-    """
-    Instant rollback: restore the previous active production model version
-    from the promotion history audit log.
-    """
-    try:
-        from app.ml.model_registry import ModelRegistry
-
-        registry = ModelRegistry()
-        reason = req.reason if req else "Rollback triggered via API"
-        restored = registry.rollback(reason=reason)
-        if not restored:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No previous production version available to roll back to.",
-            )
-        return {
-            "status": "success",
-            "active_version": restored,
-            "message": f"Successfully rolled back to version {restored}.",
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error during model rollback: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to rollback model version"
-        )
 
 
 @router.get("/methodology/weights", response_model=MethodologyWeightsResponse)
-def get_methodology_weights():
+def get_methodology_weights() -> MethodologyWeightsResponse:
     """
     Retrieve domain astrophysical heuristic weighting formulation from priority_scorer.py config.
     """
-    try:
-        scorer = TargetPriorityScorer()
-        config = scorer.scoring_config
+    scorer = TargetPriorityScorer()
+    config = scorer.scoring_config
 
-        pr_w = float(config.get("planetary_relevance_weight", 0.35))
-        oa_w = float(config.get("observational_accessibility_weight", 0.30))
-        sc_w = float(config.get("stellar_characteristics_weight", 0.15))
-        dq_w = float(config.get("data_quality_weight", 0.10))
-        as_w = float(config.get("anomaly_score_weight", 0.10))
+    pr_w = float(config.get("planetary_relevance_weight", 0.35))
+    oa_w = float(config.get("observational_accessibility_weight", 0.30))
+    sc_w = float(config.get("stellar_characteristics_weight", 0.15))
+    dq_w = float(config.get("data_quality_weight", 0.10))
+    as_w = float(config.get("anomaly_score_weight", 0.10))
 
-        weights = {
-            "planetary_relevance": pr_w,
-            "observational_accessibility": oa_w,
-            "stellar_characteristics": sc_w,
-            "data_quality": dq_w,
-            "anomaly_score": as_w,
-        }
+    weights = {
+        "planetary_relevance": pr_w,
+        "observational_accessibility": oa_w,
+        "stellar_characteristics": sc_w,
+        "data_quality": dq_w,
+        "anomaly_score": as_w,
+    }
 
-        percentages = {
-            "planetary_relevance": int(round(pr_w * 100)),
-            "observational_accessibility": int(round(oa_w * 100)),
-            "stellar_characteristics": int(round(sc_w * 100)),
-            "data_quality": int(round(dq_w * 100)),
-            "anomaly_score": int(round(as_w * 100)),
-        }
+    percentages = {
+        "planetary_relevance": int(round(pr_w * 100)),
+        "observational_accessibility": int(round(oa_w * 100)),
+        "stellar_characteristics": int(round(sc_w * 100)),
+        "data_quality": int(round(dq_w * 100)),
+        "anomaly_score": int(round(as_w * 100)),
+    }
 
-        return MethodologyWeightsResponse(
-            scoring_config=config,
-            weights=weights,
-            percentages=percentages,
-            total_weight=round(sum(weights.values()), 4),
-        )
-    except Exception as e:
-        logger.error(f"Error retrieving methodology weights: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred while retrieving methodology weights",
-        )
+    return MethodologyWeightsResponse(
+        scoring_config=config,
+        weights=weights,
+        percentages=percentages,
+        total_weight=round(sum(weights.values()), 4),
+    )

@@ -2,10 +2,13 @@
 
 import json
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Union
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# The one version string of the API (FastAPI metadata, /, /health and /metrics).
+APP_VERSION = "0.3.0"
 
 
 class Settings(BaseSettings):
@@ -28,9 +31,6 @@ class Settings(BaseSettings):
     # Number of reverse proxies in front of the app that append to X-Forwarded-For (Fly.io: 1).
     # 0 = ignore the header (safe default: a client can put anything in it).
     TRUSTED_PROXY_HOPS: int = 0
-
-    # Enables the model promote/rollback endpoints when set (Bearer token). Unset = disabled.
-    ADMIN_TOKEN: Optional[str] = None
 
     # Base directory
     BASE_DIR: Path = Path(__file__).resolve().parent.parent
@@ -69,8 +69,8 @@ class Settings(BaseSettings):
                     parsed = json.loads(v_stripped)
                     if isinstance(parsed, list):
                         return [str(item).strip() for item in parsed if item]
-                except Exception:
-                    pass
+                except json.JSONDecodeError:
+                    pass  # not JSON after all: read it as a comma-separated list below
             return [item.strip() for item in v_stripped.split(",") if item.strip()]
         if isinstance(v, (list, tuple)):
             return [str(item).strip() for item in v if item]
@@ -100,8 +100,9 @@ class Settings(BaseSettings):
         return self.resolve_path(self.JWST_TARGETS_PATH)
 
     def get_artifacts_dir(self) -> Path:
-        """Return resolved path to the artifacts directory."""
-        return self.resolve_path(self.ARTIFACTS_DIR)
+        """The artifacts directory: ARTIFACTS_DIR if absolute, else relative to backend/ (never to the working directory)."""
+        p = Path(self.ARTIFACTS_DIR)
+        return p if p.is_absolute() else self.BASE_DIR / p
 
     def get_processed_data_path(self) -> Path:
         """Return resolved path to processed exoplanets CSV."""
@@ -109,4 +110,16 @@ class Settings(BaseSettings):
 
 
 settings: Settings = Settings()
-__all__ = ["Settings", "settings"]
+
+
+def resolve_artifacts_dir(artifacts_dir: Optional[Union[str, Path]] = None) -> Path:
+    """An explicit artifacts directory (relative to the working directory, else to backend/), or the configured one."""
+    if not artifacts_dir:
+        return settings.get_artifacts_dir()
+    p = Path(artifacts_dir)
+    if not p.is_absolute() and not p.exists() and (settings.BASE_DIR / p).exists():
+        return settings.BASE_DIR / p
+    return p
+
+
+__all__ = ["APP_VERSION", "Settings", "resolve_artifacts_dir", "settings"]

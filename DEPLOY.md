@@ -65,8 +65,10 @@ frontend origin. Then click through the site on a laptop and a phone.
 | roll back the frontend | Vercel dashboard: Deployments, select a previous deployment, "Promote to Production"                              |
 | ship a new model       | build a new artifact version, update `active_version.txt`, run the tests, `fly deploy`                            |
 
-The HTTP endpoints `POST /api/v1/models/registry/promote|rollback` are disabled (403) unless `ADMIN_TOKEN`
-is set. Keep it unset: a model goes live only through a reviewed commit and a deploy.
+The API has no endpoint that changes the live model: a model goes live only through a reviewed commit and a
+deploy (the API runs several worker processes, which load the active version at start).
+`GET /api/v1/models/registry/active` reports both the version in `active_version.txt` and the version the
+process serves (`served_version`, `serving_matches_pointer`).
 
 ## Configuration reference
 
@@ -75,5 +77,4 @@ is set. Keep it unset: a model goes live only through a reviewed commit and a de
 | `CORS_ORIGINS`          | Fly secret | `["https://<your-frontend>.vercel.app"]`                         |
 | `TRUSTED_PROXY_HOPS`    | `fly.toml` | `1` (Fly's proxy appends the client IP to `X-Forwarded-For`)     |
 | `RATE_LIMIT_PER_MINUTE` | `fly.toml` | `120` per client per process (per-process: N machines allow N x) |
-| `ADMIN_TOKEN`           | unset      | enables promote/rollback endpoints only if set                   |
 | `VITE_API_URL`          | Vercel env | `https://<your-backend-app>.fly.dev/api/v1`                      |

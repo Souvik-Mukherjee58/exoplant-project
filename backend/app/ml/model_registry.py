@@ -16,6 +16,7 @@ Registry Structure:
         └── ...
 """
 
+import copy
 import datetime
 import hashlib
 import json
@@ -23,6 +24,8 @@ import platform
 import re
 from pathlib import Path, PureWindowsPath
 from typing import Any, Dict, List, Optional, cast
+
+from app.config import resolve_artifacts_dir
 
 REGISTRY_FILE = "registry.json"
 VERSION_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
@@ -39,18 +42,7 @@ class ModelRegistry:
     """
 
     def __init__(self, artifacts_dir: Optional[str] = None):
-        if artifacts_dir:
-            p = Path(artifacts_dir)
-            if not p.exists() and (Path("backend") / p).exists():
-                p = Path("backend") / p
-            self.artifacts_dir = p
-        else:
-            if Path("artifacts").exists():
-                self.artifacts_dir = Path("artifacts")
-            elif Path("backend/artifacts").exists():
-                self.artifacts_dir = Path("backend/artifacts")
-            else:
-                self.artifacts_dir = Path("artifacts")
+        self.artifacts_dir = resolve_artifacts_dir(artifacts_dir)
         self.registry_path = self.artifacts_dir / REGISTRY_FILE
         self._registry = self._load_registry()
 
@@ -163,27 +155,38 @@ class ModelRegistry:
         active_ptr = self.artifacts_dir / "active_version.txt"
         previous_version = active_ptr.read_text().strip() if active_ptr.exists() else None
 
-        # Update pointer
-        active_ptr.write_text(version)
+        # All or nothing: the new pointer is written beside the old one, the registry is saved, and the pointer
+        # switches last in one atomic rename. On any failure the registry (in memory and on disk) is restored.
+        snapshot = copy.deepcopy(self._registry)
+        staged_ptr = active_ptr.with_name(active_ptr.name + ".tmp")
+        registry_saved = False
+        try:
+            staged_ptr.write_text(version, encoding="utf-8")
 
-        # Update status
-        for v, entry in self._registry["versions"].items():
-            if v == version:
-                entry["status"] = "production"
-            elif entry.get("status") == "production":
-                entry["status"] = "archived"
+            for v, entry in self._registry["versions"].items():
+                if v == version:
+                    entry["status"] = "production"
+                elif entry.get("status") == "production":
+                    entry["status"] = "archived"
 
-        # Audit trail
-        self._registry["promotion_history"].append(
-            {
-                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                "from_version": previous_version,
-                "to_version": version,
-                "reason": reason,
-            }
-        )
+            self._registry["promotion_history"].append(
+                {
+                    "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    "from_version": previous_version,
+                    "to_version": version,
+                    "reason": reason,
+                }
+            )
 
-        self._save_registry()
+            self._save_registry()
+            registry_saved = True
+            staged_ptr.replace(active_ptr)
+        except Exception:
+            self._registry = snapshot
+            if registry_saved:
+                self._save_registry()
+            staged_ptr.unlink(missing_ok=True)
+            raise
 
     def rollback(self, reason: str = "") -> Optional[str]:
         """

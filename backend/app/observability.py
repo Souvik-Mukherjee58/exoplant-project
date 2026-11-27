@@ -19,9 +19,12 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional
 
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
+from starlette.types import ASGIApp
+
+logger = logging.getLogger(__name__)
 
 # Context variable for request correlation ID across async task execution
 request_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default="")
@@ -132,7 +135,7 @@ class RequestTracingMiddleware(BaseHTTPMiddleware):
 
     SLOW_REQUEST_THRESHOLD_MS = 500.0
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         # Propagate or generate request ID
         request_id = resolve_request_id(request)
         token = request_id_ctx.set(request_id)
@@ -167,8 +170,9 @@ class RequestTracingMiddleware(BaseHTTPMiddleware):
                 },
                 exc_info=True,
             )
-            request_id_ctx.reset(token)
-            raise
+            # Answered here, inside the request's scope, so the 500 carries its request ID like every other error.
+            # (Starlette sends exceptions that leave this middleware to its outermost handler, after the ID is gone.)
+            response = build_error_response(500, UNEXPECTED_ERROR_MESSAGE, "Internal server error", request_id)
 
         duration_ms = (time.perf_counter() - start_time) * 1000
 
@@ -193,6 +197,29 @@ class RequestTracingMiddleware(BaseHTTPMiddleware):
 
         request_id_ctx.reset(token)
         return response
+
+
+UNEXPECTED_ERROR_MESSAGE = "An unexpected server error occurred while processing the request"
+
+
+def build_error_response(
+    status_code: int, message: str, detail: Any, request_id: Optional[str], details: Any = None
+) -> JSONResponse:
+    """The one error body of the API: {"detail": ..., "error": {code, message, status_code, request_id, details}}."""
+    return JSONResponse(
+        status_code=status_code,
+        headers={"X-Request-ID": request_id} if request_id else None,
+        content={
+            "detail": detail,
+            "error": {
+                "code": HTTP_STATUS_TO_CODE.get(status_code, "ERROR"),
+                "message": message,
+                "status_code": status_code,
+                "request_id": request_id,
+                "details": details,
+            },
+        },
+    )
 
 
 # Monitoring probes and documentation: never rate limited, never cached.
@@ -221,7 +248,7 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
     # instances allow N x limit; a shared store (e.g. Redis) or the edge/CDN is needed for a global limit.
     MAX_TRACKED_CLIENTS = 10_000
 
-    def __init__(self, app, requests_per_minute: int = 120, trusted_proxy_hops: int = 0):
+    def __init__(self, app: ASGIApp, requests_per_minute: int = 120, trusted_proxy_hops: int = 0) -> None:
         super().__init__(app)
         self.limit = requests_per_minute
         self.trusted_proxy_hops = max(0, trusted_proxy_hops)
@@ -251,7 +278,7 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
         for ip in stale:
             del self._history[ip]
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         path = request.url.path
         limit = getattr(request.app.state, "rate_limit_per_minute", None)
         if limit is None:
@@ -319,10 +346,12 @@ class ETagCacheMiddleware(BaseHTTPMiddleware):
             from app.services.query_engine import CatalogQueryEngine
 
             return CatalogQueryEngine.get_instance().active_version
-        except Exception:
+        except Exception:  # noqa: BLE001 - logged at debug with traceback; runs on every request
+            # Runs on every request: the probes report an engine failure, so this only logs at debug level.
+            logger.debug("ETag: query engine unavailable", exc_info=True)
             return None
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         # Only apply caching headers to read-only GET and HEAD requests
         if request.method not in ("GET", "HEAD"):
             return await call_next(request)
