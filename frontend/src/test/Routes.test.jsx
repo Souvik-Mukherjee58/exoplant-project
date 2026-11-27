@@ -56,22 +56,22 @@ describe('routes', () => {
     ['/registry', 'registry'],
     ['/methodology', 'methodology'],
     ['/about', 'about'],
-  ])('%s shows %s', (path, text) => {
+  ])('%s shows %s', async (path, text) => {
     open(path);
-    expect(screen.getByText(text)).toBeInTheDocument();
+    expect(await screen.findByText(text)).toBeInTheDocument();
   });
 
   it.each(['WASP-39 b', 'TRAPPIST-1 e', '2MASS J0249-0557 c', 'BD+20 594 b', 'a/b%c'])(
     'decodes the planet name %s',
-    (name) => {
+    async (name) => {
       open(`/planet/${encodeURIComponent(name)}`);
-      expect(screen.getByText(`planet ${name}`)).toBeInTheDocument();
+      expect(await screen.findByText(`planet ${name}`)).toBeInTheDocument();
     }
   );
 
-  it('reads the comparison query', () => {
+  it('reads the comparison query', async () => {
     open(`/compare?planet_a=${encodeURIComponent('BD+20 594 b')}`);
-    expect(screen.getByText('compare BD+20 594 b')).toBeInTheDocument();
+    expect(await screen.findByText('compare BD+20 594 b')).toBeInTheDocument();
   });
 
   it('shows a message for an unknown nested address', () => {

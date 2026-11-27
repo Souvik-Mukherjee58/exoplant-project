@@ -1,21 +1,41 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { Suspense, useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import ErrorBoundary, { reloadPage } from '../components/ErrorBoundary';
+import HzBadge from '../components/HzBadge';
 import { useTopTargets } from '../hooks/usePlanets';
 import { useAnalytics } from '../hooks/useAnalytics';
 import { formatPriority } from '../utils/formatters';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
 import { calculateHzPieData } from '../utils/hzDonut';
 import { modelsApi, planetsApi } from '../services/api';
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  Cell,
-} from 'recharts';
 import Planet3DVisualizer from '../components/Planet3DVisualizer';
+
+// The chart library is only needed for this chart: it loads in its own chunk, after the page.
+const ModelWeightsChart = lazyWithRetry(() => import('../components/ModelWeightsChart'));
+
+const WeightsPlaceholder = () => (
+  <div className="h-72 w-full flex items-center justify-center text-sm text-exosignal-text-muted border border-dashed border-slate-800 rounded-xl">
+    Loading model weights…
+  </div>
+);
+
+/** The rest of the page stays usable when the chart's code cannot be downloaded or the chart fails. */
+const WeightsChartError = ({ retry }) => (
+  <div
+    role="alert"
+    className="h-72 w-full flex flex-col items-center justify-center gap-3 text-sm text-exosignal-text-muted border border-dashed border-slate-800 rounded-xl text-center px-4"
+  >
+    <p>The model-weights chart could not be loaded.</p>
+    <div className="flex flex-wrap justify-center gap-3">
+      <button type="button" onClick={retry} className="btn-secondary-glass text-xs">
+        Try again
+      </button>
+      <button type="button" onClick={reloadPage} className="btn-secondary-glass text-xs">
+        Reload page
+      </button>
+    </div>
+  </div>
+);
 
 const FEATURE_LABEL_MAP = {
   transmission_snr_proxy: 'Transmission SNR',
@@ -59,12 +79,6 @@ export function productionMetrics(benchmark) {
 const formatRadius = (r) => (r ? `${Number(r).toFixed(2)} R⊕` : 'not in archive');
 const formatPeriodDays = (p) => (p ? `${Number(p).toFixed(1)} days` : 'not in archive');
 
-const HZ_BADGE = {
-  'Inside HZ': 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-  'Near HZ': 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-};
-const hzBadgeClass = (hz) => HZ_BADGE[hz] || 'bg-slate-700/30 text-slate-300 border-slate-600/40';
-
 /** A plain section heading: one title, one sentence of context. */
 const SectionHeading = ({ title, children, action }) => (
   <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
@@ -97,13 +111,7 @@ const TargetCard = ({ target, rankLabel, scoreLabel, accentText, accentBorder, t
     <div>
       <div className="flex items-center justify-between gap-2 mb-3">
         <span className={`text-xs font-mono font-bold ${accentText}`}>{rankLabel}</span>
-        <span
-          className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${hzBadgeClass(
-            target.hz
-          )}`}
-        >
-          {target.hz}
-        </span>
+        <HzBadge status={target.hz} size="md" />
       </div>
       <Link
         to={`/planet/${encodeURIComponent(target.name)}`}
@@ -380,60 +388,23 @@ const Home = () => {
 
         <figure className="glass-panel p-6 border-exosignal-cyan/30">
           {featureChartData.length > 0 ? (
-            <div
-              className="h-72 w-full"
-              role="img"
-              aria-label={`Bar chart of model weights: ${featureSummary}`}
+            <ErrorBoundary
+              label="Model-weights chart"
+              onRetry={ModelWeightsChart.retry}
+              fallback={(props) => <WeightsChartError {...props} />}
             >
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={featureChartData}
-                  layout="vertical"
-                  margin={{ top: 5, right: 25, left: 110, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#131c38" horizontal={false} />
-                  <XAxis
-                    type="number"
-                    tick={{ fill: '#94a3b8', fontSize: 11 }}
-                    axisLine={{ stroke: '#1e293b' }}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="feature"
-                    tick={{ fill: '#f8fafc', fontSize: 11 }}
-                    axisLine={{ stroke: '#1e293b' }}
-                    width={105}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#070a16',
-                      borderColor: '#00d4ff',
-                      borderRadius: '12px',
-                      color: '#ffffff',
-                      fontSize: '12px',
-                    }}
-                    formatter={(value, name, item) => [
-                      `${item.payload.coefficient > 0 ? '+' : ''}${item.payload.coefficient} (${
-                        item.payload.direction
-                      })`,
-                      'Standardized coefficient',
-                    ]}
-                  />
-                  <Bar dataKey="abs_coefficient" radius={[0, 6, 6, 0]}>
-                    {featureChartData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={entry.direction === 'positive' ? '#10b981' : '#f43f5e'}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+              <div
+                className="h-72 w-full"
+                role="img"
+                aria-label={`Bar chart of model weights: ${featureSummary}`}
+              >
+                <Suspense fallback={<WeightsPlaceholder />}>
+                  <ModelWeightsChart data={featureChartData} />
+                </Suspense>
+              </div>
+            </ErrorBoundary>
           ) : (
-            <div className="h-72 w-full flex items-center justify-center text-sm text-exosignal-text-muted border border-dashed border-slate-800 rounded-xl">
-              Loading model weights…
-            </div>
+            <WeightsPlaceholder />
           )}
           {featureChartData[0] && (
             <figcaption className="mt-3 text-sm text-exosignal-text-secondary text-center">
