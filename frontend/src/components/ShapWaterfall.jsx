@@ -189,6 +189,20 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
         </div>
       </div>
 
+      {explanation.explains_served_score === false &&
+        typeof explanation.served_priority_score === 'number' &&
+        typeof convertedPercentile === 'number' && (
+          <p
+            role="note"
+            className="mb-6 p-3 rounded-lg border border-amber-500/30 bg-amber-500/5 text-xs text-amber-300"
+          >
+            This explains the production model&apos;s score ({convertedPercentile.toFixed(1)}). The
+            score shown for this planet ({explanation.served_priority_score.toFixed(1)}) is
+            out-of-fold, because the planet is labelled as a JWST target; the fold models are not
+            saved, so that score cannot be broken down here.
+          </p>
+        )}
+
       {/* Invariant Bar */}
       <div className="p-2.5 rounded-lg bg-space-dark border border-exosignal-blue/15 flex flex-wrap items-center justify-between text-xs font-mono text-exosignal-text/70 mb-6 gap-2">
         <span className="text-emerald-400 font-semibold">

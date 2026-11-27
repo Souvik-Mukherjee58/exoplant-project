@@ -144,4 +144,31 @@ describe('ShapWaterfall Component (Linear SHAP)', () => {
     expect(text).toContain('0.000 Δ log-odds');
     expect(text).toContain('Reconstruction residual: 0.00e+0');
   });
+
+  it('says when the explained score is not the served score (labelled planets are scored out-of-fold)', async () => {
+    explainabilityApi.getPlanetExplanation.mockResolvedValueOnce({
+      ...mockKepler452bExplanation,
+      ml_priority_score: 85.4,
+      served_priority_score: 61.27,
+      explains_served_score: false,
+    });
+    render(<ShapWaterfall planetName="Kepler-452 b" mlRank={5} rankDelta={2} />);
+    const note = await screen.findByRole('note');
+    expect(note.textContent).toContain('production model');
+    expect(note.textContent).toContain('85.4');
+    expect(note.textContent).toContain('61.3');
+    expect(note.textContent).toContain('out-of-fold');
+  });
+
+  it('shows no such note when the explanation explains the served score', async () => {
+    explainabilityApi.getPlanetExplanation.mockResolvedValueOnce({
+      ...mockKepler452bExplanation,
+      ml_priority_score: 85.4,
+      served_priority_score: 85.41,
+      explains_served_score: true,
+    });
+    render(<ShapWaterfall planetName="Kepler-452 b" mlRank={5} rankDelta={2} />);
+    await screen.findByText('Linear SHAP Interpretability Waterfall');
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
+  });
 });
