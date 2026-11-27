@@ -18,6 +18,8 @@ select = [
     "F",
     "I",
     "B",
+    "BLE001",  # no blind `except Exception` unless it re-raises or logs (audit F-07)
+    "S110",  # no try-except-pass
 ]
 ignore = [
     "E501",
@@ -39,10 +41,8 @@ ignore_missing_imports = true
 follow_imports = "silent"
 
 [[tool.mypy.overrides]]
-module = [
-    "app.ml.*",
-    "app.scoring.*"
-]
+# Every module of the application (was app.ml and app.scoring only; the rest was brought to this standard in 2026-11).
+module = ["app.*"]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 check_untyped_defs = true

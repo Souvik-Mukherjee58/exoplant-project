@@ -48,13 +48,13 @@ jobs:
       - name: Check formatting with Ruff
         run: ruff format --check app tests
 
-      - name: Strict type check with Mypy (app/ml & app/scoring)
-        run: mypy -p app.ml -p app.scoring
+      - name: Type check the whole backend application with Mypy
+        run: mypy app
 
-      - name: Run pytest with coverage (fail under 80% on app/ml and app/scoring)
+      - name: Run pytest with coverage (fail under 85% on the whole application; 87% measured on 2026-11-27)
         run: |
           set -o pipefail # otherwise 'tee' hides a failing test run
-          pytest --cov=app.ml --cov=app.scoring --cov-fail-under=80 -v --junitxml=test-results.xml 2>&1 | tee pytest-output.txt
+          pytest --cov=app --cov-fail-under=85 -v --junitxml=test-results.xml 2>&1 | tee pytest-output.txt
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -202,6 +202,41 @@ jobs:
       - name: Validate README benchmark results table freshness
         run: |
           python ../scripts/render_readme_results.py --check
+
+  # ──────────────────────────────────────────────────────────────
+  # Windows clone: checksummed data must keep its exact bytes when Git converts line endings
+  # ──────────────────────────────────────────────────────────────
+  windows-provenance:
+    name: Artifact Provenance on Windows (core.autocrlf=true)
+    runs-on: windows-latest
+    steps:
+      - name: Convert line endings as Git for Windows does by default
+        run: git config --global core.autocrlf true
+
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          lfs: true
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: backend/requirements*.txt
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Provenance tests and catalog reproduction
+        working-directory: backend
+        shell: bash # stops at the first failing command (-e); PowerShell would report only the last one
+        run: |
+          python -m pytest -q -p no:cacheprovider tests/test_artifact_provenance.py
+          python ../scripts/reproduce_artifact.py
 
   # ──────────────────────────────────────────────────────────────
   # Job 5: Frontend Lint, Test & Build Validation
