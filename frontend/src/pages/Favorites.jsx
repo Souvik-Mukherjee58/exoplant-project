@@ -12,7 +12,7 @@ const Favorites = () => {
     return (
       <div className="text-center py-16">
         <div className="text-6xl mb-4">⭐</div>
-        <h2 className="text-2xl font-bold text-exosignal-text mb-2">No favorites yet</h2>
+        <h1 className="text-2xl font-bold text-exosignal-text mb-2">No favorites yet</h1>
         <p className="text-exosignal-text/70 mb-6">
           Start exploring and bookmark your favorite exoplanets!
         </p>

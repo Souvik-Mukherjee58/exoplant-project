@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import HzBadge from '../components/HzBadge';
 import { usePlanets } from '../hooks/usePlanets';
 import { formatRadius, formatMass, formatPeriod, getCleanHostStar } from '../utils/formatters';
 import DifferentialSHAPComparison from '../components/DifferentialSHAPComparison';
@@ -96,6 +97,7 @@ const Compare = () => {
               value={selectorSearch}
               onChange={(e) => setSelectorSearch(e.target.value)}
               placeholder="Filter catalog..."
+              aria-label="Filter the catalog by planet name"
               className="w-full mb-3 bg-space-void border border-exosignal-cyan/30 rounded-xl px-3 py-1.5 text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:border-exosignal-cyan"
             />
 
@@ -177,15 +179,7 @@ const Compare = () => {
                           <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-space-void border border-exosignal-cyan/30 text-exosignal-cyan">
                             Target #{idx + 1}
                           </span>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                              planet.hz_status === 'Inside HZ'
-                                ? 'bg-emerald-500/20 text-emerald-400'
-                                : 'bg-slate-700/40 text-slate-300'
-                            }`}
-                          >
-                            {planet.hz_status || 'Insufficient data'}
-                          </span>
+                          <HzBadge status={planet.hz_status} className="font-mono" />
                         </div>
 
                         <Link

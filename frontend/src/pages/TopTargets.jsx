@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import HzBadge from '../components/HzBadge';
 import { planetsApi } from '../services/api';
 import { useTopTargets } from '../hooks/usePlanets';
 import { useFavorites } from '../context/FavoritesContext';
@@ -546,17 +547,7 @@ const TopTargets = () => {
                           · {getCleanHostStar(planet)}
                         </span>
                       </span>
-                      <span
-                        className={`shrink-0 whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                          planet.hz_status === 'Inside HZ'
-                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                            : planet.hz_status === 'Near HZ'
-                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                              : 'bg-slate-700/30 text-slate-300 border border-slate-600/30'
-                        }`}
-                      >
-                        {planet.hz_status || 'Insufficient data'}
-                      </span>
+                      <HzBadge status={planet.hz_status} size="md" className="shrink-0" />
                     </div>
                     <div className="flex items-center justify-between gap-2">
                       <Link
@@ -721,17 +712,7 @@ const TopTargets = () => {
                           {formatDistance(planet.distance)}
                         </td>
                         <td className="py-3.5 px-4">
-                          <span
-                            className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              planet.hz_status === 'Inside HZ'
-                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                                : planet.hz_status === 'Near HZ'
-                                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                                  : 'bg-slate-700/30 text-slate-400 border border-slate-600/30'
-                            }`}
-                          >
-                            {planet.hz_status || 'Insufficient data'}
-                          </span>
+                          <HzBadge status={planet.hz_status} />
                         </td>
                         <td className="py-3.5 px-4 text-center">
                           <button

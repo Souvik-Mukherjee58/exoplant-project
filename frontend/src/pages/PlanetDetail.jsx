@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import HzBadge from '../components/HzBadge';
 import { usePlanetDetail } from '../hooks/usePlanets';
 import {
   formatRadius,
@@ -192,17 +193,7 @@ const PlanetDetail = () => {
             {/* Left specs & Title */}
             <div className="lg:col-span-8">
               <div className="flex items-center space-x-3 mb-2">
-                <span
-                  className={`px-2.5 py-1 rounded-full text-xs font-mono font-bold ${
-                    planet.hz_status === 'Inside HZ'
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                      : planet.hz_status === 'Near HZ'
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                        : 'bg-slate-700/40 text-slate-300 border border-slate-600/40'
-                  }`}
-                >
-                  {planet.hz_status || 'Insufficient data'}
-                </span>
+                <HzBadge status={planet.hz_status} size="lg" className="font-mono" />
                 <span className="text-xs font-mono text-exosignal-text-muted">
                   Discovery: {planet.discovery_method || 'not in archive'}
                 </span>

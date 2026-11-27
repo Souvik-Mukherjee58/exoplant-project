@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import HzBadge from './HzBadge';
 import { planetsApi } from '../services/api';
 import ShapWaterfall from './ShapWaterfall';
 import { formatPriority, getIneligibleTooltip } from '../utils/formatters';
@@ -266,15 +267,11 @@ export const QuickSearchModal = ({ isOpen, onClose }) => {
                             <span className="font-orbitron normal-case font-bold text-sm text-white">
                               {planet.planet_name}
                             </span>
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-mono border ${
-                                planet.hz_status === 'Inside HZ'
-                                  ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
-                                  : 'bg-slate-800 text-slate-400 border-slate-700'
-                              }`}
-                            >
-                              {planet.hz_status || 'Unknown'}
-                            </span>
+                            <HzBadge
+                              status={planet.hz_status}
+                              fallback="Unknown"
+                              className="font-mono"
+                            />
                           </div>
                           <div className="text-xs font-mono text-exosignal-text-muted flex flex-wrap items-center gap-x-3">
                             {(planet.priority_rank ?? planet.ml_rank) && (
