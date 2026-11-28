@@ -422,7 +422,7 @@ const Planet3DVisualizer = ({
 
         {/* Floating Planetary HUD Badge - positioned cleanly in top-left */}
         {!isCompact && (
-          <div className="absolute top-2 left-2 pointer-events-none bg-space-void/90 border border-exosignal-cyan/30 rounded-xl px-2.5 py-1 backdrop-blur-md font-mono text-[11px] shadow-lg max-w-[55%] z-10">
+          <div className="absolute top-2 left-2 pointer-events-none bg-space-overlay border border-exosignal-cyan/30 rounded-xl px-2.5 py-1 backdrop-blur-md font-mono text-[11px] shadow-lg max-w-[55%] z-10">
             <div className="text-exosignal-cyan font-bold tracking-wider flex items-center space-x-1.5 truncate">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
               <span className="truncate">{planet.name}</span>
@@ -435,7 +435,7 @@ const Planet3DVisualizer = ({
 
         {/* Orbiting Transit Telemetry Chip - positioned cleanly in bottom-right */}
         {!isCompact && (
-          <div className="absolute bottom-2 right-2 pointer-events-none bg-space-void/90 border border-exosignal-cyan/30 rounded-xl px-2.5 py-1 backdrop-blur-md font-mono text-[10px] text-right max-w-[40%] z-10">
+          <div className="absolute bottom-2 right-2 pointer-events-none bg-space-overlay border border-exosignal-cyan/30 rounded-xl px-2.5 py-1 backdrop-blur-md font-mono text-[10px] text-right max-w-[40%] z-10">
             <span className="text-exosignal-text-muted block text-[9px]">(Rp/R★)²</span>
             <span className="text-emerald-400 font-bold text-xs">{values.transitDepth}</span>
           </div>
@@ -444,7 +444,7 @@ const Planet3DVisualizer = ({
 
       {/* Dedicated hint text completely separated below the canvas container - no overlap at 1440px or 390px */}
       <div className="w-full text-center mt-2 pointer-events-none">
-        <span className="inline-block bg-space-void/90 text-exosignal-cyan font-mono text-[10px] px-3 py-1 rounded-full border border-exosignal-cyan/30 shadow-neon-cyan">
+        <span className="inline-block bg-space-inset text-exosignal-cyan font-mono text-[10px] px-3 py-1 rounded-full border border-exosignal-cyan/30 shadow-neon-cyan">
           ✦ Drag to rotate 3D exoplanet ✦
         </span>
       </div>
@@ -462,7 +462,7 @@ const Planet3DVisualizer = ({
                 className={`px-3 py-1.5 rounded-xl font-mono text-xs font-bold transition-all flex items-center space-x-1.5 ${
                   selectedKey === key
                     ? 'bg-exosignal-cyan/25 text-white border border-exosignal-cyan shadow-neon-cyan scale-105'
-                    : 'bg-space-void/80 text-exosignal-text-muted hover:text-white border border-exosignal-cyan/15 hover:border-exosignal-cyan/40'
+                    : 'bg-space-inset text-exosignal-text-muted hover:text-white border border-exosignal-cyan/15 hover:border-exosignal-cyan/40'
                 }`}
               >
                 <span
@@ -480,7 +480,7 @@ const Planet3DVisualizer = ({
               Artistic illustration. Values below: NASA Exoplanet Archive via the API.
             </p>
           )}
-          <div className="grid grid-cols-3 gap-2 text-center font-mono text-xs bg-space-void/70 p-2.5 rounded-xl border border-exosignal-cyan/15">
+          <div className="grid grid-cols-3 gap-2 text-center font-mono text-xs bg-space-inset p-2.5 rounded-xl border border-exosignal-cyan/15">
             <div>
               <span className="text-[10px] text-exosignal-text-muted block">Radius</span>
               <span className="text-white font-bold">{values.radius}</span>

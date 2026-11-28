@@ -38,7 +38,7 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
 
   if (loading) {
     return (
-      <div className="bg-space-darker rounded-lg border border-exosignal-blue/20 p-6 text-center">
+      <div className="bg-space-darker rounded-lg border border-exosignal-cyan/20 p-6 text-center">
         <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-exosignal-accent"></div>
         <p className="mt-2 text-exosignal-text/70 text-xs">
           Computing pairwise differential Linear SHAP attribution: Δφ = φ({planetA}) - φ({planetB}
@@ -50,7 +50,7 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
 
   if (error || !diffExplanation) {
     return (
-      <div className="bg-space-darker rounded-lg border border-exosignal-blue/20 p-4 text-center text-exosignal-text/60 text-xs">
+      <div className="bg-space-darker rounded-lg border border-exosignal-cyan/20 p-4 text-center text-exosignal-text/60 text-xs">
         <p>Differential attribution unavailable: {error}</p>
       </div>
     );
@@ -75,14 +75,14 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
   const absAdvantage = Math.abs(score_advantage);
 
   return (
-    <div className="bg-space-darker rounded-lg border border-exosignal-blue/30 p-6 mt-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-exosignal-blue/10 gap-3">
+    <div className="bg-space-darker rounded-lg border border-exosignal-cyan/30 p-6 mt-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-exosignal-cyan/10 gap-3">
         <div>
           <div className="flex items-center gap-2">
             <h3 className="text-lg font-bold text-exosignal-text">
               Differential Ranking Attribution (Δ Linear SHAP)
             </h3>
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-exosignal-blue/20 text-exosignal-blue">
+            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-exosignal-cyan/20 text-exosignal-cyan">
               Pairwise Delta
             </span>
           </div>
@@ -97,7 +97,7 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
           <span className="text-xs text-exosignal-text/60 block">
             Difference of the final-model scores
           </span>
-          <span className="text-lg font-extrabold text-exosignal-accent">
+          <span className="text-lg font-extrabold text-exosignal-accent-light">
             {favoredPlanet} (+{absAdvantage.toFixed(1)} pts)
           </span>
         </div>
@@ -151,7 +151,7 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
         </span>
         <button
           onClick={() => setShowAll(!showAll)}
-          className="text-xs text-exosignal-blue hover:text-exosignal-accent underline"
+          className="text-xs text-exosignal-cyan hover:text-exosignal-accent-light underline"
         >
           {showAll ? 'Show the largest only' : `Show all ${differential_waterfall.length} inputs`}
         </button>
@@ -166,7 +166,7 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
       >
         <table className="w-full text-left text-xs border-collapse">
           <thead>
-            <tr className="border-b border-exosignal-blue/20 text-exosignal-text/60">
+            <tr className="border-b border-exosignal-cyan/20 text-exosignal-text/60">
               <th className="py-2 pr-3">Model Input</th>
               <th className="py-2 px-3">{planet_a}</th>
               <th className="py-2 px-3">{planet_b}</th>
@@ -174,7 +174,7 @@ export const DifferentialSHAPComparison = ({ planetA, planetB }) => {
               <th className="py-2 pl-3 text-right">Δ log-odds</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-exosignal-blue/10">
+          <tbody className="divide-y divide-exosignal-cyan/10">
             {displayedItems.map((item) => {
               const favorsA = item.advantage === 'Planet A';
               return (

@@ -119,7 +119,7 @@ const TargetCard = ({ target, rankLabel, scoreLabel, accentText, accentBorder, t
       >
         {target.name}
       </Link>
-      <dl className="grid grid-cols-2 gap-2 my-3 text-xs bg-space-void/60 p-2.5 rounded-lg">
+      <dl className="grid grid-cols-2 gap-2 my-3 text-xs bg-space-inset p-2.5 rounded-lg">
         <div>
           <dt className="text-exosignal-text-muted">Radius</dt>
           <dd className="text-white font-mono font-semibold">{target.radius}</dd>
@@ -305,7 +305,7 @@ const Home = () => {
           </div>
 
           <div className="lg:col-span-5 flex justify-center">
-            <div className="divided-compartment p-5 w-full max-w-md bg-space-void/60 border-exosignal-cyan/30">
+            <div className="divided-compartment p-5 w-full max-w-md bg-space-inset border-exosignal-cyan/30">
               <Planet3DVisualizer
                 initialPlanet="trappist1e"
                 size={320}
@@ -362,7 +362,7 @@ const Home = () => {
             value={
               featureImportances?.total_features ?? featureImportances?.all_features?.length ?? '—'
             }
-            valueClass="text-exosignal-purple"
+            valueClass="text-exosignal-purple-light"
             note="Every score is split into exact per-feature contributions (linear SHAP)"
             accent="border-exosignal-purple/30"
           />
@@ -514,7 +514,7 @@ const Home = () => {
           ].map(([title, text], i) => (
             <li
               key={title}
-              className="bg-space-void/80 p-4 rounded-xl border border-slate-800 space-y-2"
+              className="bg-space-inset p-4 rounded-xl border border-slate-800 space-y-2"
             >
               <div className="text-xs font-mono font-bold text-exosignal-cyan">
                 {String(i + 1).padStart(2, '0')}

@@ -208,7 +208,7 @@ const PlanetDetail = () => {
               </p>
 
               {/* Quick Metrics Badge */}
-              <div className="flex flex-wrap items-center gap-4 bg-space-void/90 p-4 rounded-2xl border border-exosignal-cyan/25 mt-5">
+              <div className="flex flex-wrap items-center gap-4 bg-space-inset p-4 rounded-2xl border border-exosignal-cyan/25 mt-5">
                 <div>
                   <span className="text-[10px] font-mono text-exosignal-text-muted block uppercase">
                     Priority Percentile
@@ -403,7 +403,7 @@ const PlanetDetail = () => {
               </div>
               <div className="p-6">
                 <div className="grid grid-cols-2 gap-3 text-xs font-mono">
-                  <div className="bg-space-void/80 p-3.5 rounded-xl border border-exosignal-cyan/15">
+                  <div className="bg-space-inset p-3.5 rounded-xl border border-exosignal-cyan/15">
                     <span className="text-exosignal-text-muted block text-[10px]">Radius</span>
                     <span className="text-white font-bold text-sm">
                       {planet.planet_radius !== null &&
@@ -420,7 +420,7 @@ const PlanetDetail = () => {
                       )}
                     </span>
                   </div>
-                  <div className="bg-space-void/80 p-3.5 rounded-xl border border-exosignal-cyan/15">
+                  <div className="bg-space-inset p-3.5 rounded-xl border border-exosignal-cyan/15">
                     <span className="text-exosignal-text-muted block text-[10px]">
                       {massLabel(planet)}
                     </span>
@@ -439,7 +439,7 @@ const PlanetDetail = () => {
                       )}
                     </span>
                   </div>
-                  <div className="bg-space-void/80 p-3.5 rounded-xl border border-exosignal-cyan/15">
+                  <div className="bg-space-inset p-3.5 rounded-xl border border-exosignal-cyan/15">
                     <span className="text-exosignal-text-muted block text-[10px]">
                       Orbital Period
                     </span>
@@ -458,7 +458,7 @@ const PlanetDetail = () => {
                       )}
                     </span>
                   </div>
-                  <div className="bg-space-void/80 p-3.5 rounded-xl border border-exosignal-cyan/15">
+                  <div className="bg-space-inset p-3.5 rounded-xl border border-exosignal-cyan/15">
                     <span className="text-exosignal-text-muted block text-[10px]">
                       Equilibrium Temp
                     </span>
@@ -486,7 +486,7 @@ const PlanetDetail = () => {
               <div className="compartment-header">
                 <div className="flex items-center space-x-2">
                   <span className="text-base">⭐</span>
-                  <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider text-exosignal-purple">
+                  <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider text-exosignal-purple-light">
                     Host Star & Observation Geometry
                   </h3>
                 </div>
@@ -496,7 +496,7 @@ const PlanetDetail = () => {
               </div>
               <div className="p-6">
                 <div className="grid grid-cols-2 gap-3 text-xs font-mono">
-                  <div className="bg-space-void/80 p-3.5 rounded-xl border border-purple-500/15">
+                  <div className="bg-space-inset p-3.5 rounded-xl border border-purple-500/15">
                     <span className="text-exosignal-text-muted block text-[10px]">
                       Stellar Radius
                     </span>
@@ -513,7 +513,7 @@ const PlanetDetail = () => {
                       )}
                     </span>
                   </div>
-                  <div className="bg-space-void/80 p-3.5 rounded-xl border border-purple-500/15">
+                  <div className="bg-space-inset p-3.5 rounded-xl border border-purple-500/15">
                     <span className="text-exosignal-text-muted block text-[10px]">
                       Stellar Temp
                     </span>
@@ -530,13 +530,13 @@ const PlanetDetail = () => {
                       )}
                     </span>
                   </div>
-                  <div className="bg-space-void/80 p-3.5 rounded-xl border border-purple-500/15">
+                  <div className="bg-space-inset p-3.5 rounded-xl border border-purple-500/15">
                     <span className="text-exosignal-text-muted block text-[10px]">Distance</span>
                     <span className="text-white font-bold text-sm">
                       {formatDistance(planet.distance)}
                     </span>
                   </div>
-                  <div className="bg-space-void/80 p-3.5 rounded-xl border border-purple-500/15">
+                  <div className="bg-space-inset p-3.5 rounded-xl border border-purple-500/15">
                     <span className="text-exosignal-text-muted block text-[10px]">
                       Anomaly Score
                     </span>
@@ -625,7 +625,7 @@ const PlanetDetail = () => {
                 {getSuggestedObservations().map((obs, idx) => (
                   <div
                     key={idx}
-                    className="bg-space-void/80 p-4 rounded-xl border border-exosignal-cyan/15 flex items-start space-x-3 hover:border-exosignal-cyan/40 transition-colors"
+                    className="bg-space-inset p-4 rounded-xl border border-exosignal-cyan/15 flex items-start space-x-3 hover:border-exosignal-cyan/40 transition-colors"
                   >
                     <span className="text-exosignal-cyan text-base mt-0.5">🔭</span>
                     <div>

@@ -26,7 +26,7 @@ const SectionDivider = ({
     purple: {
       lineLeft: 'from-transparent via-exosignal-purple/25 to-exosignal-purple/60',
       lineRight: 'from-exosignal-purple/60 via-exosignal-purple/25 to-transparent',
-      text: 'text-exosignal-purple',
+      text: 'text-exosignal-purple-light',
       border: 'border-exosignal-purple/30',
       bgBadge: 'bg-exosignal-purple/10 text-purple-300 border-purple-500/30',
       dot: 'bg-exosignal-purple shadow-[0_0_8px_#a855f7]',
@@ -67,7 +67,7 @@ const SectionDivider = ({
             </span>
           )}
           {badge && (
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono tracking-wider bg-space-void/90 text-exosignal-text-muted border border-exosignal-cyan/20">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono tracking-wider bg-space-inset text-exosignal-text-muted border border-exosignal-cyan/20">
               {badge}
             </span>
           )}

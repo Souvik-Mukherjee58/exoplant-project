@@ -18,7 +18,7 @@ const Favorites = () => {
         </p>
         <Link
           to="/top-targets"
-          className="inline-block bg-exosignal-accent text-space-dark px-6 py-3 rounded-lg font-semibold hover:bg-exosignal-blue transition"
+          className="inline-block bg-exosignal-accent text-space-dark px-6 py-3 rounded-lg font-semibold hover:bg-exosignal-cyan transition"
         >
           Explore Top Targets
         </Link>
@@ -31,8 +31,8 @@ const Favorites = () => {
       <h1 className="text-3xl font-bold text-exosignal-text mb-4">Your Favorites</h1>
       <p className="text-exosignal-text/70 mb-6">Your bookmarked exoplanets for quick access.</p>
 
-      <div className="bg-space-darker rounded-lg border border-exosignal-blue/20 overflow-x-auto">
-        <table className="min-w-full divide-y divide-exosignal-blue/10">
+      <div className="bg-space-darker rounded-lg border border-exosignal-cyan/20 overflow-x-auto">
+        <table className="min-w-full divide-y divide-exosignal-cyan/10">
           <thead className="bg-space-dark">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-exosignal-text/70 uppercase">
@@ -58,7 +58,7 @@ const Favorites = () => {
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-exosignal-blue/10">
+          <tbody className="divide-y divide-exosignal-cyan/10">
             {favorites.map((planet, index) => (
               <motion.tr
                 key={planet.planet_name}
@@ -70,7 +70,7 @@ const Favorites = () => {
                 <td className="px-6 py-4 text-exosignal-text font-medium">
                   <Link
                     to={`/planet/${encodeURIComponent(planet.planet_name)}`}
-                    className="hover:text-exosignal-accent"
+                    className="hover:text-exosignal-accent-light"
                   >
                     {planet.planet_name}
                   </Link>
@@ -79,7 +79,7 @@ const Favorites = () => {
                 <td className="px-6 py-4 text-exosignal-text/70">
                   {formatDistance(planet.distance)}
                 </td>
-                <td className="px-6 py-4 text-exosignal-accent font-semibold">
+                <td className="px-6 py-4 text-exosignal-accent-light font-semibold">
                   <PriorityScoreDisplay planet={planet} />
                   {planet.priority_rank ? ` (#${planet.priority_rank})` : ''}
                 </td>

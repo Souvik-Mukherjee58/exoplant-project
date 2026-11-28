@@ -202,7 +202,7 @@ const ModelRegistry = () => {
                     </h3>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-x-2 text-xs font-mono text-exosignal-text-muted bg-space-void/80 px-3 py-1.5 rounded-xl border border-exosignal-cyan/20">
+                <div className="flex flex-wrap items-center gap-x-2 text-xs font-mono text-exosignal-text-muted bg-space-inset px-3 py-1.5 rounded-xl border border-exosignal-cyan/20">
                   <span>Registered:</span>
                   <span className="text-white font-semibold">
                     {activeVersionData.registered_at?.slice(0, 19).replace('T', ' ')} UTC
@@ -213,7 +213,7 @@ const ModelRegistry = () => {
               <div className="p-6 space-y-6">
                 {/* Key Metrics Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-space-void/80 rounded-xl p-4 border border-exosignal-cyan/20 shadow-sm">
+                  <div className="bg-space-inset rounded-xl p-4 border border-exosignal-cyan/20 shadow-sm">
                     <span className="text-xs font-mono text-exosignal-text-muted">NDCG@10</span>
                     <div
                       className={`${valueSize(
@@ -227,14 +227,14 @@ const ModelRegistry = () => {
                     </span>
                   </div>
 
-                  <div className="bg-space-void/80 rounded-xl p-4 border border-exosignal-cyan/20 shadow-sm">
+                  <div className="bg-space-inset rounded-xl p-4 border border-exosignal-cyan/20 shadow-sm">
                     <span className="text-xs font-mono text-exosignal-text-muted">
                       Mean Avg Precision (MAP)
                     </span>
                     <div
                       className={`${valueSize(
                         activeVersionData.evaluation?.map
-                      )} font-bold font-mono text-exosignal-purple mt-1`}
+                      )} font-bold font-mono text-exosignal-purple-light mt-1`}
                     >
                       {recorded(activeVersionData.evaluation?.map)}
                     </div>
@@ -243,7 +243,7 @@ const ModelRegistry = () => {
                     </span>
                   </div>
 
-                  <div className="bg-space-void/80 rounded-xl p-4 border border-exosignal-cyan/20 shadow-sm">
+                  <div className="bg-space-inset rounded-xl p-4 border border-exosignal-cyan/20 shadow-sm">
                     <span className="text-xs font-mono text-exosignal-text-muted">
                       Precision@10
                     </span>
@@ -259,7 +259,7 @@ const ModelRegistry = () => {
                     </span>
                   </div>
 
-                  <div className="bg-space-void/80 rounded-xl p-4 border border-exosignal-cyan/20 shadow-sm">
+                  <div className="bg-space-inset rounded-xl p-4 border border-exosignal-cyan/20 shadow-sm">
                     <span className="text-xs font-mono text-exosignal-text-muted">
                       Catalog Format
                     </span>
@@ -274,13 +274,13 @@ const ModelRegistry = () => {
 
                 {/* Training Lineage & Provenance */}
                 <div className="pt-4 border-t border-exosignal-cyan/15 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono text-exosignal-text-secondary">
-                  <div className="bg-space-void/60 p-3 rounded-xl border border-exosignal-cyan/10">
+                  <div className="bg-space-inset p-3 rounded-xl border border-exosignal-cyan/10">
                     <span className="text-exosignal-text-muted block text-[10px]">Algorithm:</span>
                     <span className="text-white font-semibold text-xs">
                       {activeVersionData.training?.algorithm || 'Not recorded'}
                     </span>
                   </div>
-                  <div className="bg-space-void/60 p-3 rounded-xl border border-exosignal-cyan/10">
+                  <div className="bg-space-inset p-3 rounded-xl border border-exosignal-cyan/10">
                     <span className="text-exosignal-text-muted block text-[10px]">
                       Inputs of the served model:
                     </span>
@@ -297,7 +297,7 @@ const ModelRegistry = () => {
                         </span>
                       )}
                   </div>
-                  <div className="bg-space-void/60 p-3 rounded-xl border border-exosignal-cyan/10">
+                  <div className="bg-space-inset p-3 rounded-xl border border-exosignal-cyan/10">
                     <span className="text-exosignal-text-muted block text-[10px]">Evaluation:</span>
                     <span className="text-white font-semibold text-xs">
                       Cross-validation grouped by host star (25 folds). No separate test set; the
@@ -332,7 +332,7 @@ const ModelRegistry = () => {
                   Cross-validation metrics on labels that are not human-verified
                 </p>
               </div>
-              <span className="text-xs font-mono px-3 py-1 rounded-full bg-space-void border border-exosignal-purple/30 text-purple-300 font-bold">
+              <span className="text-xs font-mono px-3 py-1 rounded-full bg-space-inset border border-exosignal-purple/30 text-purple-300 font-bold">
                 {registryData?.total_versions || 0} Registered Builds
               </span>
             </div>
@@ -341,7 +341,7 @@ const ModelRegistry = () => {
               <div className="overflow-x-auto rounded-xl border border-exosignal-cyan/20">
                 <table className="w-full text-xs font-mono">
                   <thead>
-                    <tr className="border-b border-exosignal-cyan/20 bg-space-void/90 text-exosignal-text-muted text-left">
+                    <tr className="border-b border-exosignal-cyan/20 bg-space-inset text-exosignal-text-muted text-left">
                       <th className="py-3 px-4">Version Tag</th>
                       <th className="py-3 px-4">Deployment Status</th>
                       <th className="py-3 px-4">NDCG@10</th>
@@ -351,7 +351,7 @@ const ModelRegistry = () => {
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-exosignal-cyan/10 bg-space-void/40">
+                  <tbody className="divide-y divide-exosignal-cyan/10 bg-space-inset">
                     {registryData?.versions?.map((v) => {
                       const isProduction =
                         v.version === registryData?.active_version || v.status === 'production';
@@ -372,7 +372,7 @@ const ModelRegistry = () => {
                           <td className="py-3 px-4 text-exosignal-cyan font-bold">
                             {v.ndcg_at_10 != null ? v.ndcg_at_10.toFixed(4) : '—'}
                           </td>
-                          <td className="py-3 px-4 text-exosignal-purple font-bold">
+                          <td className="py-3 px-4 text-exosignal-purple-light font-bold">
                             {v.map != null ? v.map.toFixed(4) : '—'}
                           </td>
                           <td className="py-3 px-4 text-emerald-400 font-bold">
@@ -448,7 +448,7 @@ const ModelRegistry = () => {
                         {Object.entries(validationResult.checks).map(([key, check]) => (
                           <div
                             key={key}
-                            className="bg-space-void/80 rounded-xl p-4 border border-exosignal-cyan/20 text-xs font-mono space-y-1.5"
+                            className="bg-space-inset rounded-xl p-4 border border-exosignal-cyan/20 text-xs font-mono space-y-1.5"
                           >
                             <div className="flex justify-between items-center">
                               <span className="text-exosignal-cyan uppercase font-bold">
@@ -502,7 +502,7 @@ const ModelRegistry = () => {
                   </h3>
                 </div>
                 {latencyBench && (
-                  <span className="text-xs font-mono text-emerald-400 font-bold bg-space-void/80 px-3 py-1 rounded-full border border-emerald-500/30">
+                  <span className="text-xs font-mono text-emerald-400 font-bold bg-space-inset px-3 py-1 rounded-full border border-emerald-500/30">
                     {latencyBench.engine}
                   </span>
                 )}
@@ -517,7 +517,7 @@ const ModelRegistry = () => {
                     </p>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 font-mono text-center">
-                      <div className="bg-space-void/80 p-4 rounded-xl border border-exosignal-cyan/20">
+                      <div className="bg-space-inset p-4 rounded-xl border border-exosignal-cyan/20">
                         <span className="text-xs text-exosignal-text-muted">
                           P50 Median Latency
                         </span>
@@ -525,19 +525,19 @@ const ModelRegistry = () => {
                           {ms(latencyBench.p50_ms)}
                         </div>
                       </div>
-                      <div className="bg-space-void/80 p-4 rounded-xl border border-exosignal-cyan/20">
+                      <div className="bg-space-inset p-4 rounded-xl border border-exosignal-cyan/20">
                         <span className="text-xs text-exosignal-text-muted">P95 Latency</span>
                         <div className="text-2xl font-bold text-exosignal-cyan mt-1">
                           {ms(latencyBench.p95_ms)}
                         </div>
                       </div>
-                      <div className="bg-space-void/80 p-4 rounded-xl border border-exosignal-cyan/20">
+                      <div className="bg-space-inset p-4 rounded-xl border border-exosignal-cyan/20">
                         <span className="text-xs text-exosignal-text-muted">P99 Latency</span>
-                        <div className="text-2xl font-bold text-exosignal-purple mt-1">
+                        <div className="text-2xl font-bold text-exosignal-purple-light mt-1">
                           {ms(latencyBench.p99_ms)}
                         </div>
                       </div>
-                      <div className="bg-space-void/80 p-4 rounded-xl border border-exosignal-cyan/20">
+                      <div className="bg-space-inset p-4 rounded-xl border border-exosignal-cyan/20">
                         <span className="text-xs text-exosignal-text-muted">Mean Latency</span>
                         <div className="text-2xl font-bold text-white mt-1">
                           {ms(latencyBench.mean_ms)}
@@ -594,7 +594,7 @@ const ModelRegistry = () => {
                 <select
                   value={versionA}
                   onChange={(e) => setVersionA(e.target.value)}
-                  className="bg-space-void border border-exosignal-cyan/30 rounded-lg px-3 py-1.5 text-xs font-mono text-white"
+                  className="bg-space-inset border border-exosignal-cyan/30 rounded-lg px-3 py-1.5 text-xs font-mono text-white"
                 >
                   {registryData?.versions?.map((v) => (
                     <option key={v.version} value={v.version}>
@@ -606,7 +606,7 @@ const ModelRegistry = () => {
                 <select
                   value={versionB}
                   onChange={(e) => setVersionB(e.target.value)}
-                  className="bg-space-void border border-exosignal-purple/30 rounded-lg px-3 py-1.5 text-xs font-mono text-white"
+                  className="bg-space-inset border border-exosignal-purple/30 rounded-lg px-3 py-1.5 text-xs font-mono text-white"
                 >
                   {registryData?.versions?.map((v) => (
                     <option key={v.version} value={v.version}>
@@ -636,7 +636,7 @@ const ModelRegistry = () => {
                   No metric is recorded for both builds, so there is nothing to compare.
                 </div>
               ) : comparison ? (
-                <div className="bg-space-void/80 rounded-xl p-5 border border-exosignal-purple/20">
+                <div className="bg-space-inset rounded-xl p-5 border border-exosignal-purple/20">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
                     {Object.entries(comparison.metric_comparison || {}).map(([metric, data]) => (
                       <div

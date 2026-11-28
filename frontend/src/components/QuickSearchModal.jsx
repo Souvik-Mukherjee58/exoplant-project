@@ -165,7 +165,7 @@ export const QuickSearchModal = ({ isOpen, onClose }) => {
         className="relative w-full max-w-2xl bg-space-dark border border-exosignal-cyan/40 rounded-2xl shadow-[0_0_50px_rgba(6,182,212,0.25)] overflow-hidden flex flex-col max-h-[85vh]"
       >
         {/* Header / Search Input */}
-        <div className="p-4 border-b border-exosignal-cyan/20 flex items-center space-x-3 bg-space-void/90">
+        <div className="p-4 border-b border-exosignal-cyan/20 flex items-center space-x-3 bg-space-inset">
           <span className="text-exosignal-cyan text-lg" aria-hidden="true">
             🔍
           </span>
@@ -194,7 +194,7 @@ export const QuickSearchModal = ({ isOpen, onClose }) => {
         </div>
 
         {/* Suggested Quick Chips */}
-        <div className="px-4 py-2.5 bg-space-void/50 border-b border-exosignal-cyan/10 flex items-center space-x-2 overflow-x-auto text-xs font-mono">
+        <div className="px-4 py-2.5 bg-space-inset border-b border-exosignal-cyan/10 flex items-center space-x-2 overflow-x-auto text-xs font-mono">
           <span className="text-exosignal-text-muted shrink-0">Try:</span>
           {SUGGESTED_QUERIES.map((sq) => (
             <button
@@ -258,8 +258,8 @@ export const QuickSearchModal = ({ isOpen, onClose }) => {
                         onClick={() => setSelectedIndex(idx)}
                         className={`flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl transition-all cursor-pointer ${
                           isSelected
-                            ? 'bg-space-void border-2 border-exosignal-cyan shadow-neon-cyan ring-1 ring-exosignal-cyan'
-                            : 'bg-space-void/80 border border-exosignal-cyan/20 hover:border-exosignal-cyan/50 hover:bg-space-void'
+                            ? 'bg-space-inset border-2 border-exosignal-cyan shadow-neon-cyan ring-1 ring-exosignal-cyan'
+                            : 'bg-space-inset border border-exosignal-cyan/20 hover:border-exosignal-cyan/50 hover:bg-space-inset'
                         }`}
                       >
                         <div className="space-y-1">
@@ -361,7 +361,7 @@ export const QuickSearchModal = ({ isOpen, onClose }) => {
         </div>
 
         {/* Footer info */}
-        <div className="px-4 py-2 border-t border-exosignal-cyan/15 bg-space-void/90 flex items-center justify-between text-[11px] font-mono text-slate-400">
+        <div className="px-4 py-2 border-t border-exosignal-cyan/15 bg-space-inset flex items-center justify-between text-[11px] font-mono text-slate-400">
           <span>Navigate with ↑↓ • Enter to select • ESC to exit</span>
           <span>Target Search &amp; Linear SHAP Inspector</span>
         </div>

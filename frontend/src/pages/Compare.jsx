@@ -98,7 +98,7 @@ const Compare = () => {
               onChange={(e) => setSelectorSearch(e.target.value)}
               placeholder="Filter catalog..."
               aria-label="Filter the catalog by planet name"
-              className="w-full mb-3 bg-space-void border border-exosignal-cyan/30 rounded-xl px-3 py-1.5 text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:border-exosignal-cyan"
+              className="w-full mb-3 bg-space-inset border border-exosignal-cyan/30 rounded-xl px-3 py-1.5 text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:border-exosignal-cyan"
             />
 
             {/* List */}
@@ -115,7 +115,7 @@ const Compare = () => {
                     className={`w-full text-left p-2.5 rounded-xl border text-xs font-mono transition-all flex items-center justify-between ${
                       isSelected
                         ? 'bg-exosignal-cyan/20 border-exosignal-cyan/50 text-white shadow-neon-cyan'
-                        : 'bg-space-void/60 border-exosignal-cyan/10 text-exosignal-text-secondary hover:border-exosignal-cyan/30'
+                        : 'bg-space-inset border-exosignal-cyan/10 text-exosignal-text-secondary hover:border-exosignal-cyan/30'
                     }`}
                   >
                     <span className="font-semibold truncate">{planet.planet_name}</span>
@@ -176,7 +176,7 @@ const Compare = () => {
                     >
                       <div>
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-space-void border border-exosignal-cyan/30 text-exosignal-cyan">
+                          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-space-inset border border-exosignal-cyan/30 text-exosignal-cyan">
                             Target #{idx + 1}
                           </span>
                           <HzBadge status={planet.hz_status} className="font-mono" />
@@ -193,7 +193,7 @@ const Compare = () => {
                           Host: {getCleanHostStar(planet)}
                         </div>
 
-                        <div className="space-y-1.5 text-xs font-mono bg-space-void/60 p-2.5 rounded-xl border border-exosignal-cyan/15 mb-3">
+                        <div className="space-y-1.5 text-xs font-mono bg-space-inset p-2.5 rounded-xl border border-exosignal-cyan/15 mb-3">
                           <div className="flex justify-between">
                             <span className="text-exosignal-text-muted">Radius:</span>
                             <span className="text-white font-bold">
@@ -232,7 +232,7 @@ const Compare = () => {
                             className="text-exosignal-cyan font-bold"
                           />
                         </div>
-                        <div className="w-full bg-space-void rounded-full h-1.5 overflow-hidden">
+                        <div className="w-full bg-space-inset rounded-full h-1.5 overflow-hidden">
                           <div
                             className="bg-gradient-to-r from-exosignal-cyan to-exosignal-purple h-full rounded-full"
                             style={{

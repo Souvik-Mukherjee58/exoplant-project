@@ -103,7 +103,7 @@ const NotFound = () => (
 function App() {
   return (
     <Router>
-      <div className="min-h-screen flex flex-col bg-space-void text-exosignal-text">
+      <div className="min-h-screen flex flex-col text-exosignal-text">
         {/* Modern Glowing Navigation Bar */}
         <Navbar />
 

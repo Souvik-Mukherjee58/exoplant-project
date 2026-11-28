@@ -55,7 +55,7 @@ const Navbar = () => {
   }, []);
 
   return (
-    <header className="sticky top-0 z-50 backdrop-blur-xl bg-space-void/85 border-b border-exosignal-cyan/20 shadow-2xl">
+    <header className="sticky top-0 z-50 backdrop-blur-md bg-space-overlay border-b border-exosignal-cyan/20 shadow-2xl">
       <div className="max-w-7xl 2xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Logo & Brand */}
@@ -136,7 +136,7 @@ const Navbar = () => {
             <button
               onClick={() => setQuickSearchOpen(true)}
               aria-label="Search Ctrl+K: find targets and launch SHAP (or press /)"
-              className="glass-pill hover:border-exosignal-cyan/60 text-xs font-mono text-exosignal-text-secondary hover:text-white transition-all flex items-center space-x-1.5 cursor-pointer bg-space-void/60"
+              className="glass-pill hover:border-exosignal-cyan/60 text-xs font-mono text-exosignal-text-secondary hover:text-white transition-all flex items-center space-x-1.5 cursor-pointer bg-space-inset"
               title="Search targets & launch SHAP (Ctrl+K or /)"
             >
               <span className="text-exosignal-cyan" aria-hidden="true">
@@ -236,7 +236,7 @@ const Navbar = () => {
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="xl:hidden border-t border-exosignal-cyan/20 bg-space-void/95 px-4 pt-3 pb-4 space-y-2">
+        <div className="xl:hidden border-t border-exosignal-cyan/20 bg-space-inset px-4 pt-3 pb-4 space-y-2">
           {NAV_ITEMS.map((item) => (
             <Link
               key={item.path}

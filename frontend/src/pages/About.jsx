@@ -28,7 +28,7 @@ const About = () => {
             prioritization.
           </p>
         </div>
-        <div className="text-xs font-mono text-emerald-400 bg-space-void/90 px-3 py-1.5 rounded-xl border border-emerald-500/30">
+        <div className="text-xs font-mono text-emerald-400 bg-space-inset px-3 py-1.5 rounded-xl border border-emerald-500/30">
           Public Source Code
         </div>
       </div>
@@ -81,7 +81,7 @@ const About = () => {
 
           <div className="divided-compartment p-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <div className="bg-space-void/80 p-5 rounded-xl border border-exosignal-cyan/20 space-y-3">
+              <div className="bg-space-inset p-5 rounded-xl border border-exosignal-cyan/20 space-y-3">
                 <h3 className="font-bold text-exosignal-cyan text-sm font-mono uppercase">
                   Backend Engine
                 </h3>
@@ -100,8 +100,8 @@ const About = () => {
                 </ul>
               </div>
 
-              <div className="bg-space-void/80 p-5 rounded-xl border border-purple-500/20 space-y-3">
-                <h3 className="font-bold text-exosignal-purple text-sm font-mono uppercase">
+              <div className="bg-space-inset p-5 rounded-xl border border-purple-500/20 space-y-3">
+                <h3 className="font-bold text-exosignal-purple-light text-sm font-mono uppercase">
                   Frontend Studio
                 </h3>
                 <ul className="text-xs font-mono space-y-2 text-exosignal-text-secondary">
@@ -120,7 +120,7 @@ const About = () => {
               {['DuckDB', 'Logistic Reg.', 'FastAPI', 'SHAP', 'React + Vite'].map((tech) => (
                 <div
                   key={tech}
-                  className="bg-space-void/90 rounded-xl p-3 text-center text-white border border-exosignal-cyan/20 font-bold"
+                  className="bg-space-inset rounded-xl p-3 text-center text-white border border-exosignal-cyan/20 font-bold"
                 >
                   {tech}
                 </div>
@@ -142,7 +142,7 @@ const About = () => {
           />
 
           <div className="divided-compartment p-8 space-y-4 text-xs font-mono">
-            <div className="p-4 rounded-xl bg-space-void/80 border border-emerald-500/20 space-y-1">
+            <div className="p-4 rounded-xl bg-space-inset border border-emerald-500/20 space-y-1">
               <span className="text-emerald-400 font-bold text-sm block">
                 NASA Exoplanet Archive (IPAC / Caltech)
               </span>
@@ -152,7 +152,7 @@ const About = () => {
               </p>
             </div>
 
-            <div className="p-4 rounded-xl bg-space-void/80 border border-exosignal-cyan/20 space-y-1">
+            <div className="p-4 rounded-xl bg-space-inset border border-exosignal-cyan/20 space-y-1">
               <span className="text-exosignal-cyan font-bold text-sm block">
                 JWST Approved Targets & Literature
               </span>

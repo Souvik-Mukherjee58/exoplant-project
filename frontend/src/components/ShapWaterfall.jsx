@@ -47,7 +47,7 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
 
   if (loading) {
     return (
-      <div className="bg-space-darker rounded-lg border border-exosignal-blue/20 p-8 text-center">
+      <div className="bg-space-darker rounded-lg border border-exosignal-cyan/20 p-8 text-center">
         <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-exosignal-accent"></div>
         <p className="mt-3 text-exosignal-text/70 text-sm font-mono">
           Computing exact Linear SHAP feature attributions (Lundberg & Lee 2017)...
@@ -58,7 +58,7 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
 
   if (error || !explanation) {
     return (
-      <div className="bg-space-darker rounded-lg border border-exosignal-blue/20 p-6 text-center text-exosignal-text/60 font-mono">
+      <div className="bg-space-darker rounded-lg border border-exosignal-cyan/20 p-6 text-center text-exosignal-text/60 font-mono">
         <p>Interpretability breakdown unavailable for this target: {error}</p>
       </div>
     );
@@ -96,15 +96,15 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
   };
 
   return (
-    <section className="bg-space-darker rounded-lg border border-exosignal-blue/30 p-8">
+    <section className="bg-space-darker rounded-lg border border-exosignal-cyan/30 p-8">
       {/* Header with Title and Linear SHAP Citation Badges */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between pb-6 border-b border-exosignal-blue/10 gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between pb-6 border-b border-exosignal-cyan/10 gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-3">
             <h2 className="text-2xl font-bold text-exosignal-text">
               Linear SHAP Interpretability Waterfall
             </h2>
-            <span className="px-2.5 py-0.5 rounded text-xs font-semibold bg-exosignal-blue/20 text-exosignal-blue border border-exosignal-blue/40 font-mono">
+            <span className="px-2.5 py-0.5 rounded text-xs font-semibold bg-exosignal-cyan/20 text-exosignal-cyan border border-exosignal-cyan/40 font-mono">
               Lundberg & Lee (2017, NeurIPS)
             </span>
           </div>
@@ -118,13 +118,15 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
         {/* Rank & Delta Badges */}
         <div className="flex items-center gap-2">
           {mlRank && (
-            <div className="px-3 py-1.5 rounded-lg bg-space-dark border border-exosignal-blue/30 text-right">
+            <div className="px-3 py-1.5 rounded-lg bg-space-dark border border-exosignal-cyan/30 text-right">
               <span className="text-xs text-exosignal-text/60 block font-mono">ML Rank</span>
-              <span className="text-base font-bold text-exosignal-accent font-mono">#{mlRank}</span>
+              <span className="text-base font-bold text-exosignal-accent-light font-mono">
+                #{mlRank}
+              </span>
             </div>
           )}
           {rankDelta !== null && rankDelta !== undefined && (
-            <div className="px-3 py-1.5 rounded-lg bg-space-dark border border-exosignal-blue/30 text-right">
+            <div className="px-3 py-1.5 rounded-lg bg-space-dark border border-exosignal-cyan/30 text-right">
               <span className="text-xs text-exosignal-text/60 block font-mono">
                 Rank Shift vs Heuristic
               </span>
@@ -146,15 +148,15 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
 
       {/* KPI Decomposition Cards: Base Logit, Sum SHAP, Final Logit, Converted Percentile */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 my-6">
-        <div className="bg-space-dark rounded-lg p-4 border border-exosignal-blue/20">
+        <div className="bg-space-dark rounded-lg p-4 border border-exosignal-cyan/20">
           <p className="text-xs text-exosignal-text/60 font-mono">Base Value (w₀)</p>
           <p className="text-xl font-bold font-mono text-exosignal-text mt-1">{logit(baseLogit)}</p>
-          <p className="text-[11px] text-exosignal-text/50 mt-1 font-mono">
+          <p className="text-[11px] text-exosignal-text-muted mt-1 font-mono">
             Global intercept (log-odds)
           </p>
         </div>
 
-        <div className="bg-space-dark rounded-lg p-4 border border-exosignal-blue/20">
+        <div className="bg-space-dark rounded-lg p-4 border border-exosignal-cyan/20">
           <p className="text-xs text-exosignal-text/60 font-mono">Net Feature Shift (Σ φᵢ)</p>
           <p
             className={`text-xl font-bold font-mono mt-1 ${
@@ -163,17 +165,17 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
           >
             {logit(sumShap)}
           </p>
-          <p className="text-[11px] text-exosignal-text/50 mt-1 font-mono">Sum of Δ log-odds</p>
+          <p className="text-[11px] text-exosignal-text-muted mt-1 font-mono">Sum of Δ log-odds</p>
         </div>
 
-        <div className="bg-space-dark rounded-lg p-4 border border-exosignal-blue/30 bg-exosignal-blue/5">
-          <p className="text-xs text-exosignal-accent font-semibold font-mono">
+        <div className="bg-space-dark rounded-lg p-4 border border-exosignal-cyan/30 bg-exosignal-cyan/5">
+          <p className="text-xs text-exosignal-accent-light font-semibold font-mono">
             Final Logit (w·x + w₀)
           </p>
-          <p className="text-xl font-extrabold font-mono text-exosignal-accent mt-1">
+          <p className="text-xl font-extrabold font-mono text-exosignal-accent-light mt-1">
             {logit(finalLogit)}
           </p>
-          <p className="text-[11px] text-exosignal-text/50 mt-1 font-mono">
+          <p className="text-[11px] text-exosignal-text-muted mt-1 font-mono">
             Predicted model margin
           </p>
         </div>
@@ -183,7 +185,7 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
           <p className="text-xl font-extrabold font-mono text-emerald-400 mt-1">
             {typeof convertedPercentile === 'number' ? convertedPercentile.toFixed(1) : '—'} / 100
           </p>
-          <p className="text-[11px] text-exosignal-text/50 mt-1 font-mono">
+          <p className="text-[11px] text-exosignal-text-muted mt-1 font-mono">
             σ(logit) × 100: a ranking score, not a calibrated probability
           </p>
         </div>
@@ -204,15 +206,15 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
         )}
 
       {/* Invariant Bar */}
-      <div className="p-2.5 rounded-lg bg-space-dark border border-exosignal-blue/15 flex flex-wrap items-center justify-between text-xs font-mono text-exosignal-text/70 mb-6 gap-2">
+      <div className="p-2.5 rounded-lg bg-space-dark border border-exosignal-cyan/15 flex flex-wrap items-center justify-between text-xs font-mono text-exosignal-text/70 mb-6 gap-2">
         <span className="text-emerald-400 font-semibold">
           Additive Invariant: Σ φᵢ + Base Value = Final Logit
         </span>
-        <span className="text-[11px] text-exosignal-text/50">
+        <span className="text-[11px] text-exosignal-text-muted">
           Reconstruction residual: {Number.isFinite(residual) ? residual.toExponential(2) : '—'}
         </span>
       </div>
-      <p className="text-[11px] text-exosignal-text/50 font-mono -mt-3 mb-6">
+      <p className="text-[11px] text-exosignal-text-muted font-mono -mt-3 mb-6">
         This explains the production model fitted on all labels. For planets that are themselves
         labels, the rank shown elsewhere uses an out-of-fold score (model not trained on that
         planet), so the two scores can differ.
@@ -225,12 +227,12 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
             ? 'Key Physical Drivers & Barriers (Δ log-odds)'
             : 'All Model Feature Contributions (Δ log-odds)'}
         </h3>
-        <div className="flex items-center bg-space-dark p-1 rounded-lg border border-exosignal-blue/20">
+        <div className="flex items-center bg-space-dark p-1 rounded-lg border border-exosignal-cyan/20">
           <button
             onClick={() => setViewMode('summary')}
             className={`px-3 py-1 rounded text-xs font-medium font-mono transition ${
               viewMode === 'summary'
-                ? 'bg-exosignal-blue text-space-darker font-bold'
+                ? 'bg-exosignal-cyan text-space-darker font-bold'
                 : 'text-exosignal-text/70 hover:text-white'
             }`}
           >
@@ -240,7 +242,7 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
             onClick={() => setViewMode('full')}
             className={`px-3 py-1 rounded text-xs font-medium font-mono transition ${
               viewMode === 'full'
-                ? 'bg-exosignal-blue text-space-darker font-bold'
+                ? 'bg-exosignal-cyan text-space-darker font-bold'
                 : 'text-exosignal-text/70 hover:text-white'
             }`}
           >
@@ -261,16 +263,16 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
           return (
             <div
               key={item.feature}
-              className="bg-space-dark rounded-lg p-3 border border-exosignal-blue/15 hover:border-exosignal-blue/40 transition"
+              className="bg-space-dark rounded-lg p-3 border border-exosignal-cyan/15 hover:border-exosignal-cyan/40 transition"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between text-sm gap-2">
                 <div className="flex-1 min-w-[200px]">
                   <span className="font-semibold text-exosignal-text">{item.display_name}</span>
-                  <span className="text-xs font-mono text-exosignal-accent ml-2">
+                  <span className="text-xs font-mono text-exosignal-accent-light ml-2">
                     ({item.raw_value})
                   </span>
                   {item.description && (
-                    <p className="text-xs text-exosignal-text/50 mt-0.5">{item.description}</p>
+                    <p className="text-xs text-exosignal-text-muted mt-0.5">{item.description}</p>
                   )}
                 </div>
 
@@ -295,7 +297,7 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
                     />
                   )}
                 </div>
-                <div className="w-[2px] h-full bg-exosignal-blue/40" />
+                <div className="w-[2px] h-full bg-exosignal-cyan/40" />
                 <div className="w-1/2 flex justify-start">
                   {isPos && (
                     <div
@@ -311,7 +313,7 @@ export const ShapWaterfall = ({ planetName, mlRank, rankDelta }) => {
       </div>
 
       {/* Explanatory Physical Legend */}
-      <div className="mt-6 pt-4 border-t border-exosignal-blue/10 flex flex-wrap items-center justify-between text-xs text-exosignal-text/60 gap-4 font-mono">
+      <div className="mt-6 pt-4 border-t border-exosignal-cyan/10 flex flex-wrap items-center justify-between text-xs text-exosignal-text/60 gap-4 font-mono">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 shrink-0 rounded-full bg-emerald-400 inline-block" />

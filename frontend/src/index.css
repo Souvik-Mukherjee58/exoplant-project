@@ -4,15 +4,6 @@
 /* Hand-written utilities. Tailwind's own utilities come last (end of this file), so responsive and state variants win. */
 
 /* Colors */
-.bg-exosignal-blue\/10 {
-  background-color: rgba(0, 212, 255, 0.1);
-}
-.bg-exosignal-blue\/30 {
-  background-color: rgba(0, 212, 255, 0.3);
-}
-.bg-exosignal-blue\/60 {
-  background-color: rgba(0, 212, 255, 0.6);
-}
 .bg-gray-500 {
   background-color: #6b7280;
 }
@@ -88,12 +79,6 @@
 .border-l-4 {
   border-left-width: 4px;
 }
-.border-exosignal-blue\/50 {
-  border-color: rgba(0, 212, 255, 0.5);
-}
-.border-exosignal-blue {
-  border-color: var(--exosignal-blue);
-}
 .border-red-500 {
   border-color: #ef4444;
 }
@@ -110,26 +95,14 @@
   border-color: #9ca3af;
 }
 
-.hover\:bg-exosignal-blue\/10:hover {
-  background-color: rgba(0, 212, 255, 0.1);
-}
 .hover\:bg-exosignal-accent:hover {
   background-color: var(--exosignal-accent);
-}
-.hover\:border-exosignal-blue\/50:hover {
-  border-color: rgba(0, 212, 255, 0.5);
 }
 .hover\:border-exosignal-accent:hover {
   border-color: var(--exosignal-accent);
 }
-.hover\:bg-exosignal-blue\/30:hover {
-  background-color: rgba(0, 212, 255, 0.3);
-}
 .focus\:border-exosignal-accent:focus {
   border-color: var(--exosignal-accent);
-}
-.focus\:border-exosignal-blue:focus {
-  border-color: var(--exosignal-blue);
 }
 
 .accent-exosignal-accent {
@@ -161,12 +134,6 @@
 
 .divide-y > * + * {
   border-top-width: 1px;
-}
-.divide-exosignal-blue\/10 > * + * {
-  border-color: rgba(0, 212, 255, 0.1);
-}
-.divide-exosignal-blue\/20 > * + * {
-  border-color: rgba(0, 212, 255, 0.2);
 }
 .grid-cols-4 {
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -221,7 +188,7 @@
   cursor: not-allowed;
 }
 .bg-gradient-to-b {
-  background-image: linear-gradient(to bottom, #0a0a0f, #05050a);
+  background-image: linear-gradient(to bottom, var(--space-dark), var(--space-darker));
 }
 
 /* Animations */
@@ -280,7 +247,7 @@ td {
   background: var(--space-dark);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--exosignal-blue);
+  background: var(--exosignal-cyan);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {

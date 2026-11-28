@@ -158,7 +158,7 @@ const TopTargets = () => {
               className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
                 limit === num
                   ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-neon-emerald'
-                  : 'bg-space-void text-exosignal-text-muted hover:text-white border border-slate-700'
+                  : 'bg-space-inset text-exosignal-text-muted hover:text-white border border-slate-700'
               }`}
             >
               {num}
@@ -168,7 +168,7 @@ const TopTargets = () => {
       </div>
 
       {/* View Switcher Tabs */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 p-2 bg-space-void/90 rounded-2xl border border-exosignal-cyan/20">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 p-2 bg-space-inset rounded-2xl border border-exosignal-cyan/20">
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setActiveTab('unobserved')}
@@ -201,7 +201,7 @@ const TopTargets = () => {
 
         <div className="flex flex-wrap items-center gap-3 px-3">
           {activeTab === 'unobserved' && (
-            <label className="flex items-center space-x-2 text-xs font-mono text-slate-300 cursor-pointer select-none px-3 py-1.5 rounded-xl bg-space-void border border-slate-700 hover:border-exosignal-cyan transition">
+            <label className="flex items-center space-x-2 text-xs font-mono text-slate-300 cursor-pointer select-none px-3 py-1.5 rounded-xl bg-space-inset border border-slate-700 hover:border-exosignal-cyan transition">
               <input
                 type="checkbox"
                 checked={includeObserved}
@@ -294,7 +294,7 @@ const TopTargets = () => {
                         className={`text-[11px] font-mono font-bold uppercase px-2.5 py-0.5 rounded-full ${
                           isFirst
                             ? 'bg-amber-400/20 text-amber-300 border border-amber-400/40'
-                            : 'bg-space-void text-slate-300 border border-slate-700'
+                            : 'bg-space-inset text-slate-300 border border-slate-700'
                         }`}
                       >
                         {medal} · #{displayRank}
@@ -324,7 +324,7 @@ const TopTargets = () => {
                       Host Star: {getCleanHostStar(planet)}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-space-void/70 p-3 rounded-xl border border-exosignal-cyan/15 mb-4">
+                    <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-space-inset p-3 rounded-xl border border-exosignal-cyan/15 mb-4">
                       <div>
                         <span className="text-[10px] text-exosignal-text-muted block">Radius</span>
                         <span className="text-white font-bold">
@@ -372,7 +372,7 @@ const TopTargets = () => {
                       </span>
                     </div>
 
-                    <div className="bg-space-void/60 p-2.5 rounded-lg border border-slate-700/60 font-mono text-xs">
+                    <div className="bg-space-inset p-2.5 rounded-lg border border-slate-700/60 font-mono text-xs">
                       <div className="flex items-center justify-between">
                         <span className="text-exosignal-text-muted text-[11px]">TSM Metric:</span>
                         <span className="font-bold text-amber-300">
@@ -440,7 +440,7 @@ const TopTargets = () => {
                 >
                   <defs>
                     <linearGradient id="cyanGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#00d4ff" stopOpacity={1} />
+                      <stop offset="0%" stopColor="#38bdf8" stopOpacity={1} />
                       <stop offset="100%" stopColor="#0284c7" stopOpacity={0.6} />
                     </linearGradient>
                     <linearGradient id="amberGradient" x1="0" y1="0" x2="0" y2="1">
@@ -463,12 +463,12 @@ const TopTargets = () => {
                   <Tooltip
                     contentStyle={{
                       backgroundColor: '#070a16',
-                      borderColor: '#00d4ff',
+                      borderColor: '#38bdf8',
                       borderRadius: '12px',
                       color: '#ffffff',
                       fontFamily: 'JetBrains Mono',
                       fontSize: '12px',
-                      boxShadow: '0 0 20px rgba(0, 212, 255, 0.25)',
+                      boxShadow: '0 0 20px rgba(56, 189, 248, 0.25)',
                     }}
                   />
                   <Legend
@@ -612,7 +612,7 @@ const TopTargets = () => {
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-xs font-mono">
               <thead>
-                <tr className="border-b border-exosignal-cyan/20 bg-space-void/80 text-exosignal-text-muted text-left">
+                <tr className="border-b border-exosignal-cyan/20 bg-space-inset text-exosignal-text-muted text-left">
                   <th className="py-3.5 px-4">
                     {activeTab === 'validation' ? 'OOF Rank' : 'Rank'}
                   </th>

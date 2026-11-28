@@ -135,7 +135,7 @@ const Analytics = () => {
             unsupervised anomaly clustering across the archive catalog.
           </p>
         </div>
-        <div className="text-xs font-mono text-exosignal-cyan bg-space-void/90 px-3 py-1.5 rounded-xl border border-exosignal-cyan/20">
+        <div className="text-xs font-mono text-exosignal-cyan bg-space-inset px-3 py-1.5 rounded-xl border border-exosignal-cyan/20">
           Source: NASA Exoplanet Archive
         </div>
       </div>
@@ -183,7 +183,7 @@ const Analytics = () => {
               <p className="text-[10px] font-mono text-exosignal-text-muted uppercase mb-1 font-semibold">
                 Mean Heuristic Score
               </p>
-              <p className="text-2xl font-bold font-mono text-exosignal-purple">
+              <p className="text-2xl font-bold font-mono text-exosignal-purple-light">
                 {formatPriority(scoreStats.mean)}
               </p>
               <span className="text-[10px] font-mono text-purple-300 mt-1 block">
@@ -235,7 +235,7 @@ const Analytics = () => {
                   Number of catalogue planets per heuristic score range
                 </p>
               </div>
-              <span className="text-xs font-mono px-3 py-1 rounded-full bg-space-void border border-exosignal-cyan/20 text-exosignal-cyan">
+              <span className="text-xs font-mono px-3 py-1 rounded-full bg-space-inset border border-exosignal-cyan/20 text-exosignal-cyan">
                 5 Bins (0–100)
               </span>
             </div>
@@ -250,7 +250,7 @@ const Analytics = () => {
                     >
                       <defs>
                         <linearGradient id="scoreCyanGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#00d4ff" stopOpacity={1} />
+                          <stop offset="0%" stopColor="#38bdf8" stopOpacity={1} />
                           <stop offset="100%" stopColor="#0284c7" stopOpacity={0.6} />
                         </linearGradient>
                       </defs>
@@ -267,12 +267,12 @@ const Analytics = () => {
                       <Tooltip
                         contentStyle={{
                           backgroundColor: '#070a16',
-                          borderColor: '#00d4ff',
+                          borderColor: '#38bdf8',
                           borderRadius: '12px',
                           color: '#ffffff',
                           fontFamily: 'JetBrains Mono',
                           fontSize: '12px',
-                          boxShadow: '0 0 20px rgba(0, 212, 255, 0.25)',
+                          boxShadow: '0 0 20px rgba(56, 189, 248, 0.25)',
                         }}
                         formatter={(val) => [`${val} planets`, 'Population']}
                       />
@@ -320,7 +320,7 @@ const Analytics = () => {
                     Stellar flux boundaries of Kopparapu et al.
                   </p>
                 </div>
-                <span className="text-xs font-mono px-3 py-1 rounded-full bg-space-void border border-emerald-500/30 text-emerald-400">
+                <span className="text-xs font-mono px-3 py-1 rounded-full bg-space-inset border border-emerald-500/30 text-emerald-400">
                   Circumstellar HZ
                 </span>
               </div>
@@ -385,7 +385,7 @@ const Analytics = () => {
                       Transit, radial velocity, microlensing, and direct imaging counts
                     </p>
                   </div>
-                  <span className="text-xs font-mono px-3 py-1 rounded-full bg-space-void border border-purple-500/30 text-purple-300">
+                  <span className="text-xs font-mono px-3 py-1 rounded-full bg-space-inset border border-purple-500/30 text-purple-300">
                     Observation Techniques
                   </span>
                 </div>
@@ -463,7 +463,7 @@ const Analytics = () => {
                   anomaly score.
                 </p>
               </div>
-              <span className="text-xs font-mono px-3 py-1 rounded-full bg-space-void border border-amber-500/30 text-amber-300">
+              <span className="text-xs font-mono px-3 py-1 rounded-full bg-space-inset border border-amber-500/30 text-amber-300">
                 {pcaChartPoints.length} Project Targets
               </span>
             </div>
@@ -494,12 +494,12 @@ const Analytics = () => {
                       cursor={{ pointer: true }}
                       contentStyle={{
                         backgroundColor: '#070a16',
-                        borderColor: '#00d4ff',
+                        borderColor: '#38bdf8',
                         borderRadius: '12px',
                         color: '#ffffff',
                         fontFamily: 'JetBrains Mono',
                         fontSize: '11px',
-                        boxShadow: '0 0 20px rgba(0, 212, 255, 0.25)',
+                        boxShadow: '0 0 20px rgba(56, 189, 248, 0.25)',
                       }}
                       formatter={(value, name, props) => [
                         <div key="name" className="font-bold text-white mb-1">
@@ -514,7 +514,7 @@ const Analytics = () => {
                         <div key="hz">HZ: {props.payload.hz}</div>,
                       ]}
                     />
-                    <Scatter dataKey="y" fill="#00d4ff" shape="circle" />
+                    <Scatter dataKey="y" fill="#38bdf8" shape="circle" />
                   </ScatterChart>
                 </ResponsiveContainer>
               </div>

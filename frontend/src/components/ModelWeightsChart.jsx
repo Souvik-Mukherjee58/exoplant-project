@@ -30,7 +30,7 @@ const ModelWeightsChart = ({ data }) => (
       <Tooltip
         contentStyle={{
           backgroundColor: '#070a16',
-          borderColor: '#00d4ff',
+          borderColor: '#38bdf8',
           borderRadius: '12px',
           color: '#ffffff',
           fontSize: '12px',

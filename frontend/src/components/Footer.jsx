@@ -31,7 +31,7 @@ const Footer = () => {
   }, []);
 
   return (
-    <footer className="mt-20 border-t border-exosignal-cyan/20 bg-space-void/90 backdrop-blur-xl">
+    <footer className="mt-20 border-t border-exosignal-cyan/20 bg-space-overlay">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
           {/* Col 1: Platform Overview */}
@@ -85,7 +85,7 @@ const Footer = () => {
 
           {/* Col 3: Data & Astrometry */}
           <div className="space-y-2">
-            <h4 className="text-xs font-mono uppercase tracking-wider text-exosignal-purple font-bold">
+            <h4 className="text-xs font-mono uppercase tracking-wider text-exosignal-purple-light font-bold">
               Data and Reference Methods
             </h4>
             <ul className="space-y-2 text-xs text-exosignal-text-muted">

@@ -144,7 +144,7 @@ const Explorer = () => {
         </div>
 
         {/* View Mode Toggle — Subfeature Navigation */}
-        <div className="flex items-center space-x-1.5 bg-space-void/90 p-1 rounded-xl border border-exosignal-cyan/20">
+        <div className="flex items-center space-x-1.5 bg-space-inset p-1 rounded-xl border border-exosignal-cyan/20">
           <button
             onClick={() => setViewMode('grid')}
             className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all ${
@@ -228,7 +228,7 @@ const Explorer = () => {
             </button>
             <button
               onClick={() => handleQuickPreset('reset')}
-              className="px-2.5 py-1 rounded-full text-xs font-mono bg-space-void text-exosignal-text-muted border border-slate-700 hover:text-white transition-colors"
+              className="px-2.5 py-1 rounded-full text-xs font-mono bg-space-inset text-exosignal-text-muted border border-slate-700 hover:text-white transition-colors"
             >
               Reset Filters
             </button>
@@ -255,7 +255,7 @@ const Explorer = () => {
                     }
                   }}
                   placeholder="e.g. kepler 452 b, TOI-700, TRAPPIST..."
-                  className="w-full bg-space-void/90 border border-exosignal-cyan/30 rounded-xl pl-3 pr-28 py-2 text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:border-exosignal-cyan"
+                  className="w-full bg-space-inset border border-exosignal-cyan/30 rounded-xl pl-3 pr-28 py-2 text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:border-exosignal-cyan"
                 />
                 {filters.name && (
                   <button
@@ -283,7 +283,7 @@ const Explorer = () => {
                 aria-label="Habitable zone status"
                 value={filters.hzStatus}
                 onChange={handleFilterChange}
-                className="w-full bg-space-void/90 border border-exosignal-cyan/30 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-exosignal-cyan"
+                className="w-full bg-space-inset border border-exosignal-cyan/30 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-exosignal-cyan"
               >
                 {HZ_OPTIONS.map((opt) => (
                   <option key={opt} value={opt}>
@@ -322,7 +322,7 @@ const Explorer = () => {
                   aria-label="Sort field"
                   value={filters.sortBy}
                   onChange={handleFilterChange}
-                  className="w-full bg-space-void/90 border border-exosignal-cyan/30 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-exosignal-cyan"
+                  className="w-full bg-space-inset border border-exosignal-cyan/30 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-exosignal-cyan"
                 >
                   <option value="priority">Priority Score</option>
                   <option value="anomaly">Anomaly Score</option>
@@ -335,7 +335,7 @@ const Explorer = () => {
                       sortOrder: prev.sortOrder === 'asc' ? 'desc' : 'asc',
                     }))
                   }
-                  className="px-3 bg-space-void/90 border border-exosignal-cyan/30 rounded-xl text-exosignal-cyan font-mono hover:bg-space-card"
+                  className="px-3 bg-space-inset border border-exosignal-cyan/30 rounded-xl text-exosignal-cyan font-mono hover:bg-space-card"
                   title="Toggle Sort Direction"
                 >
                   {filters.sortOrder === 'asc' ? '↑' : '↓'}
@@ -420,7 +420,7 @@ const Explorer = () => {
                           shapTarget.toLowerCase().replace(/[-\s_]/g, '') ===
                           name.toLowerCase().replace(/[-\s_]/g, '')
                             ? 'bg-purple-500 text-white shadow-[0_0_12px_rgba(168,85,247,0.5)]'
-                            : 'bg-space-void/80 text-purple-300 border border-purple-500/30 hover:border-purple-400'
+                            : 'bg-space-inset text-purple-300 border border-purple-500/30 hover:border-purple-400'
                         }`}
                       >
                         {name}
@@ -463,7 +463,7 @@ const Explorer = () => {
                       }
                     }}
                     placeholder="Type an exoplanet name (e.g. kepler 452 b)..."
-                    className="w-full bg-space-void border border-purple-500/40 rounded-xl px-4 py-2.5 text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:border-purple-400"
+                    className="w-full bg-space-inset border border-purple-500/40 rounded-xl px-4 py-2.5 text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:border-purple-400"
                   />
                 </div>
 
@@ -491,7 +491,7 @@ const Explorer = () => {
 
               {/* Currently Active Planet Badge */}
               {activeShapPlanet && (
-                <div className="flex flex-wrap items-center justify-between gap-3 bg-space-void/90 p-4 rounded-xl border border-purple-500/20 font-mono text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-3 bg-space-inset p-4 rounded-xl border border-purple-500/20 font-mono text-xs">
                   <div className="flex items-center space-x-3">
                     <span className="text-white font-bold text-sm">
                       {activeShapPlanet.planet_name}
@@ -566,7 +566,7 @@ const Explorer = () => {
                     </div>
 
                     {/* Physical Parameters Pill Grid */}
-                    <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-space-void/60 p-2.5 rounded-xl border border-exosignal-cyan/10 mb-4">
+                    <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-space-inset p-2.5 rounded-xl border border-exosignal-cyan/10 mb-4">
                       <div>
                         <span className="text-[10px] text-exosignal-text-muted block">Radius</span>
                         <span className="text-white font-semibold">
@@ -608,7 +608,7 @@ const Explorer = () => {
                         />
                       </span>
                     </div>
-                    <div className="w-full bg-space-void rounded-full h-1.5 overflow-hidden">
+                    <div className="w-full bg-space-inset rounded-full h-1.5 overflow-hidden">
                       <div
                         className="bg-gradient-to-r from-exosignal-cyan to-exosignal-purple h-full rounded-full"
                         style={{
@@ -638,7 +638,7 @@ const Explorer = () => {
                       </Link>
                       <Link
                         to={`/compare?planet_a=${encodeURIComponent(planet.planet_name)}`}
-                        className="px-2 py-1.5 rounded-lg bg-space-void hover:bg-space-card text-exosignal-purple text-xs font-mono font-semibold transition-colors border border-exosignal-purple/30"
+                        className="px-2 py-1.5 rounded-lg bg-space-inset hover:bg-space-card text-exosignal-purple-light text-xs font-mono font-semibold transition-colors border border-exosignal-purple/30"
                         title="Compare target"
                       >
                         VS
@@ -655,7 +655,7 @@ const Explorer = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-xs font-mono">
                 <thead>
-                  <tr className="border-b border-exosignal-cyan/20 bg-space-void/70 text-exosignal-text-muted text-left">
+                  <tr className="border-b border-exosignal-cyan/20 bg-space-inset text-exosignal-text-muted text-left">
                     <th className="py-3 px-4">Rank</th>
                     <th className="py-3 px-4">Planet</th>
                     <th className="py-3 px-4">Radius (R⊕)</th>
@@ -737,14 +737,14 @@ const Explorer = () => {
               <button
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-1.5 rounded-lg bg-space-void border border-exosignal-cyan/30 text-white disabled:opacity-40 hover:bg-space-card"
+                className="px-3 py-1.5 rounded-lg bg-space-inset border border-exosignal-cyan/30 text-white disabled:opacity-40 hover:bg-space-card"
               >
                 ← Previous
               </button>
               <button
                 onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                 disabled={currentPage >= totalPages}
-                className="px-3 py-1.5 rounded-lg bg-space-void border border-exosignal-cyan/30 text-white disabled:opacity-40 hover:bg-space-card"
+                className="px-3 py-1.5 rounded-lg bg-space-inset border border-exosignal-cyan/30 text-white disabled:opacity-40 hover:bg-space-card"
               >
                 Next →
               </button>
@@ -755,7 +755,7 @@ const Explorer = () => {
 
       {/* SHAP Waterfall Quick Inspection Modal */}
       {inspectingPlanet && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-space-void/85 backdrop-blur-md animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-space-overlay backdrop-blur-md animate-fadeIn">
           <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-space-card/95 border border-exosignal-cyan/40 rounded-2xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-exosignal-cyan/20">
               <div className="flex items-center space-x-2">
@@ -779,7 +779,7 @@ const Explorer = () => {
                 <button
                   type="button"
                   onClick={() => setInspectingPlanet(null)}
-                  className="w-8 h-8 rounded-lg bg-space-void hover:bg-space-card border border-slate-700 text-slate-300 flex items-center justify-center text-sm font-bold"
+                  className="w-8 h-8 rounded-lg bg-space-inset hover:bg-space-card border border-slate-700 text-slate-300 flex items-center justify-center text-sm font-bold"
                 >
                   ✕
                 </button>

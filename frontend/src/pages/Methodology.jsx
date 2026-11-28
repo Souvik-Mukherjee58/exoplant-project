@@ -48,7 +48,7 @@ const Methodology = () => {
             detection, and empirical ranking constraints.
           </p>
         </div>
-        <div className="text-xs font-mono text-exosignal-cyan bg-space-void/90 px-3 py-1.5 rounded-xl border border-exosignal-cyan/20">
+        <div className="text-xs font-mono text-exosignal-cyan bg-space-inset px-3 py-1.5 rounded-xl border border-exosignal-cyan/20">
           Supervised ML Ranker + SHAP
         </div>
       </div>
@@ -102,7 +102,7 @@ const Methodology = () => {
 
           <div className="divided-compartment p-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
-              <div className="bg-space-void/80 p-4 rounded-xl border border-exosignal-cyan/20 space-y-1.5">
+              <div className="bg-space-inset p-4 rounded-xl border border-exosignal-cyan/20 space-y-1.5">
                 <span className="text-exosignal-cyan font-bold block text-sm">
                   01 // Ingestion & Manifest Validation
                 </span>
@@ -111,7 +111,7 @@ const Methodology = () => {
                   hashing and local snapshot versioning.
                 </p>
               </div>
-              <div className="bg-space-void/80 p-4 rounded-xl border border-exosignal-cyan/20 space-y-1.5">
+              <div className="bg-space-inset p-4 rounded-xl border border-exosignal-cyan/20 space-y-1.5">
                 <span className="text-exosignal-cyan font-bold block text-sm">
                   02 // Physical Fallbacks
                 </span>
@@ -122,8 +122,8 @@ const Methodology = () => {
                   overstated. A corrected relation awaits the next model rebuild.
                 </p>
               </div>
-              <div className="bg-space-void/80 p-4 rounded-xl border border-exosignal-purple/20 space-y-1.5">
-                <span className="text-exosignal-purple font-bold block text-sm">
+              <div className="bg-space-inset p-4 rounded-xl border border-exosignal-purple/20 space-y-1.5">
+                <span className="text-exosignal-purple-light font-bold block text-sm">
                   03 // Spectroscopic Feature Extraction
                 </span>
                 <p className="text-exosignal-text-muted">
@@ -131,7 +131,7 @@ const Methodology = () => {
                   Spectroscopy Metric (ESM), and atmospheric scale height.
                 </p>
               </div>
-              <div className="bg-space-void/80 p-4 rounded-xl border border-emerald-500/20 space-y-1.5">
+              <div className="bg-space-inset p-4 rounded-xl border border-emerald-500/20 space-y-1.5">
                 <span className="text-emerald-400 font-bold block text-sm">
                   04 // Parquet Columnar Storage
                 </span>
@@ -175,7 +175,7 @@ const Methodology = () => {
             <div className="p-6">
               {/* Category Weight Pills */}
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5 font-mono text-xs">
-                <div className="bg-space-void/90 p-3 rounded-xl border border-exosignal-cyan/30 text-center">
+                <div className="bg-space-inset p-3 rounded-xl border border-exosignal-cyan/30 text-center">
                   <span className="text-[10px] text-exosignal-text-muted block uppercase">
                     Planetary
                   </span>
@@ -183,7 +183,7 @@ const Methodology = () => {
                     {weightsData?.percentages?.planetary_relevance ?? '—'}%
                   </span>
                 </div>
-                <div className="bg-space-void/90 p-3 rounded-xl border border-blue-500/30 text-center">
+                <div className="bg-space-inset p-3 rounded-xl border border-blue-500/30 text-center">
                   <span className="text-[10px] text-exosignal-text-muted block uppercase">
                     Accessibility
                   </span>
@@ -191,7 +191,7 @@ const Methodology = () => {
                     {weightsData?.percentages?.observational_accessibility ?? '—'}%
                   </span>
                 </div>
-                <div className="bg-space-void/90 p-3 rounded-xl border border-amber-500/30 text-center">
+                <div className="bg-space-inset p-3 rounded-xl border border-amber-500/30 text-center">
                   <span className="text-[10px] text-exosignal-text-muted block uppercase">
                     Stellar
                   </span>
@@ -199,7 +199,7 @@ const Methodology = () => {
                     {weightsData?.percentages?.stellar_characteristics ?? '—'}%
                   </span>
                 </div>
-                <div className="bg-space-void/90 p-3 rounded-xl border border-purple-500/30 text-center">
+                <div className="bg-space-inset p-3 rounded-xl border border-purple-500/30 text-center">
                   <span className="text-[10px] text-exosignal-text-muted block uppercase">
                     Completeness
                   </span>
@@ -207,7 +207,7 @@ const Methodology = () => {
                     {weightsData?.percentages?.data_quality ?? '—'}%
                   </span>
                 </div>
-                <div className="bg-space-void/90 p-3 rounded-xl border border-rose-500/30 text-center col-span-2 sm:col-span-1">
+                <div className="bg-space-inset p-3 rounded-xl border border-rose-500/30 text-center col-span-2 sm:col-span-1">
                   <span className="text-[10px] text-exosignal-text-muted block uppercase">
                     Anomaly
                   </span>
@@ -217,7 +217,7 @@ const Methodology = () => {
                 </div>
               </div>
 
-              <div className="bg-space-void/90 rounded-xl p-5 border border-exosignal-cyan/20">
+              <div className="bg-space-inset rounded-xl p-5 border border-exosignal-cyan/20">
                 <pre
                   className="text-xs font-mono text-exosignal-cyan leading-relaxed overflow-x-auto"
                   tabIndex={0}
@@ -260,7 +260,7 @@ const Methodology = () => {
 
           <div className="divided-compartment p-6">
             <div className="space-y-4 text-xs font-mono">
-              <div className="p-4 rounded-xl bg-space-void/80 border border-emerald-500/20">
+              <div className="p-4 rounded-xl bg-space-inset border border-emerald-500/20">
                 <span className="text-emerald-400 font-bold block mb-1">
                   01 // No Extraterrestrial Claims
                 </span>
@@ -273,7 +273,7 @@ const Methodology = () => {
                 </p>
               </div>
 
-              <div className="p-4 rounded-xl bg-space-void/80 border border-exosignal-cyan/20">
+              <div className="p-4 rounded-xl bg-space-inset border border-exosignal-cyan/20">
                 <span className="text-exosignal-cyan font-bold block mb-1">02 // Missing Data</span>
                 <p className="text-exosignal-text-secondary leading-relaxed">
                   Missing values are shown as missing. Inside the models they are handled by an
@@ -283,7 +283,7 @@ const Methodology = () => {
                 </p>
               </div>
 
-              <div className="p-4 rounded-xl bg-space-void/80 border border-amber-500/20">
+              <div className="p-4 rounded-xl bg-space-inset border border-amber-500/20">
                 <span className="text-amber-400 font-bold block mb-1">
                   03 // Habitable Zone Approximations
                 </span>
